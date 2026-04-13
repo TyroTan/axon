@@ -1,0 +1,272 @@
+// Package filesystem — track store.
+// Reads the .experiments/ directory structure and exposes tracks as domain objects.
+// Track identity is derived from directory names matching "track_N" or "track_N_M".
+package filesystem
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/tyrohunt/axon/internal/domain"
+)
+
+var trackDirRe = regexp.MustCompile(`^track_\d+(_\d+)*$`)
+
+// TrackStore reads and writes track directories under experimentsDir.
+type TrackStore struct {
+	experimentsDir string
+}
+
+func NewTrackStore(experimentsDir string) *TrackStore {
+	return &TrackStore{experimentsDir: experimentsDir}
+}
+
+// ListTracks returns all tracks sorted by ID, with Children populated.
+func (s *TrackStore) ListTracks(_ context.Context) ([]domain.Track, error) {
+	entries, err := os.ReadDir(s.experimentsDir)
+	if err != nil {
+		return nil, fmt.Errorf("track store: readdir: %w", err)
+	}
+
+	byID := map[string]*domain.Track{}
+	var ids []string
+
+	for _, e := range entries {
+		if !e.IsDir() || !trackDirRe.MatchString(e.Name()) {
+			continue
+		}
+		t, err := s.readTrack(e.Name())
+		if err != nil {
+			return nil, err
+		}
+		tc := t
+		byID[t.ID] = &tc
+		ids = append(ids, t.ID)
+	}
+	sort.Strings(ids)
+
+	// Attach children to parents.
+	var roots []domain.Track
+	for _, id := range ids {
+		t := byID[id]
+		parent := parentID(id)
+		if parent == "" {
+			roots = append(roots, *t)
+			continue
+		}
+		if p, ok := byID[parent]; ok {
+			p.Children = append(p.Children, *t)
+		} else {
+			// Orphaned child (parent track deleted) — surface as root.
+			roots = append(roots, *t)
+		}
+	}
+	return roots, nil
+}
+
+// GetTrack returns a single track by ID. Returns store.ErrNotFound if missing.
+func (s *TrackStore) GetTrack(_ context.Context, id string) (domain.Track, error) {
+	dir := filepath.Join(s.experimentsDir, id)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return domain.Track{}, &trackNotFound{id: id}
+	}
+	return s.readTrack(id)
+}
+
+// GetConceptMap reads concept_map.json for a track.
+func (s *TrackStore) GetConceptMap(_ context.Context, trackID string) (domain.ConceptMap, error) {
+	path := filepath.Join(s.experimentsDir, trackID, "concept_map.json")
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return domain.ConceptMap{}, fmt.Errorf("track store: read concept_map %s: %w", trackID, err)
+	}
+	var cm domain.ConceptMap
+	if err := json.Unmarshal(b, &cm); err != nil {
+		return domain.ConceptMap{}, fmt.Errorf("track store: parse concept_map %s: %w", trackID, err)
+	}
+	return cm, nil
+}
+
+// WriteConceptMap persists an updated concept_map.json.
+func (s *TrackStore) WriteConceptMap(_ context.Context, trackID string, cm domain.ConceptMap) error {
+	path := filepath.Join(s.experimentsDir, trackID, "concept_map.json")
+	return writeJSON(path, cm)
+}
+
+// CreateTrack creates the track_N directory with a seed README and concept_map.
+func (s *TrackStore) CreateTrack(_ context.Context, t domain.Track, cm domain.ConceptMap) error {
+	dir := filepath.Join(s.experimentsDir, t.ID)
+	if err := os.MkdirAll(filepath.Join(dir, "sessions"), 0o755); err != nil {
+		return fmt.Errorf("track store: mkdir: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "context"), 0o755); err != nil {
+		return fmt.Errorf("track store: mkdir context: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "prompts"), 0o755); err != nil {
+		return fmt.Errorf("track store: mkdir prompts: %w", err)
+	}
+
+	// Write concept_map.json.
+	if err := writeJSON(filepath.Join(dir, "concept_map.json"), cm); err != nil {
+		return err
+	}
+
+	// Write minimal README.
+	readme := fmt.Sprintf("# Track: %s\n\nBranches: %s\n\nCreated: %s\n",
+		t.ID, strings.Join(t.Branches, " · "), t.CreatedAt.Format("2006-01-02"))
+	return os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644)
+}
+
+// ─── internal ─────────────────────────────────────────────────────────────────
+
+func (s *TrackStore) readTrack(id string) (domain.Track, error) {
+	dir := filepath.Join(s.experimentsDir, id)
+	info, err := os.Stat(dir)
+	if err != nil {
+		return domain.Track{}, fmt.Errorf("track store: stat %s: %w", id, err)
+	}
+
+	t := domain.Track{
+		ID:        id,
+		ParentID:  parentID(id),
+		CreatedAt: info.ModTime(),
+	}
+
+	// Try to read branches from concept_map.json.
+	cmPath := filepath.Join(dir, "concept_map.json")
+	if b, err := os.ReadFile(cmPath); err == nil {
+		var cm struct {
+			MajorBranches []string `json:"major_branches"`
+		}
+		if json.Unmarshal(b, &cm) == nil {
+			t.Branches = cm.MajorBranches
+		}
+	}
+	return t, nil
+}
+
+// parentID derives the parent track ID from a child ID.
+// "track_1_2" → "track_1", "track_1" → ""
+func parentID(id string) string {
+	parts := strings.Split(id, "_")
+	if len(parts) <= 2 {
+		return "" // "track_1" has no parent
+	}
+	return strings.Join(parts[:len(parts)-1], "_")
+}
+
+type trackNotFound struct{ id string }
+
+func (e *trackNotFound) Error() string {
+	return fmt.Sprintf("track store: track %q not found", e.id)
+}
+
+// nextTrackID returns the next available track ID under a parent (or root).
+// parentID "" → scans for track_1, track_2, ... and returns first free.
+// parentID "track_1" → scans for track_1_2, track_1_3, ... and returns first free.
+func (s *TrackStore) NextTrackID(parentID string) (string, error) {
+	entries, err := os.ReadDir(s.experimentsDir)
+	if err != nil {
+		return "", fmt.Errorf("track store: readdir: %w", err)
+	}
+	existing := map[string]bool{}
+	for _, e := range entries {
+		if e.IsDir() {
+			existing[e.Name()] = true
+		}
+	}
+	for i := 1; i <= 999; i++ {
+		var candidate string
+		if parentID == "" {
+			candidate = fmt.Sprintf("track_%d", i)
+		} else {
+			candidate = fmt.Sprintf("%s_%d", parentID, i+1)
+		}
+		if !existing[candidate] {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("track store: could not allocate track ID under %q", parentID)
+}
+
+// ─── session directory helpers ────────────────────────────────────────────────
+
+func SessionDir(experimentsDir, trackID string, sessionNumber int) string {
+	return filepath.Join(experimentsDir, trackID, "sessions", fmt.Sprintf("session_%03d", sessionNumber))
+}
+
+func NextSessionNumber(experimentsDir, trackID string) (int, error) {
+	sessDir := filepath.Join(experimentsDir, trackID, "sessions")
+	entries, err := os.ReadDir(sessDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 1, nil
+		}
+		return 0, err
+	}
+	max := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		var n int
+		if _, err := fmt.Sscanf(e.Name(), "session_%d", &n); err == nil && n > max {
+			max = n
+		}
+	}
+	return max + 1, nil
+}
+
+// ListSessions returns Session stubs for a track (presence-checked, no file content).
+func (s *TrackStore) ListSessions(_ context.Context, trackID string) ([]domain.Session, error) {
+	sessDir := filepath.Join(s.experimentsDir, trackID, "sessions")
+	entries, err := os.ReadDir(sessDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("track store: list sessions %s: %w", trackID, err)
+	}
+	var sessions []domain.Session
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		var n int
+		if _, err := fmt.Sscanf(e.Name(), "session_%d", &n); err != nil {
+			continue
+		}
+		dir := filepath.Join(sessDir, e.Name())
+		sessions = append(sessions, domain.Session{
+			TrackID:        trackID,
+			Number:         n,
+			CreatedAt:      fileModTime(filepath.Join(dir, "00_profile_snapshot.json")),
+			HasProfile:     fileExists(filepath.Join(dir, "00_profile_snapshot.json")),
+			HasQuestions:   fileExists(filepath.Join(dir, "01_questions.json")),
+			HasResponses:   fileExists(filepath.Join(dir, "02_responses.json")),
+			HasEvaluations: fileExists(filepath.Join(dir, "03_evaluations.json")),
+			HasSynthesis:   fileExists(filepath.Join(dir, "04_synthesis.json")),
+		})
+	}
+	return sessions, nil
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func fileModTime(path string) time.Time {
+	info, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}
+	}
+	return info.ModTime()
+}
