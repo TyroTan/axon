@@ -3,7 +3,9 @@
 package server
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -40,6 +42,30 @@ func New(cfg Config) *fiber.App {
 			out = append(out, initials)
 		}
 		return strings.Join(out, "·")
+	})
+	engine.AddFunc("joinStr", func(s []string, sep string) string {
+		return strings.Join(s, sep)
+	})
+	engine.AddFunc("bloomPct", view.BloomPct)
+	engine.AddFunc("formatTime", func(t time.Time) string {
+		if t.IsZero() {
+			return "—"
+		}
+		return t.Format("Jan 2, 2006")
+	})
+	engine.AddFunc("not", func(v any) bool {
+		if v == nil {
+			return true
+		}
+		switch val := v.(type) {
+		case bool:
+			return !val
+		case int:
+			return val == 0
+		case string:
+			return val == ""
+		}
+		return fmt.Sprintf("%v", v) == "[]"
 	})
 
 	// ── Stores ───────────────────────────────────────────────────────────────
@@ -107,9 +133,38 @@ func New(cfg Config) *fiber.App {
 
 	// ── HTML routes ──────────────────────────────────────────────────────────
 	app.Get("/", func(c *fiber.Ctx) error {
+		tracks, _ := cqrs.Ask[queries.ListTracksQuery, queries.ListTracksResult](
+			c.Context(), qryBus, queries.ListTracksQuery{},
+		)
 		return c.Render("index", fiber.Map{
-			"Title":       "Home",
-			"Breadcrumbs": []view.Breadcrumb{{Label: "Home"}},
+			"Title":         "Home",
+			"Breadcrumbs":   []view.Breadcrumb{{Label: "Home"}},
+			"SidebarTracks": view.ToSidebarTracks(tracks.Tracks, ""),
+		}, "layout")
+	})
+
+	app.Get("/tracks/:id", func(c *fiber.Ctx) error {
+		trackID := c.Params("id")
+		result, err := cqrs.Ask[queries.GetTrackQuery, queries.GetTrackResult](
+			c.Context(), qryBus, queries.GetTrackQuery{TrackID: trackID},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		tracks, _ := cqrs.Ask[queries.ListTracksQuery, queries.ListTracksResult](
+			c.Context(), qryBus, queries.ListTracksQuery{},
+		)
+		return c.Render("track", fiber.Map{
+			"Title": trackID,
+			"Breadcrumbs": []view.Breadcrumb{
+				{Label: "Home", URL: "/"},
+				{Label: trackID},
+			},
+			"Track":            result.Track,
+			"ConceptMap":       result.ConceptMap,
+			"ConceptsByBranch": view.ConceptsByBranch(result.ConceptMap),
+			"Sessions":         result.Sessions,
+			"SidebarTracks":    view.ToSidebarTracks(tracks.Tracks, trackID),
 		}, "layout")
 	})
 

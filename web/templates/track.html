@@ -1,0 +1,82 @@
+{{template "layout" .}}
+
+{{define "content"}}
+<div class="track-home">
+
+  <!-- Header row -->
+  <div class="track-header">
+    <div>
+      <h1 class="track-title">{{.Track.ID}}</h1>
+      <p class="muted">{{joinStr .Track.Branches " · "}}</p>
+    </div>
+    <div class="track-actions">
+      <a class="btn btn-ghost" href="/tracks/{{.Track.ID}}/duplicate">Duplicate</a>
+      <a class="btn" href="/tracks/{{.Track.ID}}/sessions/new">+ Start Session</a>
+    </div>
+  </div>
+
+  <!-- Two-column layout: heatmap left, sessions right -->
+  <div class="track-body">
+
+    <!-- Concept map heatmap -->
+    <section class="card heatmap-section">
+      <div class="section-title">Concept Map
+        <span class="muted">({{len .ConceptMap.Concepts}} concepts)</span>
+      </div>
+
+      {{range $branch, $concepts := .ConceptsByBranch}}
+      <div class="branch-group">
+        <div class="branch-label">{{$branch}}</div>
+        <div class="heatmap">
+          {{range $concepts}}
+          <div class="heatmap-row">
+            <span class="heatmap-label">
+              {{if .IsBottleneck}}<span class="bottleneck-dot" title="Bottleneck concept"></span>{{end}}{{.Name}}
+            </span>
+            <div class="heatmap-bar-wrap">
+              <div class="heatmap-bar bloom-{{.BloomCurrent}}"
+                   style="width: {{bloomPct .BloomCurrent .BloomTarget}}%"
+                   title="L{{.BloomCurrent}} / L{{.BloomTarget}}">
+              </div>
+            </div>
+            <span class="muted" style="text-align:right">L{{.BloomCurrent}}</span>
+            <span class="muted" style="text-align:right">L{{.BloomTarget}}</span>
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+    </section>
+
+    <!-- Sessions -->
+    <section class="card sessions-section">
+      <div class="section-title">Sessions</div>
+
+      {{if not .Sessions}}
+        <p class="muted" style="margin-top:12px">No sessions yet. Start one to begin.</p>
+      {{else}}
+        <div class="session-list">
+          {{range .Sessions}}
+          <a class="session-row" href="/tracks/{{.TrackID}}/sessions/{{.Number}}">
+            <span class="session-num">#{{.Number}}</span>
+            <div class="session-steps">
+              <span class="step {{if .HasProfile}}done{{end}}" title="Profile">P</span>
+              <span class="step {{if .HasQuestions}}done{{end}}" title="Questions">Q</span>
+              <span class="step {{if .HasResponses}}done{{end}}" title="Responses">R</span>
+              <span class="step {{if .HasEvaluations}}done{{end}}" title="Evaluations">E</span>
+              <span class="step {{if .HasSynthesis}}done{{end}}" title="Synthesis">S</span>
+            </div>
+            <span class="session-date muted">{{formatTime .CreatedAt}}</span>
+          </a>
+          {{end}}
+        </div>
+      {{end}}
+
+      <div style="margin-top:16px">
+        <a class="btn" href="/tracks/{{.Track.ID}}/sessions/new">+ Start Session</a>
+      </div>
+    </section>
+
+  </div>
+</div>
+{{end}}

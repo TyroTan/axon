@@ -15,11 +15,15 @@
       <div class="sidebar-header">
         <span class="logo">Axon</span>
       </div>
-      <div class="sidebar-tracks"
-           hx-get="/api/sidebar"
-           hx-trigger="load"
-           hx-swap="innerHTML">
-        <span class="muted">Loading tracks…</span>
+      <div class="sidebar-tracks">
+        {{if .SidebarTracks}}
+          {{range .SidebarTracks}}{{template "sidebar-track" .}}{{end}}
+          <div class="sidebar-new"><a class="btn btn-ghost" href="/tracks/new">+ New Track</a></div>
+        {{else}}
+          <div hx-get="/api/sidebar" hx-trigger="load" hx-swap="outerHTML">
+            <span class="muted" style="padding:12px 16px;display:block">Loading…</span>
+          </div>
+        {{end}}
       </div>
     </nav>
 

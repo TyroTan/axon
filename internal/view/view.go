@@ -2,7 +2,9 @@
 // Keeps template data shapes separate from domain types.
 package view
 
-import "github.com/tyrohunt/axon/internal/domain"
+import (
+	"github.com/tyrohunt/axon/internal/domain"
+)
 
 // Breadcrumb is one step in the page breadcrumb trail.
 type Breadcrumb struct {
@@ -38,4 +40,26 @@ func toSidebarTrack(t domain.Track, activeID string) SidebarTrack {
 		IsActive: t.ID == activeID,
 		Children: children,
 	}
+}
+
+// ConceptsByBranch groups concepts by their branch, preserving branch order.
+func ConceptsByBranch(cm domain.ConceptMap) map[string][]domain.Concept {
+	// Use a map; order preserved by MajorBranches field in the template loop.
+	out := make(map[string][]domain.Concept, len(cm.MajorBranches))
+	for _, c := range cm.Concepts {
+		out[c.Branch] = append(out[c.Branch], c)
+	}
+	return out
+}
+
+// BloomPct returns the fill percentage of bloom_current relative to bloom_target (capped at 100).
+func BloomPct(current, target int) int {
+	if target == 0 {
+		return 0
+	}
+	pct := (current * 100) / target
+	if pct > 100 {
+		return 100
+	}
+	return pct
 }
