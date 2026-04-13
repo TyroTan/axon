@@ -1,0 +1,24 @@
+{{range .Tracks}}
+  {{template "sidebar-track" .}}
+{{end}}
+<div class="sidebar-new">
+  <a class="btn btn-ghost" href="/tracks/new">+ New Track</a>
+</div>
+
+{{define "sidebar-track"}}
+<div class="track-node {{if .IsActive}}active{{end}}">
+  <a class="track-link" href="/tracks/{{.ID}}">
+    <span class="track-id">{{.ID}}</span>
+    {{if .Branches}}
+      <span class="track-branches muted">{{branchInitials .Branches}}</span>
+    {{end}}
+  </a>
+  {{if .Children}}
+  <div class="track-children">
+    {{range .Children}}
+      {{template "sidebar-track" .}}
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}

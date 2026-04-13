@@ -1,0 +1,170 @@
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0f1117;
+  --surface:     #181c27;
+  --surface-2:   #1e2336;
+  --border:      #2a2f42;
+  --text:        #e2e8f0;
+  --muted:       #64748b;
+  --accent:      #6366f1;        /* indigo */
+  --accent-dim:  #4f46e5;
+  --green:       #22c55e;
+  --yellow:      #eab308;
+  --red:         #ef4444;
+  --sidebar-w:   220px;
+  --topbar-h:    48px;
+  --radius:      6px;
+  --font:        'Inter', system-ui, sans-serif;
+  --font-mono:   'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.muted { color: var(--muted); font-size: 12px; }
+
+/* ── App shell ─────────────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.sidebar-tracks { flex: 1; padding: 8px 0; }
+.sidebar-new { padding: 8px 12px 16px; }
+
+.track-node { padding: 0; }
+.track-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  color: var(--text);
+  transition: background 0.12s;
+  border-radius: 0;
+}
+.track-link:hover { background: var(--surface-2); text-decoration: none; }
+.track-node.active > .track-link { background: var(--surface-2); color: var(--accent); }
+
+.track-id { font-family: var(--font-mono); font-size: 12px; }
+.track-branches { margin-left: auto; }
+
+.track-children { padding-left: 16px; border-left: 1px solid var(--border); margin-left: 20px; }
+
+/* ── Main ──────────────────────────────────────────────────────────────────── */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Topbar / breadcrumb ───────────────────────────────────────────────────── */
+.topbar {
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.bc-sep { color: var(--muted); }
+.bc-item { color: var(--muted); }
+.bc-item:hover { color: var(--text); }
+.bc-current { color: var(--text); font-weight: 500; }
+
+/* ── Content area ──────────────────────────────────────────────────────────── */
+.content { flex: 1; overflow-y: auto; padding: 32px; }
+
+/* ── Home splash ───────────────────────────────────────────────────────────── */
+.home-splash { max-width: 480px; margin-top: 80px; }
+.home-splash h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.home-splash .muted { font-size: 14px; margin-bottom: 24px; }
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s;
+  text-decoration: none;
+}
+.btn:hover { background: var(--accent-dim); text-decoration: none; color: #fff; }
+.btn-ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: var(--surface-2); color: var(--accent); }
+
+/* ── Bloom heatmap (used on track home) ────────────────────────────────────── */
+.heatmap { display: flex; flex-direction: column; gap: 6px; }
+.heatmap-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 40px 40px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.heatmap-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.heatmap-bar-wrap { background: var(--surface-2); border-radius: 4px; height: 8px; }
+.heatmap-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.bloom-1 { background: #334155; }
+.bloom-2 { background: #1e3a5f; }
+.bloom-3 { background: #1e4d5f; }
+.bloom-4 { background: #14532d; }
+.bloom-5 { background: #22c55e; }
+.bloom-6 { background: #6366f1; }
+.bottleneck-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); margin-right: 4px; vertical-align: middle; }
+
+/* ── Card ──────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }

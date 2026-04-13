@@ -19,6 +19,12 @@ func main() {
 		experimentsDir = filepath.Dir(exe)
 	}
 
+	// WebDir defaults to <experimentsDir>/web
+	webDir := os.Getenv("AXON_WEB_DIR")
+	if webDir == "" {
+		webDir = filepath.Join(experimentsDir, "web")
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3456"
@@ -26,6 +32,7 @@ func main() {
 
 	app := server.New(server.Config{
 		ExperimentsDir: experimentsDir,
+		WebDir:         webDir,
 		Port:           port,
 	})
 

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{.Title}} — Axon</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2uodhCn9B6Lw7xdVuAEJXwr7AYE5yEHHZi" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="/static/css/axon.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">Axon</span>
+      </div>
+      <div class="sidebar-tracks"
+           hx-get="/api/sidebar"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <span class="muted">Loading tracks…</span>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <div class="main">
+
+      <!-- Breadcrumb -->
+      <header class="topbar">
+        <nav class="breadcrumb" aria-label="breadcrumb">
+          {{range $i, $crumb := .Breadcrumbs}}
+            {{if $i}}<span class="bc-sep">›</span>{{end}}
+            {{if $crumb.URL}}
+              <a class="bc-item" href="{{$crumb.URL}}">{{$crumb.Label}}</a>
+            {{else}}
+              <span class="bc-item bc-current">{{$crumb.Label}}</span>
+            {{end}}
+          {{end}}
+        </nav>
+      </header>
+
+      <!-- Page content -->
+      <main class="content">
+        {{template "content" .}}
+      </main>
+
+    </div>
+  </div>
+</body>
+</html>
