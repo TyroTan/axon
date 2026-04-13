@@ -1,73 +1,27 @@
 // Package server wires all dependencies and registers routes.
 // This is the composition root — the only place that knows about all packages.
+// Fiber is a pure JSON API server. The React UI (ui/) handles all rendering.
 package server
 
 import (
-	"fmt"
-	"strings"
-	"time"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/template/html/v2"
 
 	"github.com/tyrohunt/axon/internal/cqrs"
 	"github.com/tyrohunt/axon/internal/queries"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
-	"github.com/tyrohunt/axon/internal/view"
 )
 
 // Config holds server configuration.
 type Config struct {
 	ExperimentsDir string // absolute path to .experiments/ folder
 	Port           string // e.g. "3456"
-	WebDir         string // absolute path to web/ folder (templates + static)
+	DistDir        string // absolute path to web/dist/ (served as SPA in production)
 }
 
 // New wires dependencies and returns a configured Fiber app.
 func New(cfg Config) *fiber.App {
-	// ── Template engine ──────────────────────────────────────────────────────
-	engine := html.New(cfg.WebDir+"/templates", ".html")
-	engine.AddFunc("branchInitials", func(branches []string) string {
-		out := make([]string, 0, len(branches))
-		for _, b := range branches {
-			words := strings.Fields(b)
-			initials := ""
-			for _, w := range words {
-				if len(w) > 0 {
-					initials += strings.ToUpper(string(w[0]))
-				}
-			}
-			out = append(out, initials)
-		}
-		return strings.Join(out, "·")
-	})
-	engine.AddFunc("joinStr", func(s []string, sep string) string {
-		return strings.Join(s, sep)
-	})
-	engine.AddFunc("bloomPct", view.BloomPct)
-	engine.AddFunc("formatTime", func(t time.Time) string {
-		if t.IsZero() {
-			return "—"
-		}
-		return t.Format("Jan 2, 2006")
-	})
-	engine.AddFunc("not", func(v any) bool {
-		if v == nil {
-			return true
-		}
-		switch val := v.(type) {
-		case bool:
-			return !val
-		case int:
-			return val == 0
-		case string:
-			return val == ""
-		}
-		return fmt.Sprintf("%v", v) == "[]"
-	})
-
 	// ── Stores ───────────────────────────────────────────────────────────────
 	trackStore := filesystem.NewTrackStore(cfg.ExperimentsDir)
 
@@ -82,18 +36,14 @@ func New(cfg Config) *fiber.App {
 
 	// ── Command bus ──────────────────────────────────────────────────────────
 	cmdBus := cqrs.NewCommandBus()
-	_ = cmdBus // commands added in subsequent phases
+	_ = cmdBus // commands registered in subsequent phases
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
 		AppName: "Axon",
-		Views:   engine,
 	})
 	app.Use(recover.New())
 	app.Use(logger.New())
-
-	// ── Static files ─────────────────────────────────────────────────────────
-	app.Static("/static", cfg.WebDir+"/static")
 
 	// ── API routes ───────────────────────────────────────────────────────────
 	api := app.Group("/api")
@@ -118,55 +68,16 @@ func New(cfg Config) *fiber.App {
 		return c.JSON(result)
 	})
 
-	// Sidebar partial — HTMX fetches this on load.
-	api.Get("/sidebar", func(c *fiber.Ctx) error {
-		result, err := cqrs.Ask[queries.ListTracksQuery, queries.ListTracksResult](
-			c.Context(), qryBus, queries.ListTracksQuery{},
-		)
-		if err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
-		}
-		return c.Render("partials/sidebar", fiber.Map{
-			"Tracks": view.ToSidebarTracks(result.Tracks, ""),
+	// ── SPA static serving (production) ──────────────────────────────────────
+	// In dev: Vite dev server on :5173 proxies /api to here.
+	// In prod: serve the built React app from web/dist/. All non-API routes
+	// fall through to index.html so React Router handles client-side navigation.
+	if cfg.DistDir != "" {
+		app.Static("/", cfg.DistDir)
+		app.Get("/*", func(c *fiber.Ctx) error {
+			return c.SendFile(cfg.DistDir + "/index.html")
 		})
-	})
-
-	// ── HTML routes ──────────────────────────────────────────────────────────
-	app.Get("/", func(c *fiber.Ctx) error {
-		tracks, _ := cqrs.Ask[queries.ListTracksQuery, queries.ListTracksResult](
-			c.Context(), qryBus, queries.ListTracksQuery{},
-		)
-		return c.Render("index", fiber.Map{
-			"Title":         "Home",
-			"Breadcrumbs":   []view.Breadcrumb{{Label: "Home"}},
-			"SidebarTracks": view.ToSidebarTracks(tracks.Tracks, ""),
-		}, "layout")
-	})
-
-	app.Get("/tracks/:id", func(c *fiber.Ctx) error {
-		trackID := c.Params("id")
-		result, err := cqrs.Ask[queries.GetTrackQuery, queries.GetTrackResult](
-			c.Context(), qryBus, queries.GetTrackQuery{TrackID: trackID},
-		)
-		if err != nil {
-			return fiber.NewError(fiber.StatusNotFound, err.Error())
-		}
-		tracks, _ := cqrs.Ask[queries.ListTracksQuery, queries.ListTracksResult](
-			c.Context(), qryBus, queries.ListTracksQuery{},
-		)
-		return c.Render("track", fiber.Map{
-			"Title": trackID,
-			"Breadcrumbs": []view.Breadcrumb{
-				{Label: "Home", URL: "/"},
-				{Label: trackID},
-			},
-			"Track":            result.Track,
-			"ConceptMap":       result.ConceptMap,
-			"ConceptsByBranch": view.ConceptsByBranch(result.ConceptMap),
-			"Sessions":         result.Sessions,
-			"SidebarTracks":    view.ToSidebarTracks(tracks.Tracks, trackID),
-		}, "layout")
-	})
+	}
 
 	return app
 }

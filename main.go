@@ -19,10 +19,11 @@ func main() {
 		experimentsDir = filepath.Dir(exe)
 	}
 
-	// WebDir defaults to <experimentsDir>/web
-	webDir := os.Getenv("AXON_WEB_DIR")
-	if webDir == "" {
-		webDir = filepath.Join(experimentsDir, "web")
+	// DistDir: built React app served as SPA in production.
+	// Set to "" to disable (dev mode: Vite dev server handles the UI).
+	distDir := os.Getenv("AXON_DIST_DIR")
+	if distDir == "" {
+		distDir = filepath.Join(experimentsDir, "web", "dist")
 	}
 
 	port := os.Getenv("PORT")
@@ -32,10 +33,10 @@ func main() {
 
 	app := server.New(server.Config{
 		ExperimentsDir: experimentsDir,
-		WebDir:         webDir,
+		DistDir:        distDir,
 		Port:           port,
 	})
 
-	log.Printf("Axon running on http://localhost:%s", port)
+	log.Printf("Axon API on http://localhost:%s  |  UI on http://localhost:5173 (dev)", port)
 	log.Fatal(app.Listen(":" + port))
 }
