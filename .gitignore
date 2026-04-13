@@ -5,6 +5,11 @@ track_*/context/*.snapshot.md
 # Build artifacts
 axon
 *.out
+web/dist/
+
+# Frontend
+ui/node_modules/
+ui/.vite/
 
 # Environment
 .env
