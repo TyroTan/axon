@@ -1,0 +1,11 @@
+# Track data — local only (raw responses, session data, context snapshots)
+track_*/sessions/
+track_*/context/*.snapshot.md
+
+# Build artifacts
+axon
+*.out
+
+# Environment
+.env
+.env.*

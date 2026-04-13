@@ -1,0 +1,363 @@
+{
+  "track": "track_1",
+  "major_branches": ["ML Fundamentals", "ML Math Theory", "RAG Architecture", "LLM Systems"],
+  "generated_at": "2026-04-12",
+  "note": "Seed map — generated from major branch names. Run prompt 00 to regenerate with richer descriptions. bloom_current starts at 1 for all concepts; updated by session synthesizer after each session.",
+  "concepts": [
+    {
+      "index": 0,
+      "name": "supervised learning paradigm",
+      "branch": "ML Fundamentals",
+      "description": "Input-label pairs, train/val/test discipline, generalization vs memorization",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [1, 2, 3, 4],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 1,
+      "name": "loss functions and their geometry",
+      "branch": "ML Fundamentals",
+      "description": "MSE, cross-entropy, hinge loss — what each penalizes and when to use which",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [0],
+      "unlocks_indexes": [2, 8],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 2,
+      "name": "gradient descent mechanics",
+      "branch": "ML Fundamentals",
+      "description": "Parameter update rule, learning rate effect, SGD vs mini-batch vs full batch, convergence criteria",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [1],
+      "unlocks_indexes": [3, 9, 10],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 3,
+      "name": "overfitting, regularization, and bias-variance tradeoff",
+      "branch": "ML Fundamentals",
+      "description": "L1/L2 regularization, dropout, early stopping — why they work mechanistically",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [0, 2],
+      "unlocks_indexes": [4],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 4,
+      "name": "evaluation metrics and their failure modes",
+      "branch": "ML Fundamentals",
+      "description": "Accuracy, precision/recall, F1, AUC — when each misleads and why",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [0],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 5,
+      "name": "neural network building blocks",
+      "branch": "ML Fundamentals",
+      "description": "Layer types, activation functions, forward pass — what each component computes",
+      "bloom_current": 1, "bloom_target": 3,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [2],
+      "unlocks_indexes": [6, 7],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 6,
+      "name": "fine-tuning vs training from scratch",
+      "branch": "ML Fundamentals",
+      "description": "Transfer learning mechanics, when fine-tuning helps, catastrophic forgetting",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [5],
+      "unlocks_indexes": [30],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 7,
+      "name": "attention mechanism intuition",
+      "branch": "ML Fundamentals",
+      "description": "Query/key/value framing, why attention enables long-range dependencies",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [5],
+      "unlocks_indexes": [28, 29],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+
+    {
+      "index": 8,
+      "name": "calculus for ML — chain rule and backpropagation",
+      "branch": "ML Math Theory",
+      "description": "Computational graph, chain rule application, vanishing/exploding gradients",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [1, 2],
+      "unlocks_indexes": [9, 10],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 9,
+      "name": "linear algebra for ML — matrix operations",
+      "branch": "ML Math Theory",
+      "description": "Matrix multiply as learned transformation, eigenvectors, SVD intuition, dimensionality",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [10, 16, 17],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 10,
+      "name": "optimization landscape — saddle points, local minima, flat regions",
+      "branch": "ML Math Theory",
+      "description": "Why loss surfaces are high-dimensional, practical implications for training",
+      "bloom_current": 1, "bloom_target": 3,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [8, 9],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 11,
+      "name": "probability and statistics for ML",
+      "branch": "ML Math Theory",
+      "description": "Bayes theorem, MLE, distributions relevant to ML (Gaussian, Bernoulli, categorical)",
+      "bloom_current": 1, "bloom_target": 3,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [12],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 12,
+      "name": "information theory for ML — entropy, KL divergence, mutual information",
+      "branch": "ML Math Theory",
+      "description": "How cross-entropy loss connects to KL divergence, why entropy measures uncertainty",
+      "bloom_current": 1, "bloom_target": 3,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [11],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 13,
+      "name": "embedding space geometry",
+      "branch": "ML Math Theory",
+      "description": "What it means for vectors to be 'close', cosine vs Euclidean, manifold intuition",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [9],
+      "unlocks_indexes": [16, 17, 18],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+
+    {
+      "index": 14,
+      "name": "chunking strategies and tradeoffs",
+      "branch": "RAG Architecture",
+      "description": "Fixed-size vs semantic chunking, chunk overlap, why chunk size affects retrieval quality",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [15, 16, 17],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 15,
+      "name": "similarity metrics and their failure modes",
+      "branch": "RAG Architecture",
+      "description": "Cosine similarity, dot product, L2 distance — when each fails and why",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [13, 14],
+      "unlocks_indexes": [16],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 16,
+      "name": "dense vs sparse retrieval and hybrid strategies",
+      "branch": "RAG Architecture",
+      "description": "BM25 vs embedding-based, when each wins, hybrid retrieval mechanics",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [13, 15],
+      "unlocks_indexes": [17],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 17,
+      "name": "re-ranking and context assembly",
+      "branch": "RAG Architecture",
+      "description": "Cross-encoder re-ranking, MMR for diversity, how retrieved chunks become context",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [16],
+      "unlocks_indexes": [18],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 18,
+      "name": "RAG context budget management",
+      "branch": "RAG Architecture",
+      "description": "Token budget allocation between context/system/response, truncation strategies",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [17],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 19,
+      "name": "graph-based retrieval and knowledge graphs",
+      "branch": "RAG Architecture",
+      "description": "Entity graphs, graph traversal for context expansion, when graphs beat flat retrieval",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [14, 15],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 20,
+      "name": "RAG evaluation — retrieval quality metrics",
+      "branch": "RAG Architecture",
+      "description": "MRR, NDCG, recall@K, precision@K — what each measures and what it misses",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [16],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 21,
+      "name": "meta-cognition on RAG — when not to use it",
+      "branch": "RAG Architecture",
+      "description": "Failure modes of RAG, when fine-tuning or pure prompting is better, latency tradeoffs",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [16, 17, 18],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+
+    {
+      "index": 22,
+      "name": "context window mechanics and implications",
+      "branch": "LLM Systems",
+      "description": "KV cache, attention cost scaling, why position matters, practical limits",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [7],
+      "unlocks_indexes": [23, 24, 25],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 23,
+      "name": "tokenization and its practical implications",
+      "branch": "LLM Systems",
+      "description": "BPE, why token count ≠ word count, multi-language tokenization asymmetry, code tokenization",
+      "bloom_current": 1, "bloom_target": 3,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [22],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 24,
+      "name": "system prompt vs user message design",
+      "branch": "LLM Systems",
+      "description": "What belongs in system vs user, persona anchoring, instruction precedence",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [22],
+      "unlocks_indexes": [25, 26],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 25,
+      "name": "latent space activation via vocabulary",
+      "branch": "LLM Systems",
+      "description": "Why domain jargon activates quality clusters; compressed pointers to practitioner knowledge",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [24],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 26,
+      "name": "tool use and function calling mechanics",
+      "branch": "LLM Systems",
+      "description": "Tool schema design, model decision on when to call, parallel vs sequential tool use",
+      "bloom_current": 1, "bloom_target": 4,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [24],
+      "unlocks_indexes": [27],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 27,
+      "name": "agentic loop design and state management",
+      "branch": "LLM Systems",
+      "description": "Plan-execute loops, state machine patterns for agents, parking and resume, idempotency",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [26],
+      "unlocks_indexes": [28],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 28,
+      "name": "multi-agent orchestration patterns",
+      "branch": "LLM Systems",
+      "description": "Parallel vs serial agents, verdict synthesis, when to use multi-agent vs single-agent",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [27],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 29,
+      "name": "model capability vs limitation calibration",
+      "branch": "LLM Systems",
+      "description": "Knowing what current models reliably do vs fail at; hallucination patterns; reliability boundaries",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [7, 22],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 30,
+      "name": "fine-tuning vs RAG decision framework",
+      "branch": "LLM Systems",
+      "description": "When each is appropriate, cost/accuracy tradeoffs, hybrid approaches",
+      "bloom_current": 1, "bloom_target": 5,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [6, 21],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    },
+    {
+      "index": 31,
+      "name": "RLHF and alignment mechanics",
+      "branch": "LLM Systems",
+      "description": "Reward model, PPO, preference data — why RLHF changes model behavior in non-obvious ways",
+      "bloom_current": 1, "bloom_target": 3,
+      "is_bottleneck": false,
+      "prerequisite_indexes": [2, 7],
+      "unlocks_indexes": [],
+      "spaced_repetition": { "next_review": null, "interval_days": 0, "consecutive_correct": 0 }
+    }
+  ]
+}
