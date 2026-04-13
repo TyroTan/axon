@@ -29,19 +29,19 @@ Content scaffolding and system design. No server yet.
 
 ---
 
-## Phase 1 — Core Backend 📋
+## Phase 1 — Core Backend ✅
 
 **Goal:** `go run .` starts a server that can list tracks and read the filesystem.
 
-- 📋 `go.mod` + project skeleton (`main.go`, `server/`, `internal/`)
-- 📋 Domain types: `Track`, `ConceptMap`, `Session`, `Question`, `Response`, `Evaluation`, `Synthesis`
-- 📋 Store interface: `Collection[T]` with `FindOne`, `Find`, `FindOneAndUpdate`, `UpdateOne`, `InsertOne`, `DeleteOne`
-- 📋 Filesystem store implementation (JSON files under `.experiments/track_N/`)
-- 📋 CQRS buses: `CommandBus`, `QueryBus` (in-process, type-safe dispatch)
-- 📋 First query: `ListTracksQuery` → returns track tree (parent/child hierarchy)
-- 📋 First command: `CreateTrackCommand` → creates `track_N/` folder + seed `concept_map.json`
-- 📋 Dependency injection wiring (`wire.go`)
-- 📋 `GET /api/tracks` returns JSON track tree
+- ✅ `go.mod` + project skeleton (`main.go`, `server/`, `internal/`)
+- ✅ Domain types: `Track`, `ConceptMap`, `Session`, `Question`, `Response`, `Evaluation`, `Synthesis`, `SteerIntent`
+- ✅ Store interface: `Collection[T]` with `FindOne`, `Find`, `FindOneAndUpdate`, `UpdateOne`, `InsertOne`, `DeleteOne` — MongoDB-style `$set/$inc/$push/$unset`, dot-notation nested access
+- ✅ Filesystem store — `Collection[T]` (JSON files, RWMutex), `TrackStore` (track tree, concept map, sessions)
+- ✅ CQRS buses: `CommandBus` + `QueryBus` with type-safe generic dispatch
+- ✅ `ListTracksQuery` → track tree (parent/child via `_N` suffix parsing)
+- ✅ `GetTrackQuery` → track + concept map + session stubs
+- ✅ Composition root in `server/server.go` — all DI here
+- ✅ `GET /api/tracks` and `GET /api/tracks/:id` live and returning data
 
 ---
 

@@ -7,10 +7,22 @@ Format: [semantic version] — date — description.
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] — 2026-04-13 — Phase 1: Go server skeleton
+
 ### Added
-- `ROADMAP.md` — phased delivery plan with status tracking
-- `CHANGELOG.md` — this file
-- Git initialized as standalone project
+- `go.mod` — module `github.com/tyrohunt/axon`, Fiber v2 dependency
+- `main.go` — entry point; `AXON_DIR` env (experiments dir), `PORT` env (default 3456)
+- `internal/domain/types.go` — all domain types: `Track`, `ConceptMap`, `Concept`, `Session`, `Question`, `Response`, `Evaluation`, `Synthesis`, `SteerIntent`, `SpacedRepetition`
+- `internal/store/interface.go` — backend-agnostic `Collection[T]` interface; MongoDB-style `Filter`/`Update` with `$set`, `$inc`, `$push`, `$unset` operators and dot-notation nested field access; `ErrNotFound` type
+- `internal/store/filesystem/collection.go` — JSON-file `Collection[T]` implementation with `sync.RWMutex`
+- `internal/store/filesystem/track_store.go` — `TrackStore`: `ListTracks` (parent/child tree), `GetTrack`, `GetConceptMap`, `WriteConceptMap`, `CreateTrack`, `ListSessions`, `NextTrackID`, `NextSessionNumber`
+- `internal/cqrs/bus.go` — `CommandBus` and `QueryBus` with type-safe generic `Register`/`RegisterQuery`/`Dispatch`/`Ask` helpers
+- `internal/queries/list_tracks.go` — `ListTracksQuery` → `ListTracksResult`
+- `internal/queries/get_track.go` — `GetTrackQuery` → `GetTrackResult` (track + concept map + sessions)
+- `server/server.go` — composition root: wires stores → buses → Fiber routes
+- `ROADMAP.md`, `CHANGELOG.md` — project management docs
 
 ---
 
