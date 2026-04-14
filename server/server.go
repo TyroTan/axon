@@ -19,6 +19,7 @@ import (
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
 	"github.com/tyrohunt/axon/internal/llm/anthropic"
+	"github.com/tyrohunt/axon/internal/llm/claudecli"
 	"github.com/tyrohunt/axon/internal/queries"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
@@ -62,9 +63,13 @@ func New(cfg Config) *fiber.App {
 	)
 
 	// ── LLM client ───────────────────────────────────────────────────────────
+	// Default: claude CLI (uses existing auth, no API key needed).
+	// Override: set ANTHROPIC_API_KEY to use the HTTP API directly instead.
 	var llmClient llm.Client
 	if cfg.AnthropicAPIKey != "" {
 		llmClient = anthropic.New(cfg.AnthropicAPIKey)
+	} else {
+		llmClient = claudecli.New("")
 	}
 
 	// ── Command bus ──────────────────────────────────────────────────────────
@@ -179,9 +184,6 @@ func New(cfg Config) *fiber.App {
 
 	// POST /api/tracks/:id/sessions/:num/questions/generate — SSE stream.
 	api.Post("/tracks/:id/sessions/:num/questions/generate", func(c *fiber.Ctx) error {
-		if llmClient == nil {
-			return fiber.NewError(fiber.StatusServiceUnavailable, "ANTHROPIC_API_KEY not set")
-		}
 		num, err := strconv.Atoi(c.Params("num"))
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
@@ -271,9 +273,6 @@ func New(cfg Config) *fiber.App {
 
 	// POST /api/tracks/:id/sessions/:num/evaluate — SSE evaluation stream.
 	api.Post("/tracks/:id/sessions/:num/evaluate", func(c *fiber.Ctx) error {
-		if llmClient == nil {
-			return fiber.NewError(fiber.StatusServiceUnavailable, "ANTHROPIC_API_KEY not set")
-		}
 		num, err := strconv.Atoi(c.Params("num"))
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
@@ -326,9 +325,6 @@ func New(cfg Config) *fiber.App {
 
 	// POST /api/tracks/:id/sessions/:num/synthesize — SSE synthesis stream.
 	api.Post("/tracks/:id/sessions/:num/synthesize", func(c *fiber.Ctx) error {
-		if llmClient == nil {
-			return fiber.NewError(fiber.StatusServiceUnavailable, "ANTHROPIC_API_KEY not set")
-		}
 		num, err := strconv.Atoi(c.Params("num"))
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
