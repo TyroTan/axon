@@ -155,7 +155,7 @@ func New(cfg Config) *fiber.App {
 		return c.Status(fiber.StatusCreated).JSON(result)
 	})
 
-	// GET /api/tracks/:id/sessions/:num/questions
+	// GET /api/tracks/:id/sessions/:num/questions — returns empty array if not yet generated.
 	api.Get("/tracks/:id/sessions/:num/questions", func(c *fiber.Ctx) error {
 		num, err := strconv.Atoi(c.Params("num"))
 		if err != nil {
@@ -167,7 +167,7 @@ func New(cfg Config) *fiber.App {
 			},
 		)
 		if err != nil {
-			return fiber.NewError(fiber.StatusNotFound, err.Error())
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(result)
 	})
@@ -247,7 +247,7 @@ func New(cfg Config) *fiber.App {
 		return c.JSON(result)
 	})
 
-	// GET /api/tracks/:id/sessions/:num/evaluations
+	// GET /api/tracks/:id/sessions/:num/evaluations — returns empty array if not yet evaluated.
 	api.Get("/tracks/:id/sessions/:num/evaluations", func(c *fiber.Ctx) error {
 		num, err := strconv.Atoi(c.Params("num"))
 		if err != nil {
@@ -259,7 +259,7 @@ func New(cfg Config) *fiber.App {
 			},
 		)
 		if err != nil {
-			return fiber.NewError(fiber.StatusNotFound, err.Error())
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.JSON(result)
 	})

@@ -243,10 +243,14 @@ func (s *TrackStore) WriteSessionFile(_ context.Context, trackID string, session
 }
 
 // ReadSessionFile reads a file from a session directory.
+// Returns (nil, nil) when the file does not exist yet — callers treat this as "not generated".
 func (s *TrackStore) ReadSessionFile(_ context.Context, trackID string, sessionNum int, filename string) ([]byte, error) {
 	path := filepath.Join(SessionDir(s.experimentsDir, trackID, sessionNum), filename)
 	b, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("track store: read session file %s/%d/%s: %w", trackID, sessionNum, filename, err)
 	}
 	return b, nil

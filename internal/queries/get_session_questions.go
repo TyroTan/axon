@@ -33,13 +33,11 @@ func (h *GetSessionQuestionsHandler) Handle(ctx context.Context, q GetSessionQue
 	if err != nil {
 		return GetSessionQuestionsResult{}, fmt.Errorf("get session questions: %w", err)
 	}
-	var questions []domain.Question
-	if err := json.Unmarshal(b, &questions); err != nil {
-		return GetSessionQuestionsResult{}, fmt.Errorf("get session questions: parse: %w", err)
+	result := GetSessionQuestionsResult{TrackID: q.TrackID, SessionNumber: q.SessionNumber, Questions: []domain.Question{}}
+	if b != nil {
+		if err := json.Unmarshal(b, &result.Questions); err != nil {
+			return GetSessionQuestionsResult{}, fmt.Errorf("get session questions: parse: %w", err)
+		}
 	}
-	return GetSessionQuestionsResult{
-		TrackID:       q.TrackID,
-		SessionNumber: q.SessionNumber,
-		Questions:     questions,
-	}, nil
+	return result, nil
 }

@@ -33,13 +33,11 @@ func (h *GetSessionEvaluationsHandler) Handle(ctx context.Context, q GetSessionE
 	if err != nil {
 		return GetSessionEvaluationsResult{}, fmt.Errorf("get session evaluations: %w", err)
 	}
-	var evaluations []domain.Evaluation
-	if err := json.Unmarshal(b, &evaluations); err != nil {
-		return GetSessionEvaluationsResult{}, fmt.Errorf("get session evaluations: parse: %w", err)
+	result := GetSessionEvaluationsResult{TrackID: q.TrackID, SessionNumber: q.SessionNumber, Evaluations: []domain.Evaluation{}}
+	if b != nil {
+		if err := json.Unmarshal(b, &result.Evaluations); err != nil {
+			return GetSessionEvaluationsResult{}, fmt.Errorf("get session evaluations: parse: %w", err)
+		}
 	}
-	return GetSessionEvaluationsResult{
-		TrackID:       q.TrackID,
-		SessionNumber: q.SessionNumber,
-		Evaluations:   evaluations,
-	}, nil
+	return result, nil
 }
