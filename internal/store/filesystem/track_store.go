@@ -168,9 +168,10 @@ func (e *trackNotFound) Error() string {
 	return fmt.Sprintf("track store: track %q not found", e.id)
 }
 
-// nextTrackID returns the next available track ID under a parent (or root).
-// parentID "" → scans for track_1, track_2, ... and returns first free.
-// parentID "track_1" → scans for track_1_2, track_1_3, ... and returns first free.
+// NextTrackID returns the next available child track ID for a given parent.
+// NextTrackID("track_1")   → "track_1_2" (or _3, _4 if _2 exists)
+// NextTrackID("track_1_2") → "track_1_2_2"
+// NextTrackID("")           → "track_1" (or _2, ... for root tracks)
 func (s *TrackStore) NextTrackID(parentID string) (string, error) {
 	entries, err := os.ReadDir(s.experimentsDir)
 	if err != nil {
@@ -182,18 +183,51 @@ func (s *TrackStore) NextTrackID(parentID string) (string, error) {
 			existing[e.Name()] = true
 		}
 	}
-	for i := 1; i <= 999; i++ {
+	for i := 2; i <= 999; i++ {
 		var candidate string
 		if parentID == "" {
-			candidate = fmt.Sprintf("track_%d", i)
+			candidate = fmt.Sprintf("track_%d", i-1) // root: track_1, track_2, ...
 		} else {
-			candidate = fmt.Sprintf("%s_%d", parentID, i+1)
+			candidate = fmt.Sprintf("%s_%d", parentID, i)
 		}
 		if !existing[candidate] {
 			return candidate, nil
 		}
 	}
 	return "", fmt.Errorf("track store: could not allocate track ID under %q", parentID)
+}
+
+// WriteContextFile writes a file into the track's context/ directory.
+func (s *TrackStore) WriteContextFile(_ context.Context, trackID, filename, content string) error {
+	dir := filepath.Join(s.experimentsDir, trackID, "context")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("track store: mkdir context: %w", err)
+	}
+	return os.WriteFile(filepath.Join(dir, filename), []byte(content), 0o644)
+}
+
+// ReadContextFiles returns all files in the track's context/ directory as a map of filename → content.
+func (s *TrackStore) ReadContextFiles(_ context.Context, trackID string) (map[string]string, error) {
+	dir := filepath.Join(s.experimentsDir, trackID, "context")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("track store: read context %s: %w", trackID, err)
+	}
+	out := make(map[string]string, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			return nil, err
+		}
+		out[e.Name()] = string(b)
+	}
+	return out, nil
 }
 
 // ─── session directory helpers ────────────────────────────────────────────────

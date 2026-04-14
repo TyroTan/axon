@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
+	"github.com/tyrohunt/axon/internal/commands"
 	"github.com/tyrohunt/axon/internal/cqrs"
 	"github.com/tyrohunt/axon/internal/queries"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
@@ -33,10 +34,18 @@ func New(cfg Config) *fiber.App {
 	cqrs.RegisterQuery[queries.GetTrackQuery, queries.GetTrackResult](
 		qryBus, queries.NewGetTrackHandler(trackStore),
 	)
+	cqrs.RegisterQuery[queries.GetTrackContextQuery, queries.GetTrackContextResult](
+		qryBus, queries.NewGetTrackContextHandler(trackStore),
+	)
 
 	// ── Command bus ──────────────────────────────────────────────────────────
 	cmdBus := cqrs.NewCommandBus()
-	_ = cmdBus // commands registered in subsequent phases
+	cqrs.Register[commands.DuplicateTrackCommand](
+		cmdBus, commands.NewDuplicateTrackHandler(trackStore),
+	)
+	cqrs.Register[commands.UpdateContextCommand](
+		cmdBus, commands.NewUpdateContextHandler(trackStore),
+	)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -66,6 +75,42 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusNotFound, err.Error())
 		}
 		return c.JSON(result)
+	})
+
+	api.Post("/tracks/:id/duplicate", func(c *fiber.Ctx) error {
+		// Predict the new track ID before dispatch (NextTrackID is deterministic;
+		// no concurrent writers, so the handler will claim the same slot).
+		newID, err := trackStore.NextTrackID(c.Params("id"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		if err := cmdBus.Dispatch(c.Context(), commands.DuplicateTrackCommand{
+			SourceTrackID: c.Params("id"),
+		}); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"new_track_id": newID})
+	})
+
+	api.Get("/tracks/:id/context", func(c *fiber.Ctx) error {
+		result, err := cqrs.Ask[queries.GetTrackContextQuery, queries.GetTrackContextResult](
+			c.Context(), qryBus, queries.GetTrackContextQuery{TrackID: c.Params("id")},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	api.Put("/tracks/:id/context/:filename", func(c *fiber.Ctx) error {
+		if err := cmdBus.Dispatch(c.Context(), commands.UpdateContextCommand{
+			TrackID:  c.Params("id"),
+			Filename: c.Params("filename"),
+			Content:  string(c.Body()),
+		}); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.SendStatus(fiber.StatusNoContent)
 	})
 
 	// ── SPA static serving (production) ──────────────────────────────────────
