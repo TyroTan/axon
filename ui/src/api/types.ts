@@ -65,3 +65,32 @@ export interface GetTrackContextResult {
 export interface DuplicateTrackResult {
   new_track_id: string
 }
+
+export interface CreateSessionResult {
+  session_number: number
+}
+
+export interface GetSessionQuestionsResult {
+  track_id: string
+  session_number: number
+  questions: Question[]
+}
+
+export interface Question {
+  id: string
+  generation_id: string
+  concept_indexes: number[]
+  bloom_level: number
+  bloom_label: string
+  question: string
+  format: 'mcq' | 'free_text' | 'scenario_mcq' | 'design'
+  options?: Record<string, string>
+  correct?: string
+  correct_explanation: string
+  distractor_explanations?: Record<string, string>
+  is_cross_branch: boolean
+  difficulty_estimate: number
+  spaced_repetition_concept_id: number | null
+  expected_time_seconds: number
+  requires_explanation: boolean
+}

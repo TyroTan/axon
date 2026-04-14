@@ -83,6 +83,19 @@ export function TrackPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [duplicating, setDuplicating] = useState(false)
+  const [startingSession, setStartingSession] = useState(false)
+
+  async function startSession() {
+    if (!trackId || startingSession) return
+    setStartingSession(true)
+    try {
+      const res = await api.createSession(trackId)
+      navigate(`/tracks/${trackId}/sessions/${res.session_number}`)
+    } catch (e) {
+      setError(String(e))
+      setStartingSession(false)
+    }
+  }
 
   useEffect(() => {
     if (!trackId) return
@@ -145,12 +158,13 @@ export function TrackPage() {
           >
             {duplicating ? 'Duplicating…' : 'Duplicate'}
           </button>
-          <Link
-            to={`/tracks/${track.id}/sessions/new`}
-            className={cn(buttonVariants({ size: 'sm' }))}
+          <button
+            onClick={startSession}
+            disabled={startingSession}
+            className={cn(buttonVariants({ size: 'sm' }), startingSession && 'opacity-60 cursor-not-allowed')}
           >
-            + Start Session
-          </Link>
+            {startingSession ? 'Starting…' : '+ Start Session'}
+          </button>
         </div>
       </div>
 
@@ -202,12 +216,13 @@ export function TrackPage() {
                 </Link>
               ))
             )}
-            <Link
-              to={`/tracks/${trackId}/sessions/new`}
-              className={cn(buttonVariants({ size: 'sm' }), 'w-full mt-2')}
+            <button
+              onClick={startSession}
+              disabled={startingSession}
+              className={cn(buttonVariants({ size: 'sm' }), 'w-full mt-2', startingSession && 'opacity-60 cursor-not-allowed')}
             >
-              + Start Session
-            </Link>
+              {startingSession ? 'Starting…' : '+ Start Session'}
+            </button>
           </CardContent>
         </Card>
 

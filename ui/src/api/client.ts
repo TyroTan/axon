@@ -1,7 +1,9 @@
 import type {
   GetTrackResult,
   GetTrackContextResult,
+  GetSessionQuestionsResult,
   DuplicateTrackResult,
+  CreateSessionResult,
   ListTracksResult,
 } from './types'
 
@@ -35,4 +37,38 @@ export const api = {
   getTrackContext: (id: string) => get<GetTrackContextResult>(`/tracks/${id}/context`),
   updateContextFile: (id: string, filename: string, content: string) =>
     put(`/tracks/${id}/context/${encodeURIComponent(filename)}`, content),
+  createSession: (trackId: string) => post<CreateSessionResult>(`/tracks/${trackId}/sessions`),
+  getSessionQuestions: (trackId: string, num: number) =>
+    get<GetSessionQuestionsResult>(`/tracks/${trackId}/sessions/${num}/questions`),
+  // Streams question generation via POST+SSE. Calls onChunk for each text delta,
+  // resolves when done, rejects on error.
+  generateQuestions: async (
+    trackId: string,
+    num: number,
+    onChunk: (text: string) => void,
+  ): Promise<void> => {
+    const res = await fetch(`${BASE}/tracks/${trackId}/sessions/${num}/questions/generate`, {
+      method: 'POST',
+    })
+    if (!res.ok || !res.body) {
+      throw new Error(`${res.status} ${res.statusText}`)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const ev = JSON.parse(line.slice(6)) as { type: string; text?: string; message?: string }
+        if (ev.type === 'chunk' && ev.text) onChunk(ev.text)
+        if (ev.type === 'error') throw new Error(ev.message ?? 'generation failed')
+        if (ev.type === 'done') return
+      }
+    }
+  },
 }

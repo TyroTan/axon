@@ -28,6 +28,9 @@ func NewTrackStore(experimentsDir string) *TrackStore {
 	return &TrackStore{experimentsDir: experimentsDir}
 }
 
+// ExperimentsDir exposes the root directory for use by command handlers.
+func (s *TrackStore) ExperimentsDir() string { return s.experimentsDir }
+
 // ListTracks returns all tracks sorted by ID, with Children populated.
 func (s *TrackStore) ListTracks(_ context.Context) ([]domain.Track, error) {
 	entries, err := os.ReadDir(s.experimentsDir)
@@ -228,6 +231,25 @@ func (s *TrackStore) ReadContextFiles(_ context.Context, trackID string) (map[st
 		out[e.Name()] = string(b)
 	}
 	return out, nil
+}
+
+// WriteSessionFile writes a file into a session directory.
+func (s *TrackStore) WriteSessionFile(_ context.Context, trackID string, sessionNum int, filename string, content []byte) error {
+	dir := SessionDir(s.experimentsDir, trackID, sessionNum)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("track store: mkdir session: %w", err)
+	}
+	return os.WriteFile(filepath.Join(dir, filename), content, 0o644)
+}
+
+// ReadSessionFile reads a file from a session directory.
+func (s *TrackStore) ReadSessionFile(_ context.Context, trackID string, sessionNum int, filename string) ([]byte, error) {
+	path := filepath.Join(SessionDir(s.experimentsDir, trackID, sessionNum), filename)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("track store: read session file %s/%d/%s: %w", trackID, sessionNum, filename, err)
+	}
+	return b, nil
 }
 
 // ─── session directory helpers ────────────────────────────────────────────────

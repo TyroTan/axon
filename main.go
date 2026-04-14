@@ -32,9 +32,10 @@ func main() {
 	}
 
 	app := server.New(server.Config{
-		ExperimentsDir: experimentsDir,
-		DistDir:        distDir,
-		Port:           port,
+		ExperimentsDir:  experimentsDir,
+		DistDir:         distDir,
+		Port:            port,
+		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
 	})
 
 	log.Printf("Axon API on http://localhost:%s  |  UI on http://localhost:5173 (dev)", port)

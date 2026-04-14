@@ -4,21 +4,30 @@
 package server
 
 import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/valyala/fasthttp"
 
 	"github.com/tyrohunt/axon/internal/commands"
 	"github.com/tyrohunt/axon/internal/cqrs"
+	"github.com/tyrohunt/axon/internal/llm"
+	"github.com/tyrohunt/axon/internal/llm/anthropic"
 	"github.com/tyrohunt/axon/internal/queries"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
 
 // Config holds server configuration.
 type Config struct {
-	ExperimentsDir string // absolute path to .experiments/ folder
-	Port           string // e.g. "3456"
-	DistDir        string // absolute path to web/dist/ (served as SPA in production)
+	ExperimentsDir  string // absolute path to .experiments/ folder
+	Port            string // e.g. "3456"
+	DistDir         string // absolute path to web/dist/ (served as SPA in production)
+	AnthropicAPIKey string // ANTHROPIC_API_KEY
 }
 
 // New wires dependencies and returns a configured Fiber app.
@@ -38,6 +47,16 @@ func New(cfg Config) *fiber.App {
 		qryBus, queries.NewGetTrackContextHandler(trackStore),
 	)
 
+	cqrs.RegisterQuery[queries.GetSessionQuestionsQuery, queries.GetSessionQuestionsResult](
+		qryBus, queries.NewGetSessionQuestionsHandler(trackStore),
+	)
+
+	// ── LLM client ───────────────────────────────────────────────────────────
+	var llmClient llm.Client
+	if cfg.AnthropicAPIKey != "" {
+		llmClient = anthropic.New(cfg.AnthropicAPIKey)
+	}
+
 	// ── Command bus ──────────────────────────────────────────────────────────
 	cmdBus := cqrs.NewCommandBus()
 	cqrs.Register[commands.DuplicateTrackCommand](
@@ -46,6 +65,9 @@ func New(cfg Config) *fiber.App {
 	cqrs.Register[commands.UpdateContextCommand](
 		cmdBus, commands.NewUpdateContextHandler(trackStore),
 	)
+
+	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
+	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -111,6 +133,72 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// POST /api/tracks/:id/sessions — allocate a new session directory.
+	api.Post("/tracks/:id/sessions", func(c *fiber.Ctx) error {
+		result, err := createSessionHandler.Handle(c.Context(), commands.CreateSessionCommand{
+			TrackID: c.Params("id"),
+		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.Status(fiber.StatusCreated).JSON(result)
+	})
+
+	// GET /api/tracks/:id/sessions/:num/questions
+	api.Get("/tracks/:id/sessions/:num/questions", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		result, err := cqrs.Ask[queries.GetSessionQuestionsQuery, queries.GetSessionQuestionsResult](
+			c.Context(), qryBus, queries.GetSessionQuestionsQuery{
+				TrackID: c.Params("id"), SessionNumber: num,
+			},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// POST /api/tracks/:id/sessions/:num/questions/generate — SSE stream.
+	api.Post("/tracks/:id/sessions/:num/questions/generate", func(c *fiber.Ctx) error {
+		if llmClient == nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, "ANTHROPIC_API_KEY not set")
+		}
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		chunks := generateQuestionsHandler.Stream(c.Context(), commands.GenerateQuestionsCommand{
+			TrackID: c.Params("id"), SessionNumber: num,
+		})
+
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]string{"type": "done"})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
 	})
 
 	// ── SPA static serving (production) ──────────────────────────────────────

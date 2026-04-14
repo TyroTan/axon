@@ -23,17 +23,19 @@ interface Crumb {
 
 function useBreadcrumbs(): Crumb[] {
   const location = useLocation()
-  const { trackId, sessionId } = useParams<{ trackId?: string; sessionId?: string }>()
+  const { trackId, sessionNum, sessionId } = useParams<{ trackId?: string; sessionNum?: string; sessionId?: string }>()
   const crumbs: Crumb[] = [{ label: 'Home', to: '/' }]
 
+  const hasSubPage = sessionNum || sessionId || location.pathname.endsWith('/context')
   if (trackId) {
-    const isLeaf = !sessionId && !location.pathname.endsWith('/context')
-    crumbs.push({ label: trackId, to: isLeaf ? undefined : `/tracks/${trackId}` })
+    crumbs.push({ label: trackId, to: hasSubPage ? `/tracks/${trackId}` : undefined })
   }
   if (location.pathname.endsWith('/context')) {
     crumbs.push({ label: 'Context' })
   }
-  if (sessionId) {
+  if (sessionNum) {
+    crumbs.push({ label: `Session ${sessionNum}` })
+  } else if (sessionId) {
     crumbs.push({ label: `Session ${sessionId}` })
   }
 
