@@ -558,7 +558,7 @@ export function SessionPage() {
       </div>
 
       {/* ── no questions yet ─────────────────────────────────────────────────── */}
-      {!questions && genPhase === 'idle' && (
+      {(!questions || questions.length === 0) && genPhase === 'idle' && (
         <Card>
           <CardContent className="py-10 flex flex-col items-center gap-3">
             <p className="text-sm text-muted-foreground">No questions generated yet.</p>
@@ -575,7 +575,7 @@ export function SessionPage() {
       )}
 
       {/* ── questions exist ──────────────────────────────────────────────────── */}
-      {questions && questions.length > 0 && (
+      {questions !== null && questions.length > 0 && (
         <>
           {/* Phase header */}
           <div className="flex items-center justify-between">
