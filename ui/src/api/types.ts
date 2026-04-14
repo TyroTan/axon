@@ -76,6 +76,51 @@ export interface GetSessionQuestionsResult {
   questions: Question[]
 }
 
+export interface Response {
+  question_id: string
+  generation_id: string
+  selected_answer: string
+  confidence: number   // 1–5
+  explanation: string
+  time_seconds: number
+}
+
+export interface ExplanationSubscores {
+  mechanism_accuracy: number
+  terminology_precision: number
+  edge_case_awareness: number
+  generalization_quality: number
+}
+
+export interface Evaluation {
+  question_id: string
+  generation_id: string
+  concept_indexes: number[]
+  correctness: number          // 0.0–1.0
+  explanation_score: number
+  explanation_subscores: ExplanationSubscores
+  brier_contribution: number
+  calibration_flag: string | null
+  error_taxonomy: string | null
+  misconception_identified: string | null
+  time_signal: string
+  bloom_level_demonstrated: number
+  evaluator_notes: string
+  feedback_for_learner: string
+}
+
+export interface GetSessionResponsesResult {
+  track_id: string
+  session_number: number
+  responses: Response[]
+}
+
+export interface GetSessionEvaluationsResult {
+  track_id: string
+  session_number: number
+  evaluations: Evaluation[]
+}
+
 export interface Question {
   id: string
   generation_id: string

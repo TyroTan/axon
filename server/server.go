@@ -16,6 +16,7 @@ import (
 
 	"github.com/tyrohunt/axon/internal/commands"
 	"github.com/tyrohunt/axon/internal/cqrs"
+	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
 	"github.com/tyrohunt/axon/internal/llm/anthropic"
 	"github.com/tyrohunt/axon/internal/queries"
@@ -50,6 +51,12 @@ func New(cfg Config) *fiber.App {
 	cqrs.RegisterQuery[queries.GetSessionQuestionsQuery, queries.GetSessionQuestionsResult](
 		qryBus, queries.NewGetSessionQuestionsHandler(trackStore),
 	)
+	cqrs.RegisterQuery[queries.GetSessionResponsesQuery, queries.GetSessionResponsesResult](
+		qryBus, queries.NewGetSessionResponsesHandler(trackStore),
+	)
+	cqrs.RegisterQuery[queries.GetSessionEvaluationsQuery, queries.GetSessionEvaluationsResult](
+		qryBus, queries.NewGetSessionEvaluationsHandler(trackStore),
+	)
 
 	// ── LLM client ───────────────────────────────────────────────────────────
 	var llmClient llm.Client
@@ -68,6 +75,8 @@ func New(cfg Config) *fiber.App {
 
 	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
 	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient)
+	submitResponsesHandler := commands.NewSubmitResponsesHandler(trackStore)
+	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -173,6 +182,98 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
 		}
 		chunks := generateQuestionsHandler.Stream(c.Context(), commands.GenerateQuestionsCommand{
+			TrackID: c.Params("id"), SessionNumber: num,
+		})
+
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]string{"type": "done"})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
+	})
+
+	// POST /api/tracks/:id/sessions/:num/responses — batch save responses.
+	api.Post("/tracks/:id/sessions/:num/responses", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		var responses []domain.Response
+		if err := json.Unmarshal(c.Body(), &responses); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		if err := submitResponsesHandler.Handle(c.Context(), commands.SubmitResponsesCommand{
+			TrackID:       c.Params("id"),
+			SessionNumber: num,
+			Responses:     responses,
+		}); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// GET /api/tracks/:id/sessions/:num/responses
+	api.Get("/tracks/:id/sessions/:num/responses", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		result, err := cqrs.Ask[queries.GetSessionResponsesQuery, queries.GetSessionResponsesResult](
+			c.Context(), qryBus, queries.GetSessionResponsesQuery{
+				TrackID: c.Params("id"), SessionNumber: num,
+			},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// GET /api/tracks/:id/sessions/:num/evaluations
+	api.Get("/tracks/:id/sessions/:num/evaluations", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		result, err := cqrs.Ask[queries.GetSessionEvaluationsQuery, queries.GetSessionEvaluationsResult](
+			c.Context(), qryBus, queries.GetSessionEvaluationsQuery{
+				TrackID: c.Params("id"), SessionNumber: num,
+			},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// POST /api/tracks/:id/sessions/:num/evaluate — SSE evaluation stream.
+	api.Post("/tracks/:id/sessions/:num/evaluate", func(c *fiber.Ctx) error {
+		if llmClient == nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, "ANTHROPIC_API_KEY not set")
+		}
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		chunks := evaluateResponsesHandler.Stream(c.Context(), commands.EvaluateResponsesCommand{
 			TrackID: c.Params("id"), SessionNumber: num,
 		})
 
