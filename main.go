@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/tyrohunt/axon/server"
 )
@@ -31,11 +32,19 @@ func main() {
 		port = "3456"
 	}
 
+	contextTokenLimit := 80_000
+	if v := os.Getenv("AXON_CONTEXT_LIMIT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			contextTokenLimit = n
+		}
+	}
+
 	app := server.New(server.Config{
-		ExperimentsDir:  experimentsDir,
-		DistDir:         distDir,
-		Port:            port,
-		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
+		ExperimentsDir:    experimentsDir,
+		DistDir:           distDir,
+		Port:              port,
+		AnthropicAPIKey:   os.Getenv("ANTHROPIC_API_KEY"),
+		ContextTokenLimit: contextTokenLimit,
 	})
 
 	log.Printf("Axon API on http://localhost:%s  |  UI on http://localhost:5173 (dev)", port)

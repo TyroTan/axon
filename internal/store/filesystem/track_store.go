@@ -233,6 +233,62 @@ func (s *TrackStore) ReadContextFiles(_ context.Context, trackID string) (map[st
 	return out, nil
 }
 
+// ContextBudget is the result of LoadInheritedContext.
+type ContextBudget struct {
+	// Files is the merged context: filename → content, nearest track wins on collision.
+	Files map[string]string
+	// TokensUsed is the naive token count of all loaded content.
+	TokensUsed int
+	// Truncated is true if the limit was hit before all ancestors were loaded.
+	Truncated bool
+	// TruncatedAt is the track ID where loading was halted (empty if no truncation).
+	TruncatedAt string
+}
+
+// LoadInheritedContext walks from trackID up to the root, merging context/
+// files. Nearest track wins on filename collision (child overrides parent).
+// Stops cleanly when the accumulated naive token count would exceed limitTokens.
+// Pass limitTokens ≤ 0 to load everything with no limit.
+func (s *TrackStore) LoadInheritedContext(ctx context.Context, trackID string, limitTokens int) (ContextBudget, error) {
+	// Build the ancestor chain: [trackID, parent, grandparent, ...]
+	chain := []string{}
+	id := trackID
+	for id != "" {
+		chain = append(chain, id)
+		id = parentID(id)
+	}
+
+	merged := map[string]string{}
+	used := 0
+
+	for _, tid := range chain {
+		files, err := s.ReadContextFiles(ctx, tid)
+		if err != nil {
+			return ContextBudget{}, fmt.Errorf("load inherited context: %w", err)
+		}
+
+		for name, content := range files {
+			// Child files already in merged take priority — skip parent's version.
+			if _, exists := merged[name]; exists {
+				continue
+			}
+			tokens := (len(content) + 3) / 4 // CountTokensNaive inline
+			if limitTokens > 0 && used+tokens > limitTokens {
+				return ContextBudget{
+					Files:       merged,
+					TokensUsed:  used,
+					Truncated:   true,
+					TruncatedAt: tid,
+				}, nil
+			}
+			merged[name] = content
+			used += tokens
+		}
+	}
+
+	return ContextBudget{Files: merged, TokensUsed: used}, nil
+}
+
 // WriteSessionFile writes a file into a session directory.
 func (s *TrackStore) WriteSessionFile(_ context.Context, trackID string, sessionNum int, filename string, content []byte) error {
 	dir := SessionDir(s.experimentsDir, trackID, sessionNum)

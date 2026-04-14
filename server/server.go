@@ -26,10 +26,11 @@ import (
 
 // Config holds server configuration.
 type Config struct {
-	ExperimentsDir  string // absolute path to .experiments/ folder
-	Port            string // e.g. "3456"
-	DistDir         string // absolute path to web/dist/ (served as SPA in production)
-	AnthropicAPIKey string // ANTHROPIC_API_KEY
+	ExperimentsDir    string // absolute path to .experiments/ folder
+	Port              string // e.g. "3456"
+	DistDir           string // absolute path to web/dist/ (served as SPA in production)
+	AnthropicAPIKey   string // ANTHROPIC_API_KEY — if empty, claudecli is used
+	ContextTokenLimit int    // AXON_CONTEXT_LIMIT — max tokens for inherited context (default 80000)
 }
 
 // New wires dependencies and returns a configured Fiber app.
@@ -82,7 +83,7 @@ func New(cfg Config) *fiber.App {
 	)
 
 	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
-	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient)
+	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 	submitResponsesHandler := commands.NewSubmitResponsesHandler(trackStore)
 	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient)
 	generateSynthesisHandler := commands.NewGenerateSynthesisHandler(trackStore, llmClient)

@@ -23,12 +23,13 @@ type GenerateQuestionsCommand struct {
 
 // GenerateQuestionsHandler streams questions from the LLM and writes them when done.
 type GenerateQuestionsHandler struct {
-	store  *filesystem.TrackStore
-	client llm.Client
+	store             *filesystem.TrackStore
+	client            llm.Client
+	contextTokenLimit int
 }
 
-func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client) *GenerateQuestionsHandler {
-	return &GenerateQuestionsHandler{store: store, client: client}
+func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit int) *GenerateQuestionsHandler {
+	return &GenerateQuestionsHandler{store: store, client: client, contextTokenLimit: contextTokenLimit}
 }
 
 // Stream returns a channel of llm.Chunk. The caller receives incremental text
@@ -52,10 +53,17 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		return fmt.Errorf("generate questions: concept map: %w", err)
 	}
 
-	// Load context files.
-	contextFiles, err := h.store.ReadContextFiles(ctx, cmd.TrackID)
+	// Load inherited context (walks parent chain, respects token limit).
+	budget, err := h.store.LoadInheritedContext(ctx, cmd.TrackID, h.contextTokenLimit)
 	if err != nil {
 		return fmt.Errorf("generate questions: context files: %w", err)
+	}
+	contextFiles := budget.Files
+	if budget.Truncated {
+		out <- llm.Chunk{Text: fmt.Sprintf(
+			"[context truncated at track %s — %d tokens used of %d limit]\n",
+			budget.TruncatedAt, budget.TokensUsed, h.contextTokenLimit,
+		)}
 	}
 
 	generationID := uuid.New().String()
