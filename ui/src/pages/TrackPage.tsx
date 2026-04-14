@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
 import type { GetTrackResult, Concept, Session } from '@/api/types'
 import { buttonVariants } from '@/components/ui/button'
@@ -78,9 +78,11 @@ function ConceptRow({ c }: { c: Concept }) {
 
 export function TrackPage() {
   const { trackId } = useParams<{ trackId: string }>()
+  const navigate = useNavigate()
   const [data, setData] = useState<GetTrackResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [duplicating, setDuplicating] = useState(false)
 
   useEffect(() => {
     if (!trackId) return
@@ -120,11 +122,29 @@ export function TrackPage() {
         </div>
         <div className="flex gap-2">
           <Link
-            to={`/tracks/${track.id}/duplicate`}
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            to={`/tracks/${track.id}/context`}
+            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }))}
           >
-            Duplicate
+            Edit Context
           </Link>
+          <button
+            onClick={async () => {
+              if (!trackId || duplicating) return
+              setDuplicating(true)
+              try {
+                const res = await api.duplicateTrack(trackId)
+                navigate(`/tracks/${res.new_track_id}`)
+              } catch (e) {
+                setError(String(e))
+              } finally {
+                setDuplicating(false)
+              }
+            }}
+            disabled={duplicating}
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), duplicating && 'opacity-60 cursor-not-allowed')}
+          >
+            {duplicating ? 'Duplicating…' : 'Duplicate'}
+          </button>
           <Link
             to={`/tracks/${track.id}/sessions/new`}
             className={cn(buttonVariants({ size: 'sm' }))}

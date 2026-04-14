@@ -27,15 +27,14 @@ function useBreadcrumbs(): Crumb[] {
   const crumbs: Crumb[] = [{ label: 'Home', to: '/' }]
 
   if (trackId) {
-    crumbs.push({ label: trackId, to: sessionId ? `/tracks/${trackId}` : undefined })
+    const isLeaf = !sessionId && !location.pathname.endsWith('/context')
+    crumbs.push({ label: trackId, to: isLeaf ? undefined : `/tracks/${trackId}` })
+  }
+  if (location.pathname.endsWith('/context')) {
+    crumbs.push({ label: 'Context' })
   }
   if (sessionId) {
     crumbs.push({ label: `Session ${sessionId}` })
-  }
-
-  // New track / new session
-  if (location.pathname.endsWith('/new') && !sessionId) {
-    crumbs.push({ label: 'New Track' })
   }
 
   return crumbs

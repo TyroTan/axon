@@ -56,3 +56,12 @@ export interface GetTrackResult {
   concept_map: ConceptMap
   sessions: Session[]
 }
+
+export interface GetTrackContextResult {
+  track_id: string
+  files: Record<string, string> // filename → content
+}
+
+export interface DuplicateTrackResult {
+  new_track_id: string
+}
