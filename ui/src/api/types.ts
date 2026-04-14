@@ -121,6 +121,34 @@ export interface GetSessionEvaluationsResult {
   evaluations: Evaluation[]
 }
 
+export interface SpacedRepetition {
+  next_review: string | null
+  interval_days: number
+  consecutive_correct: number
+}
+
+export interface ConceptMapUpdate {
+  concept_index: number
+  bloom_current_before: number
+  bloom_current_after: number
+  spaced_repetition: SpacedRepetition
+}
+
+export interface Synthesis {
+  session_number: number
+  session_date: string
+  generation_id: string
+  concept_map_updates: ConceptMapUpdate[]
+  learner_summary: string
+  applied: boolean
+}
+
+export interface GetSynthesisResult {
+  track_id: string
+  session_number: number
+  synthesis: Synthesis | null
+}
+
 export interface Question {
   id: string
   generation_id: string

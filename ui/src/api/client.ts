@@ -4,6 +4,7 @@ import type {
   GetSessionQuestionsResult,
   GetSessionResponsesResult,
   GetSessionEvaluationsResult,
+  GetSynthesisResult,
   DuplicateTrackResult,
   CreateSessionResult,
   ListTracksResult,
@@ -108,5 +109,32 @@ export const api = {
         if (ev.type === 'done') return
       }
     }
+  },
+  getSynthesis: (trackId: string, num: number) =>
+    get<GetSynthesisResult>(`/tracks/${trackId}/sessions/${num}/synthesis`),
+  generateSynthesis: async (trackId: string, num: number, onChunk: (text: string) => void): Promise<void> => {
+    const res = await fetch(`${BASE}/tracks/${trackId}/sessions/${num}/synthesize`, { method: 'POST' })
+    if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const ev = JSON.parse(line.slice(6)) as { type: string; text?: string; message?: string }
+        if (ev.type === 'chunk' && ev.text) onChunk(ev.text)
+        if (ev.type === 'error') throw new Error(ev.message ?? 'synthesis failed')
+        if (ev.type === 'done') return
+      }
+    }
+  },
+  applySynthesis: async (trackId: string, num: number): Promise<void> => {
+    const res = await fetch(`${BASE}/tracks/${trackId}/sessions/${num}/apply-synthesis`, { method: 'POST' })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   },
 }

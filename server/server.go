@@ -57,6 +57,9 @@ func New(cfg Config) *fiber.App {
 	cqrs.RegisterQuery[queries.GetSessionEvaluationsQuery, queries.GetSessionEvaluationsResult](
 		qryBus, queries.NewGetSessionEvaluationsHandler(trackStore),
 	)
+	cqrs.RegisterQuery[queries.GetSynthesisQuery, queries.GetSynthesisResult](
+		qryBus, queries.NewGetSynthesisHandler(trackStore),
+	)
 
 	// ── LLM client ───────────────────────────────────────────────────────────
 	var llmClient llm.Client
@@ -77,6 +80,8 @@ func New(cfg Config) *fiber.App {
 	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient)
 	submitResponsesHandler := commands.NewSubmitResponsesHandler(trackStore)
 	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient)
+	generateSynthesisHandler := commands.NewGenerateSynthesisHandler(trackStore, llmClient)
+	applySynthesisHandler := commands.NewApplySynthesisHandler(trackStore)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -300,6 +305,75 @@ func New(cfg Config) *fiber.App {
 			}
 		}))
 		return nil
+	})
+
+	// GET /api/tracks/:id/sessions/:num/synthesis
+	api.Get("/tracks/:id/sessions/:num/synthesis", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		result, err := cqrs.Ask[queries.GetSynthesisQuery, queries.GetSynthesisResult](
+			c.Context(), qryBus, queries.GetSynthesisQuery{
+				TrackID: c.Params("id"), SessionNumber: num,
+			},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// POST /api/tracks/:id/sessions/:num/synthesize — SSE synthesis stream.
+	api.Post("/tracks/:id/sessions/:num/synthesize", func(c *fiber.Ctx) error {
+		if llmClient == nil {
+			return fiber.NewError(fiber.StatusServiceUnavailable, "ANTHROPIC_API_KEY not set")
+		}
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		chunks := generateSynthesisHandler.Stream(c.Context(), commands.GenerateSynthesisCommand{
+			TrackID: c.Params("id"), SessionNumber: num,
+		})
+
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]string{"type": "done"})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
+	})
+
+	// POST /api/tracks/:id/sessions/:num/apply-synthesis — idempotent.
+	api.Post("/tracks/:id/sessions/:num/apply-synthesis", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		if err := applySynthesisHandler.Handle(c.Context(), commands.ApplySynthesisCommand{
+			TrackID: c.Params("id"), SessionNumber: num,
+		}); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.SendStatus(fiber.StatusNoContent)
 	})
 
 	// ── SPA static serving (production) ──────────────────────────────────────

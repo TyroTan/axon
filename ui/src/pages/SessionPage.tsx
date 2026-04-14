@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { Evaluation, Question, Response } from '@/api/types'
+import type { ConceptMapUpdate, Evaluation, Question, Response, Synthesis } from '@/api/types'
 import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -232,6 +232,133 @@ function StreamOverlay({ label, text }: { label: string; text: string }) {
   )
 }
 
+// ─── synthesis panel ──────────────────────────────────────────────────────────
+
+const BLOOM_LABELS_SHORT = ['', 'R', 'U', 'Ap', 'An', 'E', 'C']
+
+function SynthesisPanel({
+  synthesis,
+  onSynthesize,
+  onApply,
+  synthPhase,
+  synthError,
+  streamText,
+  evaluationsExist,
+}: {
+  synthesis: Synthesis | null
+  onSynthesize: () => void
+  onApply: () => void
+  synthPhase: StreamPhase
+  synthError: string | null
+  streamText: string
+  evaluationsExist: boolean
+}) {
+  if (synthPhase === 'streaming') {
+    return <StreamOverlay label="Synthesising session…" text={streamText} />
+  }
+
+  if (!synthesis && evaluationsExist) {
+    return (
+      <Card>
+        <CardContent className="py-6 flex flex-col items-center gap-3 text-center">
+          <p className="text-sm text-muted-foreground">
+            All questions evaluated. Generate a synthesis to update your concept map.
+          </p>
+          {synthError && <p className="text-xs text-destructive">{synthError}</p>}
+          <button onClick={onSynthesize} className={cn(buttonVariants({ size: 'sm' }))}>
+            Synthesise Session
+          </button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!synthesis) return null
+
+  return (
+    <Card className="border-primary/30">
+      <CardHeader className="pb-3 flex-row items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold">Session Synthesis</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{synthesis.session_date}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {synthesis.applied ? (
+            <Badge variant="secondary" className="bg-green-500/20 text-green-600 text-[10px]">Applied</Badge>
+          ) : (
+            <>
+              {synthError && <p className="text-xs text-destructive">{synthError}</p>}
+              <button
+                onClick={onApply}
+                className={cn(buttonVariants({ size: 'sm' }), 'text-xs h-7')}
+              >
+                Apply to Concept Map
+              </button>
+            </>
+          )}
+          <button
+            onClick={onSynthesize}
+            className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'text-xs h-7')}
+          >
+            Re-synthesise
+          </button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Learner summary */}
+        <p className="text-sm text-muted-foreground leading-relaxed border-l-2 border-primary/40 pl-3">
+          {synthesis.learner_summary}
+        </p>
+
+        {/* Concept map updates */}
+        {synthesis.concept_map_updates.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Concept Updates
+            </p>
+            <div className="space-y-1.5">
+              {synthesis.concept_map_updates.map((u: ConceptMapUpdate) => {
+                const delta = u.bloom_current_after - u.bloom_current_before
+                return (
+                  <div key={u.concept_index} className="flex items-center gap-3 text-xs">
+                    <span className="font-mono text-muted-foreground w-6 text-right">[{u.concept_index}]</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn(
+                        'inline-flex items-center justify-center w-6 h-6 rounded text-white text-[10px] font-bold',
+                        BLOOM_COLORS[u.bloom_current_before],
+                      )}>
+                        {BLOOM_LABELS_SHORT[u.bloom_current_before]}
+                      </span>
+                      <span className={cn(
+                        'text-[10px] font-bold',
+                        delta > 0 ? 'text-green-500' : delta < 0 ? 'text-red-500' : 'text-muted-foreground',
+                      )}>
+                        {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '→'}
+                      </span>
+                      <span className={cn(
+                        'inline-flex items-center justify-center w-6 h-6 rounded text-white text-[10px] font-bold',
+                        BLOOM_COLORS[u.bloom_current_after],
+                      )}>
+                        {BLOOM_LABELS_SHORT[u.bloom_current_after]}
+                      </span>
+                    </div>
+                    {u.spaced_repetition.next_review && (
+                      <span className="text-muted-foreground ml-auto">
+                        review {u.spaced_repetition.next_review}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── main page ────────────────────────────────────────────────────────────────
 
 export function SessionPage() {
@@ -242,6 +369,7 @@ export function SessionPage() {
   const [questions, setQuestions] = useState<Question[] | null>(null)
   const [savedResponses, setSavedResponses] = useState<Response[] | null>(null)
   const [evaluations, setEvaluations] = useState<Evaluation[] | null>(null)
+  const [synthesis, setSynthesis] = useState<Synthesis | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Local answer state (pre-populated from savedResponses when present)
@@ -250,8 +378,11 @@ export function SessionPage() {
   // Streaming states
   const [genPhase, setGenPhase] = useState<StreamPhase>('idle')
   const [evalPhase, setEvalPhase] = useState<StreamPhase>('idle')
+  const [synthPhase, setSynthPhase] = useState<StreamPhase>('idle')
   const [streamText, setStreamText] = useState('')
   const [streamError, setStreamError] = useState<string | null>(null)
+  const [synthError, setSynthError] = useState<string | null>(null)
+  const [applying, setApplying] = useState(false)
   const streamRef = useRef('')
 
   // Submit state
@@ -265,14 +396,17 @@ export function SessionPage() {
       api.getSessionQuestions(trackId, num),
       api.getSessionResponses(trackId, num),
       api.getSessionEvaluations(trackId, num),
-    ]).then(([qRes, rRes, eRes]) => {
+      api.getSynthesis(trackId, num),
+    ]).then(([qRes, rRes, eRes, sRes]) => {
       const qs = qRes.status === 'fulfilled' ? qRes.value.questions : null
       const rs = rRes.status === 'fulfilled' ? rRes.value.responses : null
       const es = eRes.status === 'fulfilled' ? eRes.value.evaluations : null
+      const sy = sRes.status === 'fulfilled' ? sRes.value.synthesis : null
 
       setQuestions(qs)
       setSavedResponses(rs)
       setEvaluations(es)
+      setSynthesis(sy)
 
       // Pre-populate answers from saved responses or blank defaults
       if (qs) {
@@ -354,6 +488,42 @@ export function SessionPage() {
     } catch (e) {
       setEvalPhase('error')
       setStreamError(String(e))
+    }
+  }
+
+  async function synthesize() {
+    if (!trackId || !num) return
+    setSynthPhase('streaming')
+    setSynthError(null)
+    streamRef.current = ''
+    setStreamText('')
+    try {
+      await api.generateSynthesis(trackId, num, text => {
+        streamRef.current += text
+        setStreamText(streamRef.current)
+      })
+      const result = await api.getSynthesis(trackId, num)
+      setSynthesis(result.synthesis)
+      setSynthPhase('done')
+    } catch (e) {
+      setSynthPhase('error')
+      setSynthError(String(e))
+    }
+  }
+
+  async function applySynthesis() {
+    if (!trackId || !num || applying) return
+    setApplying(true)
+    setSynthError(null)
+    try {
+      await api.applySynthesis(trackId, num)
+      // Reload synthesis to get applied=true
+      const result = await api.getSynthesis(trackId, num)
+      setSynthesis(result.synthesis)
+    } catch (e) {
+      setSynthError(String(e))
+    } finally {
+      setApplying(false)
     }
   }
 
@@ -473,6 +643,22 @@ export function SessionPage() {
               )
             })}
           </div>
+
+          {/* Synthesis panel — shown when evaluations exist */}
+          {evaluations && evaluations.length > 0 && synthPhase !== 'streaming' && (
+            <SynthesisPanel
+              synthesis={synthesis}
+              onSynthesize={synthesize}
+              onApply={applySynthesis}
+              synthPhase={synthPhase}
+              synthError={synthError}
+              streamText={streamText}
+              evaluationsExist={evaluations.length > 0}
+            />
+          )}
+          {synthPhase === 'streaming' && (
+            <StreamOverlay label="Synthesising session…" text={streamText} />
+          )}
 
           {/* Submit bar — only shown in answering phase */}
           {!savedResponses && evalPhase === 'idle' && genPhase !== 'streaming' && (
