@@ -98,24 +98,43 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 			filesystem.ErrSplitRequired, totalTokens, h.softTokenLimit)
 	}
 
-	// ── Load context for LLM (budget-limited to contextTokenLimit) ───────────
-	budget, err := h.store.LoadInheritedContext(ctx, cmd.TrackID, h.contextTokenLimit)
-	if err != nil {
-		return fmt.Errorf("generate questions: context files: %w", err)
-	}
-	h.rec.Record(metrics.Event{
-		Event:      "context_load",
-		TrackID:    cmd.TrackID,
-		SessionNum: cmd.SessionNumber,
-		Tokens:     int64(budget.TokensUsed),
-		Extra:      map[string]any{"truncated": budget.Truncated, "truncated_at": budget.TruncatedAt},
-	})
-	contextFiles := budget.Files
-	if budget.Truncated {
-		out <- llm.Chunk{Text: fmt.Sprintf(
-			"[context truncated at track %s — %d tokens used of %d limit]\n",
-			budget.TruncatedAt, budget.TokensUsed, h.contextTokenLimit,
-		)}
+	// ── Load context for LLM ─────────────────────────────────────────────────
+	// If the session was created with a shard, load only that shard's files.
+	// Otherwise use the normal budget-gated inherited context.
+	var contextFiles map[string]string
+	meta, _ := h.store.ReadSessionMetadata(ctx, cmd.TrackID, cmd.SessionNumber)
+	if meta.ShardID != "" {
+		shardFiles, shardTokens, err := h.store.LoadContextForShard(ctx, cmd.TrackID, meta.ShardID)
+		if err != nil {
+			return fmt.Errorf("generate questions: shard context: %w", err)
+		}
+		h.rec.Record(metrics.Event{
+			Event:      "context_load",
+			TrackID:    cmd.TrackID,
+			SessionNum: cmd.SessionNumber,
+			Tokens:     int64(shardTokens),
+			Extra:      map[string]any{"shard_id": meta.ShardID},
+		})
+		contextFiles = shardFiles
+	} else {
+		budget, err := h.store.LoadInheritedContext(ctx, cmd.TrackID, h.contextTokenLimit)
+		if err != nil {
+			return fmt.Errorf("generate questions: context files: %w", err)
+		}
+		h.rec.Record(metrics.Event{
+			Event:      "context_load",
+			TrackID:    cmd.TrackID,
+			SessionNum: cmd.SessionNumber,
+			Tokens:     int64(budget.TokensUsed),
+			Extra:      map[string]any{"truncated": budget.Truncated, "truncated_at": budget.TruncatedAt},
+		})
+		contextFiles = budget.Files
+		if budget.Truncated {
+			out <- llm.Chunk{Text: fmt.Sprintf(
+				"[context truncated at track %s — %d tokens used of %d limit]\n",
+				budget.TruncatedAt, budget.TokensUsed, h.contextTokenLimit,
+			)}
+		}
 	}
 
 	generationID := uuid.New().String()

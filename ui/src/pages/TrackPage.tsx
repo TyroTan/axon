@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { GetTrackResult, Concept, Session } from '@/api/types'
+import type { GetTrackResult, Concept, Session, SplitPlan } from '@/api/types'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -80,16 +80,27 @@ export function TrackPage() {
   const { trackId } = useParams<{ trackId: string }>()
   const navigate = useNavigate()
   const [data, setData] = useState<GetTrackResult | null>(null)
+  const [splitPlan, setSplitPlan] = useState<SplitPlan | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [duplicating, setDuplicating] = useState(false)
   const [startingSession, setStartingSession] = useState(false)
+  const [shardPickerOpen, setShardPickerOpen] = useState(false)
 
-  async function startSession() {
+  async function startSession(shardId?: string) {
     if (!trackId || startingSession) return
+
+    // If a split plan with approved shards exists and no shard chosen yet, open picker.
+    const approvedShards = splitPlan?.shards.filter(s => s.status === 'approved') ?? []
+    if (approvedShards.length > 0 && !shardId) {
+      setShardPickerOpen(true)
+      return
+    }
+
     setStartingSession(true)
+    setShardPickerOpen(false)
     try {
-      const res = await api.createSession(trackId)
+      const res = await api.createSession(trackId, shardId)
       navigate(`/tracks/${trackId}/sessions/${res.session_number}`)
     } catch (e) {
       setError(String(e))
@@ -101,8 +112,14 @@ export function TrackPage() {
     if (!trackId) return
     setLoading(true)
     setError(null)
-    api.getTrack(trackId)
-      .then(setData)
+    Promise.all([
+      api.getTrack(trackId),
+      api.getSplitPlan(trackId),
+    ])
+      .then(([trackData, planData]) => {
+        setData(trackData)
+        setSplitPlan(planData.split_plan)
+      })
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false))
   }, [trackId])
@@ -122,9 +139,62 @@ export function TrackPage() {
 
   const { track, concept_map, sessions } = data
   const branchGroups = groupByBranch(concept_map.major_branches ?? [], concept_map.concepts ?? [])
+  const approvedShards = splitPlan?.shards.filter(s => s.status === 'approved') ?? []
+  const pendingShards = splitPlan?.shards.filter(s => s.status === 'pending') ?? []
 
   return (
     <div className="max-w-5xl space-y-6">
+      {/* Split plan notice */}
+      {splitPlan && (
+        <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 text-sm space-y-1">
+          <p className="font-semibold text-yellow-300">
+            Context split plan — {(splitPlan.total_tokens / 1000).toFixed(0)}k tokens total
+          </p>
+          <p className="text-muted-foreground">
+            {approvedShards.length} shard{approvedShards.length !== 1 ? 's' : ''} approved
+            {pendingShards.length > 0 && `, ${pendingShards.length} pending`}.
+            {approvedShards.length === 0 && ' Open Context Editor to approve shards before starting a session.'}
+          </p>
+        </div>
+      )}
+
+      {/* Shard picker modal */}
+      {shardPickerOpen && approvedShards.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-background border rounded-xl shadow-xl p-6 w-full max-w-md space-y-4">
+            <h2 className="font-semibold text-base">Pick a context shard</h2>
+            <p className="text-sm text-muted-foreground">
+              This track's context exceeds the soft limit. Choose which shard of files to study this session.
+            </p>
+            <div className="space-y-2">
+              {approvedShards.map(sh => (
+                <button
+                  key={sh.id}
+                  onClick={() => startSession(sh.id)}
+                  disabled={startingSession}
+                  className={cn(
+                    buttonVariants({ variant: 'outline' }),
+                    'w-full justify-start gap-3',
+                    startingSession && 'opacity-60 cursor-not-allowed',
+                  )}
+                >
+                  <span className="font-mono text-xs">{sh.id}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {(sh.token_count / 1000).toFixed(0)}k tokens · {sh.files.length} file{sh.files.length !== 1 ? 's' : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setShardPickerOpen(false)}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'w-full')}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

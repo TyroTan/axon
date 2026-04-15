@@ -297,6 +297,29 @@ func (s *TrackStore) LoadInheritedContext(ctx context.Context, trackID string, l
 	return ContextBudget{Files: merged, TokensUsed: used}, nil
 }
 
+// WriteSessionMetadata writes 00_metadata.json for a session.
+func (s *TrackStore) WriteSessionMetadata(ctx context.Context, trackID string, sessionNum int, meta domain.SessionMetadata) error {
+	b, err := json.Marshal(meta)
+	if err != nil {
+		return fmt.Errorf("track store: marshal session metadata: %w", err)
+	}
+	return s.WriteSessionFile(ctx, trackID, sessionNum, "00_metadata.json", b)
+}
+
+// ReadSessionMetadata reads 00_metadata.json for a session.
+// Returns zero-value SessionMetadata (ShardID="") if the file does not exist.
+func (s *TrackStore) ReadSessionMetadata(ctx context.Context, trackID string, sessionNum int) (domain.SessionMetadata, error) {
+	b, err := s.ReadSessionFile(ctx, trackID, sessionNum, "00_metadata.json")
+	if err != nil || b == nil {
+		return domain.SessionMetadata{}, err
+	}
+	var meta domain.SessionMetadata
+	if err := json.Unmarshal(b, &meta); err != nil {
+		return domain.SessionMetadata{}, fmt.Errorf("track store: parse session metadata: %w", err)
+	}
+	return meta, nil
+}
+
 // WriteSessionFile writes a file into a session directory.
 func (s *TrackStore) WriteSessionFile(_ context.Context, trackID string, sessionNum int, filename string, content []byte) error {
 	dir := SessionDir(s.experimentsDir, trackID, sessionNum)

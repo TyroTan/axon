@@ -68,6 +68,26 @@ export interface DuplicateTrackResult {
 
 export interface CreateSessionResult {
   session_number: number
+  shard_id?: string
+}
+
+export interface SplitShard {
+  id: string
+  status: 'pending' | 'approved'
+  token_count: number
+  files: string[]
+}
+
+export interface SplitPlan {
+  status: string
+  total_tokens: number
+  soft_limit: number
+  generated_at: string
+  shards: SplitShard[]
+}
+
+export interface GetSplitPlanResult {
+  split_plan: SplitPlan | null
 }
 
 export interface GetSessionQuestionsResult {

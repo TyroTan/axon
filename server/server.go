@@ -169,10 +169,26 @@ func New(cfg Config) *fiber.App {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 
+	// GET /api/tracks/:id/split-plan — returns the parsed split plan, or null if none.
+	api.Get("/tracks/:id/split-plan", func(c *fiber.Ctx) error {
+		plan, err := trackStore.ReadSplitPlan(c.Context(), c.Params("id"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(fiber.Map{"split_plan": plan})
+	})
+
 	// POST /api/tracks/:id/sessions — allocate a new session directory.
+	// Body (optional JSON): { "shard_id": "shard_1" }
 	api.Post("/tracks/:id/sessions", func(c *fiber.Ctx) error {
+		var body struct {
+			ShardID string `json:"shard_id"`
+		}
+		// Ignore parse errors — empty body means no shard (full context).
+		_ = json.Unmarshal(c.Body(), &body)
 		result, err := createSessionHandler.Handle(c.Context(), commands.CreateSessionCommand{
 			TrackID: c.Params("id"),
+			ShardID: body.ShardID,
 		})
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())

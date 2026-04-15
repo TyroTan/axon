@@ -5,6 +5,7 @@ import type {
   GetSessionResponsesResult,
   GetSessionEvaluationsResult,
   GetSynthesisResult,
+  GetSplitPlanResult,
   DuplicateTrackResult,
   CreateSessionResult,
   ListTracksResult,
@@ -50,7 +51,20 @@ export const api = {
   getTrackContext: (id: string) => get<GetTrackContextResult>(`/tracks/${id}/context`),
   updateContextFile: (id: string, filename: string, content: string) =>
     put(`/tracks/${id}/context/${encodeURIComponent(filename)}`, content),
-  createSession: (trackId: string) => post<CreateSessionResult>(`/tracks/${trackId}/sessions`),
+  getSplitPlan: (trackId: string) => get<GetSplitPlanResult>(`/tracks/${trackId}/split-plan`),
+  createSession: (trackId: string, shardId?: string) => {
+    if (shardId) {
+      return fetch(`${BASE}/tracks/${trackId}/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shard_id: shardId }),
+      }).then(async res => {
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+        return res.json() as Promise<CreateSessionResult>
+      })
+    }
+    return post<CreateSessionResult>(`/tracks/${trackId}/sessions`)
+  },
   getSessionQuestions: (trackId: string, num: number) =>
     get<GetSessionQuestionsResult>(`/tracks/${trackId}/sessions/${num}/questions`),
   getSessionResponses: (trackId: string, num: number) =>

@@ -144,6 +144,14 @@ type Synthesis struct {
 	Applied          bool               `json:"applied"` // true after ApplySynthesisCommand
 }
 
+// ─── Session Metadata ─────────────────────────────────────────────────────────
+
+// SessionMetadata is written to 00_metadata.json at session creation.
+// ShardID is empty for sessions that use the full (unsplit) context.
+type SessionMetadata struct {
+	ShardID string `json:"shard_id"`
+}
+
 // ─── Steer Intent ─────────────────────────────────────────────────────────────
 
 type SteerDirection string
