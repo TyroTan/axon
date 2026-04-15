@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
+	"github.com/tyrohunt/axon/internal/metrics"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
 
@@ -26,10 +27,11 @@ type GenerateSynthesisCommand struct {
 type GenerateSynthesisHandler struct {
 	store  *filesystem.TrackStore
 	client llm.Client
+	rec    *metrics.Recorder
 }
 
-func NewGenerateSynthesisHandler(store *filesystem.TrackStore, client llm.Client) *GenerateSynthesisHandler {
-	return &GenerateSynthesisHandler{store: store, client: client}
+func NewGenerateSynthesisHandler(store *filesystem.TrackStore, client llm.Client, rec *metrics.Recorder) *GenerateSynthesisHandler {
+	return &GenerateSynthesisHandler{store: store, client: client, rec: rec}
 }
 
 func (h *GenerateSynthesisHandler) Stream(ctx context.Context, cmd GenerateSynthesisCommand) <-chan llm.Chunk {
@@ -108,6 +110,11 @@ func (h *GenerateSynthesisHandler) run(ctx context.Context, cmd GenerateSynthesi
 	if err := h.store.WriteSessionFile(ctx, cmd.TrackID, cmd.SessionNumber, "04_synthesis.json", b); err != nil {
 		return fmt.Errorf("generate synthesis: write: %w", err)
 	}
+	h.rec.Record(metrics.Event{
+		Event:      "synthesis_generated",
+		TrackID:    cmd.TrackID,
+		SessionNum: cmd.SessionNumber,
+	})
 
 	out <- llm.Chunk{Done: true}
 	return nil

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
+	"github.com/tyrohunt/axon/internal/metrics"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
 
@@ -28,15 +29,17 @@ type GenerateQuestionsHandler struct {
 	contextTokenLimit int
 	softTokenLimit    int // triggers split plan when exceeded (T2)
 	hardTokenLimit    int // hard abort when exceeded (T2)
+	rec               *metrics.Recorder
 }
 
-func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit, softTokenLimit, hardTokenLimit int) *GenerateQuestionsHandler {
+func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit, softTokenLimit, hardTokenLimit int, rec *metrics.Recorder) *GenerateQuestionsHandler {
 	return &GenerateQuestionsHandler{
 		store:             store,
 		client:            client,
 		contextTokenLimit: contextTokenLimit,
 		softTokenLimit:    softTokenLimit,
 		hardTokenLimit:    hardTokenLimit,
+		rec:               rec,
 	}
 }
 
@@ -66,6 +69,13 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 	if err != nil {
 		return fmt.Errorf("generate questions: context files: %w", err)
 	}
+	h.rec.Record(metrics.Event{
+		Event:      "context_load",
+		TrackID:    cmd.TrackID,
+		SessionNum: cmd.SessionNumber,
+		Tokens:     int64(budget.TokensUsed),
+		Extra:      map[string]any{"truncated": budget.Truncated, "truncated_at": budget.TruncatedAt},
+	})
 	contextFiles := budget.Files
 	if budget.Truncated {
 		out <- llm.Chunk{Text: fmt.Sprintf(
@@ -109,6 +119,12 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 	if err := h.store.WriteSessionFile(ctx, cmd.TrackID, cmd.SessionNumber, "01_questions.json", b); err != nil {
 		return fmt.Errorf("generate questions: write: %w", err)
 	}
+	h.rec.Record(metrics.Event{
+		Event:      "questions_generated",
+		TrackID:    cmd.TrackID,
+		SessionNum: cmd.SessionNumber,
+		Extra:      map[string]any{"count": len(questions), "generation_id": generationID},
+	})
 
 	out <- llm.Chunk{Done: true}
 	return nil

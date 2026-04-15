@@ -20,6 +20,7 @@ import (
 	"github.com/tyrohunt/axon/internal/llm"
 	"github.com/tyrohunt/axon/internal/llm/anthropic"
 	"github.com/tyrohunt/axon/internal/llm/claudecli"
+	"github.com/tyrohunt/axon/internal/metrics"
 	"github.com/tyrohunt/axon/internal/queries"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
@@ -75,6 +76,12 @@ func New(cfg Config) *fiber.App {
 		llmClient = claudecli.New("")
 	}
 
+	// ── Metrics recorder ─────────────────────────────────────────────────────
+	rec, err := metrics.New(cfg.ExperimentsDir)
+	if err != nil {
+		panic("axon: metrics init: " + err.Error())
+	}
+
 	// ── Command bus ──────────────────────────────────────────────────────────
 	cmdBus := cqrs.NewCommandBus()
 	cqrs.Register[commands.DuplicateTrackCommand](
@@ -85,10 +92,10 @@ func New(cfg Config) *fiber.App {
 	)
 
 	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
-	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit, cfg.SoftTokenLimit, cfg.HardTokenLimit)
+	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit, cfg.SoftTokenLimit, cfg.HardTokenLimit, rec)
 	submitResponsesHandler := commands.NewSubmitResponsesHandler(trackStore)
-	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient)
-	generateSynthesisHandler := commands.NewGenerateSynthesisHandler(trackStore, llmClient)
+	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient, rec)
+	generateSynthesisHandler := commands.NewGenerateSynthesisHandler(trackStore, llmClient, rec)
 	applySynthesisHandler := commands.NewApplySynthesisHandler(trackStore)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -100,6 +107,11 @@ func New(cfg Config) *fiber.App {
 
 	// ── API routes ───────────────────────────────────────────────────────────
 	api := app.Group("/api")
+
+	// GET /api/metrics — aggregated event counts + last 50 events with timestamps and track context.
+	api.Get("/metrics", func(c *fiber.Ctx) error {
+		return c.JSON(rec.Snapshot(50))
+	})
 
 	api.Get("/tracks", func(c *fiber.Ctx) error {
 		result, err := cqrs.Ask[queries.ListTracksQuery, queries.ListTracksResult](

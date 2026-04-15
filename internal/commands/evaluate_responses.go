@@ -9,6 +9,7 @@ import (
 
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
+	"github.com/tyrohunt/axon/internal/metrics"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
 
@@ -25,10 +26,11 @@ type EvaluateResponsesCommand struct {
 type EvaluateResponsesHandler struct {
 	store  *filesystem.TrackStore
 	client llm.Client
+	rec    *metrics.Recorder
 }
 
-func NewEvaluateResponsesHandler(store *filesystem.TrackStore, client llm.Client) *EvaluateResponsesHandler {
-	return &EvaluateResponsesHandler{store: store, client: client}
+func NewEvaluateResponsesHandler(store *filesystem.TrackStore, client llm.Client, rec *metrics.Recorder) *EvaluateResponsesHandler {
+	return &EvaluateResponsesHandler{store: store, client: client, rec: rec}
 }
 
 // Stream starts LLM evaluation and returns a channel of incremental chunks.
@@ -103,6 +105,12 @@ func (h *EvaluateResponsesHandler) run(ctx context.Context, cmd EvaluateResponse
 	if err := h.store.WriteSessionFile(ctx, cmd.TrackID, cmd.SessionNumber, "03_evaluations.json", b); err != nil {
 		return fmt.Errorf("evaluate: write: %w", err)
 	}
+	h.rec.Record(metrics.Event{
+		Event:      "evaluation_run",
+		TrackID:    cmd.TrackID,
+		SessionNum: cmd.SessionNumber,
+		Extra:      map[string]any{"count": len(evaluations)},
+	})
 
 	out <- llm.Chunk{Done: true}
 	return nil
