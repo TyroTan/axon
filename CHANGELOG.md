@@ -9,6 +9,19 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.13.0] — 2026-04-15 — T6: file-level compaction + README catch-up
+
+### Added
+- `CompactFileCommand` + `CompactFileHandler` — LLM distils a verbose context file to a target token budget (default: half); writes `filename.compact.md` with YAML frontmatter (`source_file`, `source_hash` SHA-256 prefix, `source_tokens`, `compacted_tokens`, `compacted_by`)
+- `POST /api/tracks/:id/context/:filename/compact` (SSE) — optional `{ target_tokens }` body; streams LLM output
+- `metrics` event `compaction_run` with source/compacted token counts and reduction %
+- Context editor: **Compact** button in editor toolbar — hidden for `_`-prefixed system files and `.compact.` files; streams output inline; reloads file list after completion so the new `.compact.md` appears immediately
+
+### Changed
+- `README.md` fully rewritten to reflect current system state: env vars table, 5 usage workflows (fast path, context editor, split plan, duplicate track, metrics), accurate architecture listing, updated key concepts
+
+---
+
 ## [0.12.0] — 2026-04-15 — T5: meta-synthesis across all shards
 
 ### Added

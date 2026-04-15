@@ -10,102 +10,152 @@ Axon builds a behavioral skill profile from your own technical documents, then d
 
 **What:** A local Go server + browser UI that turns your `.md` files into an adaptive quiz engine. Sessions are file-persisted, concepts are tracked individually, and every run is reproducible.
 
-**Why:** Standard self-assessment is unreliable — you cannot accurately gauge your own blind spots by introspection. Flashcard systems (Anki, Quizlet) track recall, not understanding. Axon separates surface-level pattern matching from genuine mechanism knowledge via explanation scoring and Brier score calibration. It also solves a specific problem: when your documents are co-authored with an LLM, naive corpus analysis overcredits your knowledge. Axon's attribution-corrected profiling accounts for this.
+**Why:** Standard self-assessment is unreliable — you cannot accurately gauge your own blind spots by introspection. Flashcard systems (Anki, Quizlet) track recall, not understanding. Axon separates surface-level pattern matching from genuine mechanism knowledge via explanation scoring and Brier score calibration.
 
 **How:** You define a *track* — a set of 3–5 major knowledge branches (e.g. "RAG Architecture · LLM Systems · ML Fundamentals"). Axon generates a concept map with a prerequisite bottleneck graph. Each quiz session asks questions calibrated to your current Bloom's level per concept, advancing through the graph as mastery is demonstrated. All data lives in plain JSON files you own.
 
 ---
 
-## Usage — Top 3 Use Cases
-
-### 1. Build a skill profile from your own technical documents
-
-You have design docs, architecture notes, or post-mortems. Axon reads them, strips out LLM-generated content using attribution heuristics, and produces a per-concept starting profile.
-
-```bash
-# Start the server pointing at your .experiments/ directory
-AXON_DIR=/path/to/.experiments PORT=3456 go run .
-
-# Open the browser
-open http://localhost:3456
-
-# Select your track → "Upload context" → paste your .md files → Generate Profile
-```
-
-Output: a `00_profile_snapshot.json` with `bloom_current` estimated per concept, with confidence levels and attribution warnings.
-
----
-
-### 2. Run an adaptive quiz session
-
-Select a track, start a session. Axon picks 12 questions weighted toward your bottleneck concepts (prerequisites for 3+ other concepts) and targets your zone of proximal development (one Bloom's level above demonstrated).
-
-Each question captures:
-- **Answer** (MCQ or free-text)
-- **Confidence** (1–5 self-report)
-- **Explanation** (your reasoning in plain language)
-- **Time** (automatically tracked)
-
-After each answer you get: correctness, explanation score (mechanism accuracy, terminology precision, edge case awareness, generalization quality), Brier score contribution, and error taxonomy (misconception / knowledge gap / careless error / ceiling).
-
----
-
-### 3. Steer and redo generation
-
-Before regenerating a question set, nudge the difficulty:
-
-```
-[Make next questions...]
-○ slightly harder     ○ significantly harder
-○ slightly easier     ○ significantly easier  
-○ focus on [concept]  ○ fewer [branch] questions
-Note: ___
-```
-
-Every generation run is persisted with a unique `generation_id`. You can compare `Run 1 | Run 2 | Run 3` side by side. Steer history is saved alongside each run.
-
----
-
 ## Getting Started
 
-**Prerequisites:** Go 1.21+, a terminal, a browser.
+**Prerequisites:** Go 1.21+, `claude` CLI authenticated (`claude --version`), a browser. No API key required.
 
 ```bash
-git clone git@github.com:TyroTan/axon.git
-cd axon
-go run . 
-# → http://localhost:3456
+cd .experiments
+go run .
+# → API on http://localhost:3456
+# → UI on http://localhost:5173 (start Vite separately: cd ui && npm run dev)
 ```
 
-By default the server reads the directory it runs from. Point it at your own experiments folder:
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `AXON_DIR` | binary directory | Absolute path to `.experiments/` folder |
+| `PORT` | `3456` | Go API server port |
+| `AXON_DIST_DIR` | `$AXON_DIR/web/dist` | Built React app (production only) |
+| `ANTHROPIC_API_KEY` | *(unset)* | Set to use Anthropic HTTP API; omit to use `claude` CLI auth |
+| `AXON_CONTEXT_LIMIT` | `80000` | Max tokens passed to LLM per generation call |
+| `AXON_SOFT_LIMIT` | `250000` | Corpus size that triggers split plan generation |
+| `AXON_HARD_LIMIT` | `300000` | Corpus size that blocks generation entirely |
+
+---
+
+## Usage — Core Workflows
+
+### 1. Start a session on a small corpus (≤ 250k tokens)
+
+The fast path — no splitting required.
+
+1. Open the track page → **+ Start Session**
+2. Click **Generate Questions** — streams 8 questions from the LLM
+3. Answer each question: pick MCQ option or write free-text, rate confidence 1–5, add an explanation
+4. Click **Submit** → **Evaluate** — LLM scores every answer with Brier calibration and error taxonomy
+5. Click **Synthesise** → review concept bloom updates → **Apply** to commit changes to `concept_map.json`
+
+Each step writes a file: `01_questions.json` → `02_responses.json` → `03_evaluations.json` → `04_synthesis.json`.
+
+---
+
+### 2. Add context documents to a track
+
+Context files live in `track_N/context/`. They are inherited by child tracks (`track_N_M` inherits from `track_N`).
+
+1. Track page → **Edit Context**
+2. Click any file to edit, or type a new filename and **Create**
+3. Save — the file is immediately available for the next session's question generation
+
+Child tracks override parent files on filename collision. Token counting is naive (`(bytes+3)/4`) but deterministic.
+
+---
+
+### 3. Large corpus — split plan workflow (> 250k tokens)
+
+When total inherited context exceeds `AXON_SOFT_LIMIT`:
+
+1. **Generate Questions** is blocked — a yellow banner appears on the track page
+2. Open **Edit Context** — a `_split_plan.md` file has been written with greedy bin-packed shards
+3. Edit each shard's `status: pending` → `status: approved` for the shards you want to study
+4. Save and return to the track page
+5. **+ Start Session** → shard picker modal appears — choose which chapter to study
+6. The session is tagged with the shard ID; only that shard's files are sent to the LLM
+7. After completing sessions for all approved shards, the **Meta-Synthesis** panel unlocks
+8. Click **Generate meta-synthesis** — aggregates evaluations across shards → unified bloom update
+9. Click **Apply to concept map** to commit
+
+---
+
+### 4. Duplicate a track
+
+Creates a child track (`track_1` → `track_1_2`) that inherits the parent's context files and concept map.
+
+Track page → **Duplicate** → navigates to the new child track immediately.
+
+Useful for: experimenting with a different context slice, resetting bloom levels for a retake, testing a subset of concepts.
+
+---
+
+### 5. Observe what the system is doing
 
 ```bash
-AXON_DIR=/your/path go run .
+curl http://localhost:3456/api/metrics | jq
 ```
 
-To use a different port:
+Returns:
+```json
+{
+  "uptime_seconds": 142,
+  "counts": {
+    "context_load": 7,
+    "questions_generated": 3,
+    "evaluation_run": 2,
+    "synthesis_generated": 1,
+    "soft_limit_hit": 0,
+    "hard_limit_hit": 0
+  },
+  "recent": [
+    { "ts": "...", "event": "context_load", "track_id": "track_1", "session_num": 4, "tokens": 21600, "extra": { "truncated": false } }
+  ]
+}
+```
+
+Events are also appended to `metrics.jsonl` — survives restarts and is `jq`-queryable.
 
 ```bash
-PORT=8080 go run .
+# Which sessions hit the soft limit?
+jq 'select(.event == "soft_limit_hit")' metrics.jsonl
+
+# Average tokens per context load
+jq -s '[.[].tokens // 0] | add / length' metrics.jsonl
 ```
 
 ---
 
 ## Track System
 
-A *track* covers 3–5 major knowledge branches. Tracks are versioned by iteration:
-
 | Track ID | Meaning |
 |---|---|
-| `track_1` | First track. May reference external `.md` files. |
-| `track_1_2` | Second iteration of the same topic cluster. Inherits from `track_1`. |
+| `track_1` | Root track. Context files sourced from `context/`. |
+| `track_1_2` | Second iteration of the same topic cluster. Inherits `track_1/context/`. |
 | `track_2` | New topic combination entirely. Self-contained. |
 
-Each track has:
-- `concept_map.json` — 32–40 concepts with Bloom's targets, bottleneck flags, and prerequisite graph
-- `prompts/` — all 5 LLM prompts as self-contained files (paste into Claude or any capable LLM)
-- `context/` — snapshots of the source documents used to generate the starting profile
-- `sessions/` — one folder per session with profile snapshot, questions, responses, evaluations, synthesis
+Each track directory:
+
+```
+track_N/
+  concept_map.json          32–40 concepts, Bloom targets, bottleneck graph
+  context/                  .md files fed to the LLM — editable via UI
+    _sources.md             (optional) source registry
+    _split_plan.md          (auto-generated) shard assignments when corpus > soft limit
+  sessions/
+    session_001/
+      00_metadata.json      shard_id (empty for unsplit sessions)
+      01_questions.json
+      02_responses.json
+      03_evaluations.json
+      04_synthesis.json
+  meta_synthesis.json       (auto-generated) unified bloom update across all shards
+```
 
 ---
 
@@ -113,21 +163,43 @@ Each track has:
 
 ```
 axon/
-  main.go                          entry point (AXON_DIR, PORT env vars)
-  server/server.go                 composition root — wires all dependencies
+  main.go                   entry point — reads env vars, calls server.New()
+  server/server.go          composition root — wires all deps, registers routes
   internal/
-    domain/types.go                Track, ConceptMap, Concept, Session, Question,
-                                   Response, Evaluation, Synthesis, SteerIntent
-    store/interface.go             Collection[T] — backend-agnostic, MongoDB-style
-                                   FindOne / Find / FindOneAndUpdate / UpdateOne /
-                                   InsertOne / DeleteOne
-    store/filesystem/              JSON-file implementation (default)
-    cqrs/bus.go                    CommandBus + QueryBus — type-safe generic dispatch
-    commands/                      one file per command (create track, generate questions, ...)
-    queries/                       one file per query (list tracks, get session, ...)
+    domain/types.go         Track, ConceptMap, Session, Question, Response,
+                            Evaluation, Synthesis, MetaSynthesis, SessionMetadata, SteerIntent
+    store/filesystem/       JSON-file store: TrackStore, split plan helpers
+    cqrs/bus.go             CommandBus + QueryBus — type-safe generic dispatch
+    commands/               generate_questions, evaluate_responses, generate_synthesis,
+                            apply_synthesis, meta_synthesis, apply_meta_synthesis,
+                            create_session, duplicate_track, update_context, submit_responses
+    queries/                list_tracks, get_track, get_track_context, get_session_*,
+                            get_synthesis, get_meta_synthesis
+    llm/                    Client interface — claudecli (default) or anthropic HTTP
+    metrics/                file-persisted JSONL event recorder
+  ui/src/                   React + Vite + Tailwind v4 + shadcn/ui
+    api/client.ts           typed fetch helpers
+    api/types.ts            TypeScript mirrors of Go domain types
+    pages/                  TrackPage, SessionPage, ContextEditorPage, HomePage
 ```
 
-The store interface uses MongoDB-style operators (`$set`, `$inc`, `$push`, `$unset`) and dot-notation filter paths. Swapping to real MongoDB requires only a new store implementation — no handler changes.
+**LLM auth:** defaults to the `claude` CLI binary (uses your existing Claude Code session — no API key). Set `ANTHROPIC_API_KEY` to switch to the Anthropic HTTP API.
+
+**Store interface:** `Collection[T]` in `store/interface.go` uses MongoDB-style operators (`$set`, `$inc`, `$push`, `$unset`) and dot-notation paths. Swapping to MongoDB requires only a new store implementation — zero handler changes.
+
+---
+
+## Key Concepts
+
+**Bloom's Taxonomy levels** — every question is tagged L1 (Remember) through L6 (Create). `bloom_current` advances +1 after ≥75% accuracy across ≥2 questions; drops −1 below 40% with an identified misconception.
+
+**Bottleneck concepts** — prerequisites for 3+ other concepts. Prioritized when `bloom_current < 3` because unlocking them advances the entire dependency graph.
+
+**Brier score** — measures calibration: `(confidence_normalised − correctness)²`. Confidently wrong is a higher-risk gap than uncertain and wrong.
+
+**Inherited context** — child tracks inherit parent context files; child wins on filename collision. Token budget is enforced naively before each generation call.
+
+**Split plan** — when corpus exceeds `AXON_SOFT_LIMIT`, a `_split_plan.md` is generated with greedy bin-packed shards. Human-approved via the context editor; shard-tagged sessions load only their assigned files.
 
 ---
 
@@ -135,24 +207,11 @@ The store interface uses MongoDB-style operators (`$set`, `$inc`, `$push`, `$uns
 
 | File | Contents |
 |---|---|
-| [ROADMAP.md](ROADMAP.md) | Phased delivery plan — what's done, what's next, what's deferred |
+| [ROADMAP.md](ROADMAP.md) | Phased delivery plan — done, queued, deferred |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
-| [how_to.md](how_to.md) | Step-by-step guide for running sessions manually (LLM prompt workflow) |
-| [concept_taxonomy.md](concept_taxonomy.md) | How concept maps work — bottleneck detection, Bloom's level update algorithm |
-| [plan.md](plan.md) | Original system design — D1–D6 baseline, Brier score, error taxonomy, spaced repetition |
-| [track_1/README.md](track_1/README.md) | Track 1 parameters — 4 branches, 32 concepts, cross-branch pairs |
-
----
-
-## Key Concepts
-
-**Bloom's Taxonomy levels** — every question is tagged L1 (Remember) through L6 (Create). The system advances your `bloom_current` per concept only after 75% accuracy across at least 2 questions at that level.
-
-**Bottleneck concepts** — concepts that are prerequisites for 3+ other concepts. These are prioritized when `bloom_current < 3` because unlocking them advances the entire dependency graph.
-
-**Brier score** — measures calibration: `(confidence/5 - correctness)²`. A practitioner who is confidently wrong is a higher-risk gap than one who is wrong and knows it.
-
-**Attribution correction** — when your documents are co-authored with an LLM, the profiler weights down signal that comes from LLM-generated prose and weights up signal from questions you asked, corrections you made, and decisions you justified before being told the answer.
+| [how_to.md](how_to.md) | Manual session guide (LLM prompt workflow) |
+| [concept_taxonomy.md](concept_taxonomy.md) | Concept map schema, bottleneck detection, Bloom update algorithm |
+| [plan.md](plan.md) | Original system design — D1–D6, Brier score, error taxonomy, spaced repetition |
 
 ---
 

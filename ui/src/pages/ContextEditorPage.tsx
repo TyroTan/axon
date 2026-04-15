@@ -26,6 +26,11 @@ export function ContextEditorPage() {
   const [newFilename, setNewFilename] = useState('')
   const [showNewFile, setShowNewFile] = useState(false)
 
+  // Compaction
+  const [compacting, setCompacting] = useState(false)
+  const [compactStream, setCompactStream] = useState('')
+  const [compactError, setCompactError] = useState<string | null>(null)
+
   useEffect(() => {
     if (!trackId) return
     api.getTrackContext(trackId)
@@ -83,6 +88,25 @@ export function ContextEditorPage() {
       setSaveStatus('idle')
     } catch (e) {
       setSaveError(String(e))
+    }
+  }
+
+  async function compactFile() {
+    if (!trackId || !selectedFile || compacting) return
+    // Skip _-prefixed system files and already-compacted files.
+    if (selectedFile.startsWith('_') || selectedFile.includes('.compact.')) return
+    setCompacting(true)
+    setCompactStream('')
+    setCompactError(null)
+    try {
+      await api.compactContextFile(trackId, selectedFile, t => setCompactStream(p => p + t))
+      // Reload context so the new .compact.md appears in the file list.
+      const fresh = await api.getTrackContext(trackId)
+      setData(fresh)
+    } catch (e) {
+      setCompactError(String(e))
+    } finally {
+      setCompacting(false)
     }
   }
 
@@ -183,11 +207,22 @@ export function ContextEditorPage() {
               <div className="px-4 py-2 border-b bg-muted/40 flex items-center justify-between">
                 <span className="text-xs font-mono text-muted-foreground">{selectedFile}</span>
                 <div className="flex items-center gap-3">
-                  {saveStatus === 'saved' && (
-                    <span className="text-xs text-green-500">Saved</span>
-                  )}
-                  {saveStatus === 'error' && (
-                    <span className="text-xs text-destructive" title={saveError ?? ''}>Save failed</span>
+                  {saveStatus === 'saved' && <span className="text-xs text-green-500">Saved</span>}
+                  {saveStatus === 'error' && <span className="text-xs text-destructive" title={saveError ?? ''}>Save failed</span>}
+                  {compactError && <span className="text-xs text-destructive" title={compactError}>Compact failed</span>}
+                  {!selectedFile.startsWith('_') && !selectedFile.includes('.compact.') && (
+                    <button
+                      onClick={compactFile}
+                      disabled={compacting}
+                      title="Distil this file to ~50% tokens via LLM — writes a .compact.md version"
+                      className={cn(
+                        buttonVariants({ variant: 'outline', size: 'sm' }),
+                        'h-6 text-xs px-3',
+                        compacting && 'opacity-60 cursor-not-allowed'
+                      )}
+                    >
+                      {compacting ? 'Compacting…' : 'Compact'}
+                    </button>
                   )}
                   <button
                     onClick={saveFile}
@@ -202,6 +237,11 @@ export function ContextEditorPage() {
                   </button>
                 </div>
               </div>
+              {compactStream && (
+                <pre className="text-xs text-muted-foreground bg-muted/60 px-4 py-2 max-h-24 overflow-auto whitespace-pre-wrap border-b">
+                  {compactStream}
+                </pre>
+              )}
               <textarea
                 value={draft}
                 onChange={e => { setDraft(e.target.value); setSaveStatus('idle') }}
