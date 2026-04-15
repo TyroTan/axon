@@ -580,9 +580,9 @@ export function SessionPage() {
           {/* Phase header */}
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {evaluations
+              {evaluations && evaluations.length > 0
                 ? `${evaluations.length} evaluations complete`
-                : savedResponses
+                : savedResponses && savedResponses.length > 0
                   ? 'Responses submitted — ready to evaluate'
                   : `${answeredCount} / ${questions.length} answered`}
             </p>
@@ -595,7 +595,7 @@ export function SessionPage() {
                   Regenerate
                 </button>
               )}
-              {savedResponses && !evaluations && evalPhase === 'idle' && (
+              {savedResponses && savedResponses.length > 0 && !evaluations && evalPhase === 'idle' && (
                 <button onClick={evaluate} className={cn(buttonVariants({ size: 'sm' }))}>
                   Evaluate with AI
                 </button>
@@ -637,7 +637,7 @@ export function SessionPage() {
                   q={q}
                   index={i}
                   answer={answers[q.id] ?? { answer: '', confidence: 3, explanation: '' }}
-                  readonly={!!savedResponses}
+                  readonly={!!(savedResponses && savedResponses.length > 0)}
                   onChange={a => setAnswers(prev => ({ ...prev, [q.id]: a }))}
                 />
               )
@@ -661,7 +661,7 @@ export function SessionPage() {
           )}
 
           {/* Submit bar — only shown in answering phase */}
-          {!savedResponses && evalPhase === 'idle' && genPhase !== 'streaming' && (
+          {!(savedResponses && savedResponses.length > 0) && evalPhase === 'idle' && genPhase !== 'streaming' && (
             <div className="sticky bottom-4 flex justify-end">
               <button
                 onClick={submitAll}
