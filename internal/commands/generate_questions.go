@@ -64,7 +64,41 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		return fmt.Errorf("generate questions: concept map: %w", err)
 	}
 
-	// Load inherited context (walks parent chain, respects token limit).
+	// ── Soft/hard limit gate ─────────────────────────────────────────────────
+	// Load the full corpus (no limit) to measure total tokens before committing
+	// to an LLM call. Hard limit aborts immediately; soft limit writes a split
+	// plan and halts — user must approve shards via the context editor (T4).
+	_, fullFiles, totalTokens, err := h.store.LoadFullContext(ctx, cmd.TrackID)
+	if err != nil {
+		return fmt.Errorf("generate questions: full context load: %w", err)
+	}
+	if h.hardTokenLimit > 0 && totalTokens > h.hardTokenLimit {
+		h.rec.Record(metrics.Event{
+			Event:      "hard_limit_hit",
+			TrackID:    cmd.TrackID,
+			SessionNum: cmd.SessionNumber,
+			Tokens:     int64(totalTokens),
+			Extra:      map[string]any{"hard_limit": h.hardTokenLimit},
+		})
+		return fmt.Errorf("generate questions: %w (total: %d, limit: %d)",
+			filesystem.ErrHardLimitExceeded, totalTokens, h.hardTokenLimit)
+	}
+	if h.softTokenLimit > 0 && totalTokens > h.softTokenLimit {
+		h.rec.Record(metrics.Event{
+			Event:      "soft_limit_hit",
+			TrackID:    cmd.TrackID,
+			SessionNum: cmd.SessionNumber,
+			Tokens:     int64(totalTokens),
+			Extra:      map[string]any{"soft_limit": h.softTokenLimit},
+		})
+		if err := h.store.WriteSplitPlan(ctx, cmd.TrackID, fullFiles, totalTokens, h.softTokenLimit); err != nil {
+			return fmt.Errorf("generate questions: write split plan: %w", err)
+		}
+		return fmt.Errorf("generate questions: %w (total: %d, limit: %d) — review _split_plan.md in context editor",
+			filesystem.ErrSplitRequired, totalTokens, h.softTokenLimit)
+	}
+
+	// ── Load context for LLM (budget-limited to contextTokenLimit) ───────────
 	budget, err := h.store.LoadInheritedContext(ctx, cmd.TrackID, h.contextTokenLimit)
 	if err != nil {
 		return fmt.Errorf("generate questions: context files: %w", err)
