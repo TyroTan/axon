@@ -405,6 +405,42 @@ func (s *TrackStore) ListSessions(_ context.Context, trackID string) ([]domain.S
 	return sessions, nil
 }
 
+// SessionWithMeta bundles a session stub with its parsed metadata (shard tag).
+type SessionWithMeta struct {
+	domain.Session
+	ShardID string
+}
+
+// ListSessionsWithMeta returns all sessions for a track with their ShardID populated.
+func (s *TrackStore) ListSessionsWithMeta(ctx context.Context, trackID string) ([]SessionWithMeta, error) {
+	sessions, err := s.ListSessions(ctx, trackID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]SessionWithMeta, 0, len(sessions))
+	for _, sess := range sessions {
+		meta, _ := s.ReadSessionMetadata(ctx, trackID, sess.Number) // silent on missing
+		out = append(out, SessionWithMeta{Session: sess, ShardID: meta.ShardID})
+	}
+	return out, nil
+}
+
+// ReadTrackFile reads meta_synthesis.json or any track-level file.
+func (s *TrackStore) ReadTrackFile(_ context.Context, trackID, filename string) ([]byte, error) {
+	path := filepath.Join(s.experimentsDir, trackID, filename)
+	b, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	return b, err
+}
+
+// WriteTrackFile writes a track-level file (not inside a session directory).
+func (s *TrackStore) WriteTrackFile(_ context.Context, trackID, filename string, content []byte) error {
+	path := filepath.Join(s.experimentsDir, trackID, filename)
+	return os.WriteFile(path, content, 0o644)
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

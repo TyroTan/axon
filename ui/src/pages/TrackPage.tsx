@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { GetTrackResult, Concept, Session, SplitPlan } from '@/api/types'
+import type { GetTrackResult, Concept, Session, SplitPlan, MetaSynthesis } from '@/api/types'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -81,6 +81,11 @@ export function TrackPage() {
   const navigate = useNavigate()
   const [data, setData] = useState<GetTrackResult | null>(null)
   const [splitPlan, setSplitPlan] = useState<SplitPlan | null>(null)
+  const [metaSynth, setMetaSynth] = useState<MetaSynthesis | null>(null)
+  const [metaReady, setMetaReady] = useState<boolean>(false)
+  const [metaMissing, setMetaMissing] = useState<string[]>([])
+  const [generatingMeta, setGeneratingMeta] = useState(false)
+  const [metaStream, setMetaStream] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [duplicating, setDuplicating] = useState(false)
@@ -115,10 +120,15 @@ export function TrackPage() {
     Promise.all([
       api.getTrack(trackId),
       api.getSplitPlan(trackId),
+      api.getMetaSynthesis(trackId),
+      api.getMetaSynthesisReadiness(trackId).catch(() => ({ ready: false, missing_shards: [] })),
     ])
-      .then(([trackData, planData]) => {
+      .then(([trackData, planData, msData, readiness]) => {
         setData(trackData)
         setSplitPlan(planData.split_plan)
+        setMetaSynth(msData.meta_synthesis)
+        setMetaReady(readiness.ready)
+        setMetaMissing(readiness.missing_shards ?? [])
       })
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false))
@@ -156,6 +166,94 @@ export function TrackPage() {
             {approvedShards.length === 0 && ' Open Context Editor to approve shards before starting a session.'}
           </p>
         </div>
+      )}
+
+      {/* Meta-synthesis panel — only shown when a split plan exists */}
+      {splitPlan && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              Meta-Synthesis
+              {metaSynth?.applied && <Badge variant="secondary">Applied</Badge>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {metaSynth ? (
+              <>
+                <p className="text-sm text-muted-foreground">{metaSynth.learner_summary}</p>
+                <p className="text-xs text-muted-foreground">
+                  Sessions: {metaSynth.sessions_aggregated.join(', ')} ·
+                  Shards: {metaSynth.shards_aggregated.join(', ')} ·
+                  {metaSynth.concept_map_updates.length} concept updates
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!trackId || generatingMeta) return
+                      setGeneratingMeta(true)
+                      setMetaStream('')
+                      try {
+                        await api.generateMetaSynthesis(trackId, t => setMetaStream(p => p + t))
+                        const ms = await api.getMetaSynthesis(trackId)
+                        setMetaSynth(ms.meta_synthesis)
+                      } catch (e) { setError(String(e)) }
+                      finally { setGeneratingMeta(false) }
+                    }}
+                    disabled={generatingMeta || !metaReady}
+                    className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), (!metaReady || generatingMeta) && 'opacity-60 cursor-not-allowed')}
+                  >
+                    {generatingMeta ? 'Regenerating…' : 'Re-synthesise'}
+                  </button>
+                  {!metaSynth.applied && (
+                    <button
+                      onClick={async () => {
+                        if (!trackId) return
+                        try {
+                          await api.applyMetaSynthesis(trackId)
+                          const ms = await api.getMetaSynthesis(trackId)
+                          setMetaSynth(ms.meta_synthesis)
+                        } catch (e) { setError(String(e)) }
+                      }}
+                      className={cn(buttonVariants({ size: 'sm' }))}
+                    >
+                      Apply to concept map
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                {metaReady ? (
+                  <p className="text-sm text-muted-foreground">All shards evaluated. Ready to generate.</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Waiting for evaluations on: <span className="font-mono">{metaMissing.join(', ') || '—'}</span>
+                  </p>
+                )}
+                <button
+                  onClick={async () => {
+                    if (!trackId || generatingMeta || !metaReady) return
+                    setGeneratingMeta(true)
+                    setMetaStream('')
+                    try {
+                      await api.generateMetaSynthesis(trackId, t => setMetaStream(p => p + t))
+                      const ms = await api.getMetaSynthesis(trackId)
+                      setMetaSynth(ms.meta_synthesis)
+                    } catch (e) { setError(String(e)) }
+                    finally { setGeneratingMeta(false) }
+                  }}
+                  disabled={generatingMeta || !metaReady}
+                  className={cn(buttonVariants({ size: 'sm' }), (!metaReady || generatingMeta) && 'opacity-60 cursor-not-allowed')}
+                >
+                  {generatingMeta ? 'Generating…' : 'Generate meta-synthesis'}
+                </button>
+                {metaStream && (
+                  <pre className="text-xs text-muted-foreground bg-muted rounded p-2 max-h-32 overflow-auto whitespace-pre-wrap">{metaStream}</pre>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Shard picker modal */}

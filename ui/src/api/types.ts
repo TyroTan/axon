@@ -90,6 +90,27 @@ export interface GetSplitPlanResult {
   split_plan: SplitPlan | null
 }
 
+export interface MetaSynthesis {
+  track_id: string
+  date: string
+  generation_id: string
+  sessions_aggregated: number[]
+  shards_aggregated: string[]
+  concept_map_updates: ConceptMapUpdate[]
+  learner_summary: string
+  applied: boolean
+}
+
+export interface GetMetaSynthesisResult {
+  track_id: string
+  meta_synthesis: MetaSynthesis | null
+}
+
+export interface MetaSynthesisReadinessResult {
+  missing_shards: string[]
+  ready: boolean
+}
+
 export interface GetSessionQuestionsResult {
   track_id: string
   session_number: number

@@ -65,6 +65,9 @@ func New(cfg Config) *fiber.App {
 	cqrs.RegisterQuery[queries.GetSynthesisQuery, queries.GetSynthesisResult](
 		qryBus, queries.NewGetSynthesisHandler(trackStore),
 	)
+	cqrs.RegisterQuery[queries.GetMetaSynthesisQuery, queries.GetMetaSynthesisResult](
+		qryBus, queries.NewGetMetaSynthesisHandler(trackStore),
+	)
 
 	// ── LLM client ───────────────────────────────────────────────────────────
 	// Default: claude CLI (uses existing auth, no API key needed).
@@ -97,6 +100,8 @@ func New(cfg Config) *fiber.App {
 	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient, rec)
 	generateSynthesisHandler := commands.NewGenerateSynthesisHandler(trackStore, llmClient, rec)
 	applySynthesisHandler := commands.NewApplySynthesisHandler(trackStore)
+	metaSynthesisHandler := commands.NewMetaSynthesisHandler(trackStore, llmClient, rec)
+	applyMetaSynthesisHandler := commands.NewApplyMetaSynthesisHandler(trackStore)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -397,6 +402,65 @@ func New(cfg Config) *fiber.App {
 		}
 		if err := applySynthesisHandler.Handle(c.Context(), commands.ApplySynthesisCommand{
 			TrackID: c.Params("id"), SessionNumber: num,
+		}); err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// GET /api/tracks/:id/meta-synthesis — returns meta_synthesis.json or null.
+	api.Get("/tracks/:id/meta-synthesis", func(c *fiber.Ctx) error {
+		result, err := cqrs.Ask[queries.GetMetaSynthesisQuery, queries.GetMetaSynthesisResult](
+			c.Context(), qryBus, queries.GetMetaSynthesisQuery{TrackID: c.Params("id")},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// GET /api/tracks/:id/meta-synthesis/readiness — returns missing shards.
+	api.Get("/tracks/:id/meta-synthesis/readiness", func(c *fiber.Ctx) error {
+		missing, err := metaSynthesisHandler.ReadinessCheck(c.Context(), c.Params("id"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(fiber.Map{"missing_shards": missing, "ready": len(missing) == 0})
+	})
+
+	// POST /api/tracks/:id/meta-synthesis/generate — SSE stream.
+	api.Post("/tracks/:id/meta-synthesis/generate", func(c *fiber.Ctx) error {
+		chunks := metaSynthesisHandler.Stream(c.Context(), commands.MetaSynthesisCommand{
+			TrackID: c.Params("id"),
+		})
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]string{"type": "done"})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
+	})
+
+	// POST /api/tracks/:id/meta-synthesis/apply — idempotent.
+	api.Post("/tracks/:id/meta-synthesis/apply", func(c *fiber.Ctx) error {
+		if err := applyMetaSynthesisHandler.Handle(c.Context(), commands.ApplyMetaSynthesisCommand{
+			TrackID: c.Params("id"),
 		}); err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}

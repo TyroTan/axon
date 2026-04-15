@@ -152,6 +152,22 @@ type SessionMetadata struct {
 	ShardID string `json:"shard_id"`
 }
 
+// ─── Meta-Synthesis ───────────────────────────────────────────────────────────
+
+// MetaSynthesis is the track-level result written after all shards have been
+// evaluated. It aggregates bloom updates across every shard session.
+// Written to track_N/meta_synthesis.json.
+type MetaSynthesis struct {
+	TrackID           string             `json:"track_id"`
+	Date              string             `json:"date"`
+	GenerationID      string             `json:"generation_id"`
+	SessionsAggregated []int             `json:"sessions_aggregated"` // session numbers included
+	ShardsAggregated  []string           `json:"shards_aggregated"`   // shard IDs included
+	ConceptMapUpdates []ConceptMapUpdate `json:"concept_map_updates"`
+	LearnerSummary    string             `json:"learner_summary"`
+	Applied           bool               `json:"applied"`
+}
+
 // ─── Steer Intent ─────────────────────────────────────────────────────────────
 
 type SteerDirection string
