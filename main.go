@@ -39,12 +39,28 @@ func main() {
 		}
 	}
 
+	softTokenLimit := 250_000
+	if v := os.Getenv("AXON_SOFT_LIMIT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			softTokenLimit = n
+		}
+	}
+
+	hardTokenLimit := 300_000
+	if v := os.Getenv("AXON_HARD_LIMIT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			hardTokenLimit = n
+		}
+	}
+
 	app := server.New(server.Config{
 		ExperimentsDir:    experimentsDir,
 		DistDir:           distDir,
 		Port:              port,
 		AnthropicAPIKey:   os.Getenv("ANTHROPIC_API_KEY"),
 		ContextTokenLimit: contextTokenLimit,
+		SoftTokenLimit:    softTokenLimit,
+		HardTokenLimit:    hardTokenLimit,
 	})
 
 	log.Printf("Axon API on http://localhost:%s  |  UI on http://localhost:5173 (dev)", port)

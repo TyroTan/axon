@@ -19,6 +19,14 @@ import (
 
 var trackDirRe = regexp.MustCompile(`^track_\d+(_\d+)*$`)
 
+// ErrSplitRequired is returned by LoadInheritedContext when total tokens exceed
+// the soft limit. The caller must generate a split plan before proceeding.
+var ErrSplitRequired = fmt.Errorf("context exceeds soft token limit: split plan required")
+
+// ErrHardLimitExceeded is returned when a single context load would exceed the
+// hard limit (e.g. a single file > 300k tokens). Generation is blocked entirely.
+var ErrHardLimitExceeded = fmt.Errorf("context exceeds hard token limit: reduce corpus size")
+
 // TrackStore reads and writes track directories under experimentsDir.
 type TrackStore struct {
 	experimentsDir string

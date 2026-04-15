@@ -26,10 +26,18 @@ type GenerateQuestionsHandler struct {
 	store             *filesystem.TrackStore
 	client            llm.Client
 	contextTokenLimit int
+	softTokenLimit    int // triggers split plan when exceeded (T2)
+	hardTokenLimit    int // hard abort when exceeded (T2)
 }
 
-func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit int) *GenerateQuestionsHandler {
-	return &GenerateQuestionsHandler{store: store, client: client, contextTokenLimit: contextTokenLimit}
+func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit, softTokenLimit, hardTokenLimit int) *GenerateQuestionsHandler {
+	return &GenerateQuestionsHandler{
+		store:             store,
+		client:            client,
+		contextTokenLimit: contextTokenLimit,
+		softTokenLimit:    softTokenLimit,
+		hardTokenLimit:    hardTokenLimit,
+	}
 }
 
 // Stream returns a channel of llm.Chunk. The caller receives incremental text
