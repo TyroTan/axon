@@ -245,21 +245,81 @@ function ContextTokensPanel({
 
 // ── JSON syntax highlighter ──────────────────────────────────────────────────
 
+// Long string threshold — above this, render as an expandable block instead of inline.
+const LONG_STRING = 80
+
+function JsonNode({ value, depth }: { value: unknown; depth: number }) {
+  const indent = '  '.repeat(depth)
+  const innerIndent = '  '.repeat(depth + 1)
+
+  if (value === null) return <span style={{ color: '#f87171' }}>null</span>
+  if (typeof value === 'boolean') return <span style={{ color: '#c4b5fd' }}>{String(value)}</span>
+  if (typeof value === 'number') return <span style={{ color: '#fcd34d' }}>{value}</span>
+
+  if (typeof value === 'string') {
+    const isLong = value.length > LONG_STRING || value.includes('\n')
+    if (isLong) {
+      return (
+        <details style={{ display: 'inline-block', verticalAlign: 'top', maxWidth: '100%' }}>
+          <summary style={{ color: '#86efac', cursor: 'pointer', listStyle: 'none', display: 'inline' }}>
+            <span style={{ color: '#86efac' }}>"{value.slice(0, 60).replace(/\n/g, '↵')}{value.length > 60 ? '…' : ''}"</span>
+            <span style={{ color: '#52525b', fontSize: '0.75em' }}> ({value.length} chars, click to expand)</span>
+          </summary>
+          <pre style={{
+            marginTop: '4px',
+            marginLeft: '8px',
+            color: '#86efac',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            borderLeft: '2px solid #166534',
+            paddingLeft: '8px',
+            maxWidth: '100%',
+          }}>{value}</pre>
+        </details>
+      )
+    }
+    return <span style={{ color: '#86efac' }}>"{value}"</span>
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span style={{ color: '#a1a1aa' }}>{'[]'}</span>
+    return (
+      <>
+        {'[\n'}
+        {value.map((item, i) => (
+          <span key={i}>
+            {innerIndent}<JsonNode value={item} depth={depth + 1} />{i < value.length - 1 ? ',' : ''}{'\n'}
+          </span>
+        ))}
+        {indent}{']'}
+      </>
+    )
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    const entries = Object.entries(value as Record<string, unknown>)
+    if (entries.length === 0) return <span style={{ color: '#a1a1aa' }}>{'{}'}</span>
+    return (
+      <>
+        {'{\n'}
+        {entries.map(([k, v], i) => (
+          <span key={k}>
+            {innerIndent}<span style={{ color: '#7dd3fc' }}>"{k}"</span>{': '}<JsonNode value={v} depth={depth + 1} />{i < entries.length - 1 ? ',' : ''}{'\n'}
+          </span>
+        ))}
+        {indent}{'}'}
+      </>
+    )
+  }
+
+  return <span>{String(value)}</span>
+}
+
 function JSONView({ data }: { data: unknown }) {
-  const raw = JSON.stringify(data, null, 2)
-  // Colorize: keys, strings, numbers, booleans, null
-  const html = raw
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // escape HTML first
-    .replace(/("(?:[^"\\]|\\.)*")(\s*:)/g, '<span style="color:#7dd3fc">$1</span>$2') // keys → sky
-    .replace(/:\s*("(?:[^"\\]|\\.)*")/g, (m, s) => m.replace(s, `<span style="color:#86efac">${s}</span>`)) // string values → green
-    .replace(/:\s*(-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g, (m, n) => m.replace(n, `<span style="color:#fcd34d">${n}</span>`)) // numbers → amber
-    .replace(/:\s*(true|false)/g, (m, b) => m.replace(b, `<span style="color:#c4b5fd">${b}</span>`)) // booleans → violet
-    .replace(/:\s*(null)/g, (m, n) => m.replace(n, `<span style="color:#f87171">${n}</span>`)) // null → red
   return (
-    <pre
-      className="text-xs font-mono bg-zinc-950 text-zinc-200 rounded p-3 overflow-auto max-h-[32rem] leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <pre className="text-xs font-mono bg-zinc-950 text-zinc-200 rounded p-3 overflow-auto max-h-[48rem] leading-relaxed">
+      <JsonNode value={data} depth={0} />
+    </pre>
   )
 }
 
