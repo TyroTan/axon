@@ -248,6 +248,28 @@ export interface Thread {
   messages: ThreadMessage[]
 }
 
+export interface ThreadPreviewChunk {
+  file: string
+  heading: string
+  tokens: number
+  score: number
+  preview: string
+}
+
+export interface ThreadPreviewResult {
+  question_id: string
+  call_mode: 'fresh' | 'resumed'
+  claude_session_id: string
+  accumulated_tokens: number
+  system_prompt: string
+  user_prompt: string
+  system_tokens: number
+  user_tokens: number
+  tokens_to_send: number
+  tokens_saved_by_resume: number
+  rag_chunks: ThreadPreviewChunk[]
+}
+
 export interface GetThreadResult {
   track_id: string
   session_number: number

@@ -13,6 +13,7 @@ import type {
   MetricsSnapshot,
   ServerConfig,
   GetThreadResult,
+  ThreadPreviewResult,
   DuplicateTrackResult,
   CreateSessionResult,
   ListTracksResult,
@@ -217,6 +218,8 @@ export const api = {
     get<PromptPreviewResult>(`/tracks/${trackId}/sessions/${num}/prompt-preview`),
   getThread: (trackId: string, num: number, questionId: string) =>
     get<GetThreadResult>(`/tracks/${trackId}/sessions/${num}/threads/${questionId}`),
+  getThreadPreview: (trackId: string, num: number, questionId: string) =>
+    get<ThreadPreviewResult>(`/tracks/${trackId}/sessions/${num}/threads/${questionId}/preview`),
   threadTurn: async (
     trackId: string,
     num: number,

@@ -539,6 +539,19 @@ func New(cfg Config) *fiber.App {
 		return c.JSON(result)
 	})
 
+	// GET /api/tracks/:id/sessions/:num/threads/:qid/preview — dry-run seed context.
+	api.Get("/tracks/:id/sessions/:num/threads/:qid/preview", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		result, err := threadTurnHandler.Preview(c.Context(), c.Params("id"), num, c.Params("qid"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
 	// POST /api/tracks/:id/sessions/:num/threads/:qid — send a message (SSE stream).
 	// Body (optional JSON): { "message": "why is option B wrong?" }
 	// Empty/absent message seeds the conversation from the evaluation.

@@ -327,7 +327,7 @@ export function TrackPage() {
             {duplicating ? 'Duplicating…' : 'Duplicate'}
           </button>
           <button
-            onClick={startSession}
+            onClick={() => startSession()}
             disabled={startingSession}
             className={cn(buttonVariants({ size: 'sm' }), startingSession && 'opacity-60 cursor-not-allowed')}
           >
@@ -385,7 +385,7 @@ export function TrackPage() {
               ))
             )}
             <button
-              onClick={startSession}
+              onClick={() => startSession()}
               disabled={startingSession}
               className={cn(buttonVariants({ size: 'sm' }), 'w-full mt-2', startingSession && 'opacity-60 cursor-not-allowed')}
             >

@@ -246,6 +246,11 @@ function EvalCard({
   const streamRef = useRef('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // ── thread preview state ───────────────────────────────────────────────────
+  const [threadPreview, setThreadPreview] = useState<import('@/api/types').ThreadPreviewResult | null>(null)
+  const [threadPreviewOpen, setThreadPreviewOpen] = useState(false)
+  const [threadPreviewLoading, setThreadPreviewLoading] = useState(false)
+
   // Load existing thread when panel opens for the first time
   useEffect(() => {
     if (!threadOpen || threadLoaded) return
@@ -460,19 +465,106 @@ function EvalCard({
                 )}
               </div>
 
-              {/* Messages */}
+              {/* Messages — or seed prompt with preview */}
               {messages.length === 0 && !seeding && (
-                <div className='text-center py-3'>
-                  <button
-                    onClick={seedConversation}
-                    className={cn(buttonVariants({ size: 'sm' }), 'text-xs')}
-                    disabled={seeding}
-                  >
-                    Open tutoring conversation
-                  </button>
-                  <p className='text-[10px] text-muted-foreground mt-1'>
-                    Sends question + your answer + evaluation + relevant context chunks to Claude
-                  </p>
+                <div className='space-y-2'>
+                  {/* Preview panel */}
+                  <div className='border border-border/50 rounded-lg overflow-hidden'>
+                    <button
+                      className='w-full flex items-center justify-between px-3 py-2 text-xs hover:bg-muted/30 transition-colors'
+                      onClick={() => {
+                        const next = !threadPreviewOpen
+                        setThreadPreviewOpen(next)
+                        if (next && !threadPreview) {
+                          setThreadPreviewLoading(true)
+                          api.getThreadPreview(trackId, sessionNum, q.id)
+                            .then(setThreadPreview)
+                            .finally(() => setThreadPreviewLoading(false))
+                        }
+                      }}
+                    >
+                      <span className='text-muted-foreground'>Context preview before sending</span>
+                      <span className='text-muted-foreground'>{threadPreviewOpen ? '▲' : '▼'}</span>
+                    </button>
+
+                    {threadPreviewOpen && (
+                      <div className='border-t border-border/40 px-3 py-2 space-y-2 bg-muted/10'>
+                        {threadPreviewLoading && <p className='text-[10px] text-muted-foreground'>Loading…</p>}
+                        {threadPreview && (
+                          <>
+                            {/* Call mode badge */}
+                            <div className='flex items-center gap-2 flex-wrap'>
+                              <span className={cn(
+                                'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                                threadPreview.call_mode === 'resumed'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : 'bg-amber-100 text-amber-700'
+                              )}>
+                                {threadPreview.call_mode === 'resumed'
+                                  ? `Resumed · session ${threadPreview.claude_session_id.slice(0, 8)}…`
+                                  : 'Fresh call — full context will be sent'}
+                              </span>
+                              {threadPreview.accumulated_tokens > 0 && (
+                                <span className='text-[10px] text-muted-foreground font-mono'>
+                                  {(threadPreview.accumulated_tokens / 1000).toFixed(1)}k tok accumulated
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Token breakdown */}
+                            <div className='grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] font-mono'>
+                              <span className='text-muted-foreground'>System prompt</span>
+                              <span>{threadPreview.system_tokens.toLocaleString()} tok</span>
+                              <span className='text-muted-foreground'>User prompt (seed)</span>
+                              <span>{threadPreview.user_tokens.toLocaleString()} tok</span>
+                              <span className='text-muted-foreground font-semibold text-foreground'>Would send now</span>
+                              <span className='font-semibold text-foreground'>{threadPreview.tokens_to_send.toLocaleString()} tok</span>
+                              {threadPreview.tokens_saved_by_resume > 0 && (
+                                <>
+                                  <span className='text-muted-foreground'>Saved by resume</span>
+                                  <span className='text-emerald-600'>−{threadPreview.tokens_saved_by_resume.toLocaleString()} tok</span>
+                                </>
+                              )}
+                            </div>
+
+                            {/* RAG chunks */}
+                            {threadPreview.rag_chunks.length > 0 && (
+                              <details className='text-[10px]'>
+                                <summary className='cursor-pointer text-muted-foreground hover:text-foreground'>
+                                  {threadPreview.rag_chunks.length} context chunks retrieved by keyword relevance
+                                </summary>
+                                <div className='mt-1 space-y-1'>
+                                  {threadPreview.rag_chunks.map((c, i) => (
+                                    <div key={i} className='bg-muted/30 rounded px-2 py-1'>
+                                      <div className='flex items-center gap-2'>
+                                        <span className='font-mono text-primary truncate'>{c.file}</span>
+                                        {c.heading && <span className='text-muted-foreground'>› {c.heading}</span>}
+                                        <span className='ml-auto shrink-0 text-muted-foreground'>{c.tokens} tok · score {c.score.toFixed(2)}</span>
+                                      </div>
+                                      <p className='text-muted-foreground/70 mt-0.5 leading-relaxed'>{c.preview}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fire button */}
+                  <div className='flex flex-col items-center gap-1'>
+                    <button
+                      onClick={seedConversation}
+                      className={cn(buttonVariants({ size: 'sm' }), 'text-xs')}
+                    >
+                      Open tutoring conversation
+                    </button>
+                    <p className='text-[10px] text-muted-foreground'>
+                      Sends question + answer + evaluation + {threadPreview?.rag_chunks.length ?? '…'} context chunks
+                    </p>
+                  </div>
                 </div>
               )}
 

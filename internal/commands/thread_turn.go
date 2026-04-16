@@ -47,6 +47,95 @@ func NewThreadTurnHandler(store *filesystem.TrackStore, client llm.Client, conte
 	return &ThreadTurnHandler{store: store, client: client, contextTokenLimit: contextTokenLimit}
 }
 
+// ThreadPreviewChunk is one retrieved RAG chunk surfaced in the preview.
+type ThreadPreviewChunk struct {
+	File    string  `json:"file"`
+	Heading string  `json:"heading"`
+	Tokens  int     `json:"tokens"`
+	Score   float64 `json:"score"`
+	Preview string  `json:"preview"` // first 120 chars of content
+}
+
+// ThreadPreviewResult is returned by Preview — the full context that would be
+// sent to the LLM on the seed call, without actually calling it.
+type ThreadPreviewResult struct {
+	QuestionID          string               `json:"question_id"`
+	CallMode            string               `json:"call_mode"`            // "fresh" | "resumed"
+	ClaudeSessionID     string               `json:"claude_session_id"`    // empty if no prior thread
+	AccumulatedTokens   int                  `json:"accumulated_tokens"`   // from prior turns
+	SystemPrompt        string               `json:"system_prompt"`
+	UserPrompt          string               `json:"user_prompt"`
+	SystemTokens        int                  `json:"system_tokens"`
+	UserTokens          int                  `json:"user_tokens"`
+	TokensToSend        int                  `json:"tokens_to_send"`
+	TokensSavedByResume int                  `json:"tokens_saved_by_resume"`
+	RAGChunks           []ThreadPreviewChunk `json:"rag_chunks"`
+}
+
+// Preview builds the seed context for a question thread without calling the LLM.
+// This is the "dry run" used by the UI to show what would be sent.
+func (h *ThreadTurnHandler) Preview(ctx context.Context, trackID string, sessionNum int, questionID string) (ThreadPreviewResult, error) {
+	thread, err := h.loadThread(ctx, trackID, sessionNum, questionID)
+	if err != nil {
+		return ThreadPreviewResult{}, err
+	}
+
+	q, response, evaluation, err := h.loadQuestionContext(ctx, ThreadTurnCommand{
+		TrackID: trackID, SessionNumber: sessionNum, QuestionID: questionID,
+	})
+	if err != nil {
+		return ThreadPreviewResult{}, err
+	}
+
+	ragChunks, err := h.retrieveRelevantChunks(ctx, trackID, sessionNum, q.Question)
+	if err != nil {
+		return ThreadPreviewResult{}, err
+	}
+
+	system := buildThreadSystem()
+	userPrompt := buildSeedPrompt(q, response, evaluation, ragChunks)
+	systemTokens := (len(system) + 3) / 4
+	userTokens := (len(userPrompt) + 3) / 4
+
+	callMode := "fresh"
+	tokensToSend := systemTokens + userTokens
+	tokensSaved := 0
+	if thread.ClaudeSessionID != "" {
+		callMode = "resumed"
+		tokensToSend = userTokens // only delta
+		tokensSaved = systemTokens
+	}
+
+	previewChunks := make([]ThreadPreviewChunk, len(ragChunks))
+	for i, c := range ragChunks {
+		preview := c.Content
+		if len(preview) > 120 {
+			preview = preview[:120] + "…"
+		}
+		previewChunks[i] = ThreadPreviewChunk{
+			File:    c.File,
+			Heading: c.Heading,
+			Tokens:  c.Tokens,
+			Score:   c.Score,
+			Preview: preview,
+		}
+	}
+
+	return ThreadPreviewResult{
+		QuestionID:          questionID,
+		CallMode:            callMode,
+		ClaudeSessionID:     thread.ClaudeSessionID,
+		AccumulatedTokens:   thread.AccumulatedInputTokens,
+		SystemPrompt:        system,
+		UserPrompt:          userPrompt,
+		SystemTokens:        systemTokens,
+		UserTokens:          userTokens,
+		TokensToSend:        tokensToSend,
+		TokensSavedByResume: tokensSaved,
+		RAGChunks:           previewChunks,
+	}, nil
+}
+
 func (h *ThreadTurnHandler) Stream(ctx context.Context, cmd ThreadTurnCommand) <-chan llm.Chunk {
 	out := make(chan llm.Chunk, 128)
 	go func() {

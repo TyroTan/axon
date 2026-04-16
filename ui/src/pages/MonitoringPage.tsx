@@ -48,6 +48,7 @@ const API_ENDPOINTS: EndpointDef[] = [
   { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/prompt-preview', title: 'Prompt Preview', desc: 'Exact system + user prompt that would be sent to the LLM — token estimates, call_mode (fresh/resumed), tokens_to_send, context files list.' },
   { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/meta-synthesis/readiness', title: 'Meta-Synthesis Readiness', desc: 'Which approved shards are still missing evaluated sessions. ready=true when all shards are covered.' },
   { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid', title: 'Question Thread', desc: 'Full follow-up conversation history for one question — includes per-message meta: call_mode, input_tokens_sent, context_chunks_used, claude_session_id.' },
+  { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid/preview', title: 'Thread Seed Preview', desc: 'Dry-run of the seed call for a question thread — shows call_mode, tokens_to_send, RAG chunks selected (file, heading, score, preview), system + user prompt, without calling the LLM.' },
   // ── Data ──
   { group: 'data', method: 'GET', path: '/api/tracks', title: 'List Tracks', desc: 'All tracks with parent/child tree, branch list, created_at.' },
   { group: 'data', method: 'GET', path: '/api/tracks/:id', title: 'Get Track', desc: 'Track detail: concept map (all concepts + bloom levels) + session list.' },
