@@ -8,6 +8,9 @@ import type {
   GetSplitPlanResult,
   GetMetaSynthesisResult,
   MetaSynthesisReadinessResult,
+  GetContextTokensResult,
+  PromptPreviewResult,
+  MetricsSnapshot,
   DuplicateTrackResult,
   CreateSessionResult,
   ListTracksResult,
@@ -205,4 +208,8 @@ export const api = {
     const res = await fetch(`${BASE}/tracks/${trackId}/sessions/${num}/apply-synthesis`, { method: 'POST' })
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   },
+  getMetrics: () => get<MetricsSnapshot>('/metrics'),
+  getContextTokens: (trackId: string) => get<GetContextTokensResult>(`/tracks/${trackId}/context-tokens`),
+  getPromptPreview: (trackId: string, num: number) =>
+    get<PromptPreviewResult>(`/tracks/${trackId}/sessions/${num}/prompt-preview`),
 }

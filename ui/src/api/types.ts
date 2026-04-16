@@ -190,6 +190,48 @@ export interface GetSynthesisResult {
   synthesis: Synthesis | null
 }
 
+export interface ContextFileTokens {
+  filename: string
+  tokens: number
+  source_track_id: string
+}
+
+export interface GetContextTokensResult {
+  track_id: string
+  files: ContextFileTokens[]
+  total_tokens: number
+  file_count: number
+}
+
+export interface PromptPreviewResult {
+  track_id: string
+  session_number: number
+  shard_id: string
+  system_prompt: string
+  user_prompt: string
+  system_prompt_tokens: number
+  user_prompt_tokens: number
+  context_tokens: number
+  total_tokens: number
+  context_files_included: string[]
+  soft_limit: number
+  hard_limit: number
+  context_limit: number
+}
+
+export interface MetricsSnapshot {
+  uptime_seconds: number
+  counts: Record<string, number>
+  recent: Array<{
+    ts: string
+    event: string
+    track_id?: string
+    session_num?: number
+    tokens?: number
+    extra?: Record<string, unknown>
+  }>
+}
+
 export interface Question {
   id: string
   generation_id: string

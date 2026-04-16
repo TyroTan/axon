@@ -68,6 +68,9 @@ func New(cfg Config) *fiber.App {
 	cqrs.RegisterQuery[queries.GetMetaSynthesisQuery, queries.GetMetaSynthesisResult](
 		qryBus, queries.NewGetMetaSynthesisHandler(trackStore),
 	)
+	cqrs.RegisterQuery[queries.GetContextTokensQuery, queries.GetContextTokensResult](
+		qryBus, queries.NewGetContextTokensHandler(trackStore),
+	)
 
 	// ── LLM client ───────────────────────────────────────────────────────────
 	// Default: claude CLI (uses existing auth, no API key needed).
@@ -502,6 +505,80 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// GET /api/tracks/:id/context-tokens — per-file token breakdown for the full inherited context.
+	api.Get("/tracks/:id/context-tokens", func(c *fiber.Ctx) error {
+		result, err := cqrs.Ask[queries.GetContextTokensQuery, queries.GetContextTokensResult](
+			c.Context(), qryBus, queries.GetContextTokensQuery{TrackID: c.Params("id")},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// GET /api/tracks/:id/sessions/:num/prompt-preview — builds the exact prompt
+	// that would be sent to the LLM without actually calling it.
+	api.Get("/tracks/:id/sessions/:num/prompt-preview", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		trackID := c.Params("id")
+
+		cm, err := trackStore.GetConceptMap(c.Context(), trackID)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
+		// Shard-aware context loading — mirrors GenerateQuestionsHandler.run
+		var contextFiles map[string]string
+		var contextTokens int
+		var shardID string
+		meta, _ := trackStore.ReadSessionMetadata(c.Context(), trackID, num)
+		if meta.ShardID != "" {
+			shardID = meta.ShardID
+			shardFiles, shardTok, serr := trackStore.LoadContextForShard(c.Context(), trackID, meta.ShardID)
+			if serr != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, serr.Error())
+			}
+			contextFiles = shardFiles
+			contextTokens = shardTok
+		} else {
+			budget, berr := trackStore.LoadInheritedContext(c.Context(), trackID, cfg.ContextTokenLimit)
+			if berr != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, berr.Error())
+			}
+			contextFiles = budget.Files
+			contextTokens = budget.TokensUsed
+		}
+
+		systemPrompt := commands.BuildSystemPrompt()
+		userPrompt := commands.BuildUserPrompt(trackID, "preview", cm, contextFiles)
+		systemTokens := (len(systemPrompt) + 3) / 4
+		userTokens := (len(userPrompt) + 3) / 4
+
+		fileList := make([]string, 0, len(contextFiles))
+		for name := range contextFiles {
+			fileList = append(fileList, name)
+		}
+
+		return c.JSON(fiber.Map{
+			"track_id":               trackID,
+			"session_number":         num,
+			"shard_id":               shardID,
+			"system_prompt":          systemPrompt,
+			"user_prompt":            userPrompt,
+			"system_prompt_tokens":   systemTokens,
+			"user_prompt_tokens":     userTokens,
+			"context_tokens":         contextTokens,
+			"total_tokens":           systemTokens + userTokens,
+			"context_files_included": fileList,
+			"soft_limit":             cfg.SoftTokenLimit,
+			"hard_limit":             cfg.HardTokenLimit,
+			"context_limit":          cfg.ContextTokenLimit,
+		})
 	})
 
 	// ── SPA static serving (production) ──────────────────────────────────────

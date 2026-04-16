@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { BookOpen, Plus } from 'lucide-react'
+import { Link, NavLink } from 'react-router-dom'
+import { BookOpen, Plus, Activity } from 'lucide-react'
 import { api } from '@/api/client'
 import type { Track } from '@/api/types'
 import { TrackTree } from './TrackTree'
@@ -36,6 +36,24 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <NavLink
+              to="/monitoring"
+              className={({ isActive }) =>
+                `flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-accent text-accent-foreground font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+                }`
+              }
+            >
+              <Activity size={15} className="shrink-0" />
+              <span className="group-data-[collapsible=icon]:hidden">Monitoring</span>
+            </NavLink>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <div className="flex items-center justify-between pr-2 group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel>Tracks</SidebarGroupLabel>

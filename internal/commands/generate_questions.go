@@ -138,8 +138,8 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 	}
 
 	generationID := uuid.New().String()
-	system := buildSystemPrompt()
-	user := buildUserPrompt(cmd.TrackID, generationID, cm, contextFiles)
+	system := BuildSystemPrompt()
+	user := BuildUserPrompt(cmd.TrackID, generationID, cm, contextFiles)
 
 	chunks := h.client.Stream(ctx, questionModel, system, []llm.Message{
 		{Role: "user", Content: user},
@@ -185,7 +185,7 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 
 // ─── prompt builders ──────────────────────────────────────────────────────────
 
-func buildSystemPrompt() string {
+func BuildSystemPrompt() string {
 	return `You are an adaptive quiz question generator for the Axon learning system.
 Generate quiz questions as a strict JSON array. Output ONLY the JSON array — no prose, no markdown code fences, no extra text.
 
@@ -219,7 +219,7 @@ Rules:
 - is_cross_branch=true when concept_indexes span multiple branches`
 }
 
-func buildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string) string {
+func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string) string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "Track: %s\nGeneration ID: %s\n\n", trackID, generationID)
