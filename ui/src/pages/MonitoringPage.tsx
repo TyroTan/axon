@@ -32,12 +32,29 @@ function barColor(p: number): string {
 
 // ── API endpoint catalogue ───────────────────────────────────────────────────
 
-const API_ENDPOINTS = [
-  { method: 'GET', path: '/api/metrics', title: 'System Metrics', desc: 'Uptime, event counts, recent events log.' },
-  { method: 'GET', path: '/api/tracks/:id/context-tokens', title: 'Context Token Breakdown', desc: 'Per-file token counts for a track\'s full inherited context, attributed to the source track in the ancestor chain.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/prompt-preview', title: 'Prompt Preview', desc: 'Exact system + user prompt that would be sent to the LLM — includes token estimates, context files list, and budget limits.' },
-  { method: 'GET', path: '/api/tracks/:id/split-plan', title: 'Split Plan', desc: 'Reads the shard split plan (null if corpus is within the soft limit).' },
-  { method: 'GET', path: '/api/tracks/:id/meta-synthesis/readiness', title: 'Meta-Synthesis Readiness', desc: 'Lists shards missing evaluated sessions (gates meta-synthesis generation).' },
+interface EndpointDef {
+  method: 'GET' | 'POST'
+  path: string   // e.g. /api/tracks/:id/sessions/:num/prompt-preview
+  title: string
+  desc: string
+}
+
+const API_ENDPOINTS: EndpointDef[] = [
+  { method: 'GET', path: '/api/config', title: 'Server Config', desc: 'Live token limits: context_token_limit, soft_token_limit, hard_token_limit.' },
+  { method: 'GET', path: '/api/metrics', title: 'System Metrics', desc: 'Uptime, per-event counts, recent event log (last 50).' },
+  { method: 'GET', path: '/api/tracks', title: 'List Tracks', desc: 'All tracks with parent/child tree, branch list, created_at.' },
+  { method: 'GET', path: '/api/tracks/:id', title: 'Get Track', desc: 'Track detail: concept map (all concepts + bloom levels) + session list.' },
+  { method: 'GET', path: '/api/tracks/:id/context', title: 'Context Files', desc: 'All context files for a track (filename → raw content map).' },
+  { method: 'GET', path: '/api/tracks/:id/context-tokens', title: 'Context Token Breakdown', desc: 'Per-file token counts for the full inherited context, attributed to the source track in the ancestor chain. Sorted by size descending.' },
+  { method: 'GET', path: '/api/tracks/:id/split-plan', title: 'Split Plan', desc: 'Current shard split plan — null if corpus is within soft limit. Shows shard status, file assignments, token counts.' },
+  { method: 'GET', path: '/api/tracks/:id/meta-synthesis', title: 'Meta-Synthesis', desc: 'Track-level synthesis aggregated across all shard sessions. Null if not yet generated.' },
+  { method: 'GET', path: '/api/tracks/:id/meta-synthesis/readiness', title: 'Meta-Synthesis Readiness', desc: 'Which approved shards are still missing evaluated sessions. ready=true when all shards are covered.' },
+  { method: 'GET', path: '/api/tracks/:id/sessions/:num/questions', title: 'Session Questions', desc: 'Generated questions for a session. Empty array if not yet generated.' },
+  { method: 'GET', path: '/api/tracks/:id/sessions/:num/responses', title: 'Session Responses', desc: 'Submitted responses for a session.' },
+  { method: 'GET', path: '/api/tracks/:id/sessions/:num/evaluations', title: 'Session Evaluations', desc: 'LLM evaluations per question — correctness, bloom level demonstrated, Brier score, calibration flag, feedback.' },
+  { method: 'GET', path: '/api/tracks/:id/sessions/:num/synthesis', title: 'Session Synthesis', desc: 'Concept map update plan for a session — bloom advancement per concept, spaced repetition schedule.' },
+  { method: 'GET', path: '/api/tracks/:id/sessions/:num/prompt-preview', title: 'Prompt Preview', desc: 'Exact system + user prompt that would be sent to the LLM for question generation — token estimates, call_mode (fresh/resumed), tokens_to_send, context files list.' },
+  { method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid', title: 'Question Thread', desc: 'Full follow-up conversation history for one question. Each assistant message includes meta: call_mode, input_tokens_sent, context_chunks_used, claude_session_id.' },
 ]
 
 // ── sub-components ────────────────────────────────────────────────────────────
@@ -223,25 +240,159 @@ function ContextTokensPanel({
   )
 }
 
-function EndpointDirectory() {
+// ── JSON syntax highlighter ──────────────────────────────────────────────────
+
+function JSONView({ data }: { data: unknown }) {
+  const raw = JSON.stringify(data, null, 2)
+  // Colorize: keys, strings, numbers, booleans, null
+  const html = raw
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // escape HTML first
+    .replace(/("(?:[^"\\]|\\.)*")(\s*:)/g, '<span style="color:#7dd3fc">$1</span>$2') // keys → sky
+    .replace(/:\s*("(?:[^"\\]|\\.)*")/g, (m, s) => m.replace(s, `<span style="color:#86efac">${s}</span>`)) // string values → green
+    .replace(/:\s*(-?\d+\.?\d*(?:[eE][+-]?\d+)?)/g, (m, n) => m.replace(n, `<span style="color:#fcd34d">${n}</span>`)) // numbers → amber
+    .replace(/:\s*(true|false)/g, (m, b) => m.replace(b, `<span style="color:#c4b5fd">${b}</span>`)) // booleans → violet
+    .replace(/:\s*(null)/g, (m, n) => m.replace(n, `<span style="color:#f87171">${n}</span>`)) // null → red
+  return (
+    <pre
+      className="text-xs font-mono bg-zinc-950 text-zinc-200 rounded p-3 overflow-auto max-h-[32rem] leading-relaxed"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
+// ── single endpoint row ───────────────────────────────────────────────────────
+
+function EndpointRow({ ep }: { ep: EndpointDef }) {
+  // Extract path params: ":id", ":num", ":qid" → ["id", "num", "qid"]
+  const paramNames = (ep.path.match(/:[a-z]+/g) ?? []).map(p => p.slice(1))
+
+  const [open, setOpen] = useState(false)
+  const [params, setParams] = useState<Record<string, string>>(
+    Object.fromEntries(paramNames.map(p => [p, '']))
+  )
+  const [result, setResult] = useState<unknown>(null)
+  const [status, setStatus] = useState<number | null>(null)
+  const [elapsed, setElapsed] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function execute() {
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    setStatus(null)
+    setElapsed(null)
+
+    // Build resolved URL
+    let url = ep.path
+    for (const [k, v] of Object.entries(params)) {
+      url = url.replace(`:${k}`, encodeURIComponent(v || `<${k}>`))
+    }
+
+    const t0 = performance.now()
+    try {
+      const res = await fetch(url)
+      const ms = Math.round(performance.now() - t0)
+      setStatus(res.status)
+      setElapsed(ms)
+      const body = await res.json().catch(() => null)
+      setResult(body)
+    } catch (e) {
+      setElapsed(Math.round(performance.now() - t0))
+      setError(String(e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const methodColor = ep.method === 'GET'
+    ? 'border-emerald-500 text-emerald-600'
+    : 'border-amber-500 text-amber-600'
+
+  const resolvedPath = paramNames.reduce(
+    (p, k) => p.replace(`:${k}`, params[k] || `:${k}`),
+    ep.path,
+  )
+
+  return (
+    <div className="border border-border/50 rounded-lg overflow-hidden">
+      {/* Header row — always visible, click to expand */}
+      <button
+        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        <Badge variant="outline" className={`text-[10px] font-mono shrink-0 ${methodColor}`}>
+          {ep.method}
+        </Badge>
+        <code className="text-xs font-mono text-primary flex-1 truncate">{ep.path}</code>
+        <span className="text-xs text-muted-foreground shrink-0">{ep.title}</span>
+        <span className="text-muted-foreground text-xs shrink-0">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {/* Expanded panel */}
+      {open && (
+        <div className="border-t border-border/40 px-4 py-3 space-y-3 bg-muted/10">
+          <p className="text-xs text-muted-foreground">{ep.desc}</p>
+
+          {/* Param inputs */}
+          {paramNames.length > 0 && (
+            <div className="flex flex-wrap gap-2 items-center">
+              {paramNames.map(p => (
+                <label key={p} className="flex items-center gap-1.5 text-xs">
+                  <span className="text-muted-foreground font-mono">:{p}</span>
+                  <input
+                    type="text"
+                    value={params[p]}
+                    onChange={e => setParams(prev => ({ ...prev, [p]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && execute()}
+                    placeholder={p}
+                    className="border rounded px-2 py-1 text-xs font-mono bg-background w-32 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+
+          {/* Resolved URL + execute */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <code className="text-[10px] font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded flex-1 truncate">
+              {resolvedPath}
+            </code>
+            <button
+              onClick={execute}
+              disabled={loading}
+              className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 font-medium shrink-0"
+            >
+              {loading ? 'Loading…' : 'Execute'}
+            </button>
+            {status != null && (
+              <span className={`text-xs font-mono shrink-0 ${status < 300 ? 'text-emerald-500' : 'text-red-500'}`}>
+                {status} · {elapsed}ms
+              </span>
+            )}
+          </div>
+
+          {/* Result */}
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          {result != null && <JSONView data={result} />}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── explorer ──────────────────────────────────────────────────────────────────
+
+function APIExplorer() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">API Monitoring Endpoints</CardTitle>
+        <CardTitle className="text-base">API Explorer</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {API_ENDPOINTS.map(ep => (
-            <div key={ep.path} className="flex flex-col gap-0.5 border-b border-border/40 last:border-0 pb-3 last:pb-0">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs font-mono shrink-0">{ep.method}</Badge>
-                <code className="text-xs font-mono text-primary">{ep.path}</code>
-              </div>
-              <p className="text-xs font-medium">{ep.title}</p>
-              <p className="text-xs text-muted-foreground">{ep.desc}</p>
-            </div>
-          ))}
-        </div>
+      <CardContent className="space-y-2">
+        {API_ENDPOINTS.map(ep => (
+          <EndpointRow key={ep.method + ep.path} ep={ep} />
+        ))}
       </CardContent>
     </Card>
   )
@@ -332,7 +483,7 @@ export function MonitoringPage() {
         <Card><CardContent className="py-6 text-sm text-muted-foreground">Loading tracks…</CardContent></Card>
       )}
 
-      <EndpointDirectory />
+      <APIExplorer />
     </div>
   )
 }
