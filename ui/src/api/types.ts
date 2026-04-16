@@ -254,6 +254,12 @@ export interface GetThreadResult {
   thread: Thread | null
 }
 
+export interface ServerConfig {
+  context_token_limit: number
+  soft_token_limit: number
+  hard_token_limit: number
+}
+
 export interface MetricsSnapshot {
   uptime_seconds: number
   counts: Record<string, number>

@@ -32,7 +32,7 @@ func main() {
 		port = "3456"
 	}
 
-	contextTokenLimit := 80_000
+	contextTokenLimit := 50_000
 	if v := os.Getenv("AXON_CONTEXT_LIMIT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			contextTokenLimit = n

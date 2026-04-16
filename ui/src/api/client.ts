@@ -11,6 +11,7 @@ import type {
   GetContextTokensResult,
   PromptPreviewResult,
   MetricsSnapshot,
+  ServerConfig,
   GetThreadResult,
   DuplicateTrackResult,
   CreateSessionResult,
@@ -209,6 +210,7 @@ export const api = {
     const res = await fetch(`${BASE}/tracks/${trackId}/sessions/${num}/apply-synthesis`, { method: 'POST' })
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   },
+  getConfig: () => get<ServerConfig>('/config'),
   getMetrics: () => get<MetricsSnapshot>('/metrics'),
   getContextTokens: (trackId: string) => get<GetContextTokensResult>(`/tracks/${trackId}/context-tokens`),
   getPromptPreview: (trackId: string, num: number) =>

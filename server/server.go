@@ -121,6 +121,15 @@ func New(cfg Config) *fiber.App {
 	// ── API routes ───────────────────────────────────────────────────────────
 	api := app.Group("/api")
 
+	// GET /api/config — server limits (read from process config, not env at request time).
+	api.Get("/config", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"context_token_limit": cfg.ContextTokenLimit,
+			"soft_token_limit":    cfg.SoftTokenLimit,
+			"hard_token_limit":    cfg.HardTokenLimit,
+		})
+	})
+
 	// GET /api/metrics — aggregated event counts + last 50 events with timestamps and track context.
 	api.Get("/metrics", func(c *fiber.Ctx) error {
 		return c.JSON(rec.Snapshot(50))

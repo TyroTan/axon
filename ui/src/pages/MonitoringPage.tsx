@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { MetricsSnapshot, GetContextTokensResult, ListTracksResult } from '@/api/types'
+import type { MetricsSnapshot, GetContextTokensResult, ListTracksResult, ServerConfig } from '@/api/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
@@ -100,8 +100,10 @@ function MetricsPanel({ snapshot }: { snapshot: MetricsSnapshot }) {
 
 function ContextTokensPanel({
   tracks,
+  config,
 }: {
   tracks: ListTracksResult['tracks']
+  config: ServerConfig | null
 }) {
   const [selectedTrack, setSelectedTrack] = useState<string>(tracks[0]?.id ?? '')
   const [data, setData] = useState<GetContextTokensResult | null>(null)
@@ -118,10 +120,8 @@ function ContextTokensPanel({
       .finally(() => setLoading(false))
   }, [selectedTrack])
 
-  // Soft limit default visible on this page — read from first preview if available,
-  // otherwise use 250k as the known default.
-  const softLimit = 250_000
-  const contextLimit = 50_000
+  const softLimit = config?.soft_token_limit ?? 250_000
+  const contextLimit = config?.context_token_limit ?? 50_000
 
   return (
     <Card>
@@ -130,7 +130,7 @@ function ContextTokensPanel({
           Context Token Breakdown
           {data && (
             <Badge variant="outline" className="text-xs font-mono">
-              {fmtTokens(data.total_tokens)} / {fmtTokens(softLimit)} soft limit
+              {fmtTokens(data.total_tokens)} total · {fmtTokens(contextLimit)} ctx limit · {fmtTokens(softLimit)} soft limit
             </Badge>
           )}
         </CardTitle>
@@ -247,7 +247,8 @@ function EndpointDirectory() {
   )
 }
 
-function TokenBudgetInfo() {
+function TokenBudgetInfo({ config }: { config: ServerConfig | null }) {
+  const fmt = (n: number | undefined) => n != null ? fmtTokens(n) : '…'
   return (
     <Card>
       <CardHeader>
@@ -256,11 +257,11 @@ function TokenBudgetInfo() {
       <CardContent className="text-xs space-y-2 text-muted-foreground">
         <div className="grid grid-cols-2 gap-x-4 gap-y-1">
           <span className="font-medium text-foreground">Context limit (per session)</span>
-          <span className="font-mono">50k tokens</span>
+          <span className="font-mono">{fmt(config?.context_token_limit)} tokens · AXON_CONTEXT_LIMIT</span>
           <span className="font-medium text-foreground">Soft limit (split plan trigger)</span>
-          <span className="font-mono">250k tokens</span>
+          <span className="font-mono">{fmt(config?.soft_token_limit)} tokens · AXON_SOFT_LIMIT</span>
           <span className="font-medium text-foreground">Hard limit (abort)</span>
-          <span className="font-mono">300k tokens</span>
+          <span className="font-mono">{fmt(config?.hard_token_limit)} tokens · AXON_HARD_LIMIT</span>
           <span className="font-medium text-foreground">Naive token estimate</span>
           <span className="font-mono">(len + 3) / 4  ≈ chars / 4</span>
         </div>
@@ -291,13 +292,15 @@ function TokenBudgetInfo() {
 export function MonitoringPage() {
   const [snapshot, setSnapshot] = useState<MetricsSnapshot | null>(null)
   const [tracks, setTracks] = useState<ListTracksResult['tracks']>([])
+  const [config, setConfig] = useState<ServerConfig | null>(null)
   const [loadErr, setLoadErr] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([api.getMetrics(), api.listTracks()])
-      .then(([m, t]) => {
+    Promise.all([api.getMetrics(), api.listTracks(), api.getConfig()])
+      .then(([m, t, c]) => {
         setSnapshot(m)
         setTracks(t.tracks ?? [])
+        setConfig(c)
       })
       .catch(e => setLoadErr(String(e)))
   }, [])
@@ -317,14 +320,14 @@ export function MonitoringPage() {
         </p>
       </div>
 
-      <TokenBudgetInfo />
+      <TokenBudgetInfo config={config} />
 
       {snapshot ? <MetricsPanel snapshot={snapshot} /> : (
         <Card><CardContent className="py-6 text-sm text-muted-foreground">Loading metrics…</CardContent></Card>
       )}
 
       {tracks.length > 0 ? (
-        <ContextTokensPanel tracks={tracks} />
+        <ContextTokensPanel tracks={tracks} config={config} />
       ) : (
         <Card><CardContent className="py-6 text-sm text-muted-foreground">Loading tracks…</CardContent></Card>
       )}
