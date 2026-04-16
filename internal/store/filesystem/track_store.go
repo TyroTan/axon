@@ -322,11 +322,12 @@ func (s *TrackStore) ReadSessionMetadata(ctx context.Context, trackID string, se
 
 // WriteSessionFile writes a file into a session directory.
 func (s *TrackStore) WriteSessionFile(_ context.Context, trackID string, sessionNum int, filename string, content []byte) error {
-	dir := SessionDir(s.experimentsDir, trackID, sessionNum)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	dest := filepath.Join(SessionDir(s.experimentsDir, trackID, sessionNum), filename)
+	// MkdirAll covers both the session dir and any subdirectory (e.g. "threads/").
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return fmt.Errorf("track store: mkdir session: %w", err)
 	}
-	return os.WriteFile(filepath.Join(dir, filename), content, 0o644)
+	return os.WriteFile(dest, content, 0o644)
 }
 
 // ReadSessionFile reads a file from a session directory.

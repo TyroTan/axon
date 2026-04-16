@@ -42,6 +42,12 @@ func (c *Client) Stream(ctx context.Context, model, system string, messages []ll
 	return ch
 }
 
+// StreamResume implements llm.Client. The Anthropic HTTP API does not support
+// session-based resumption, so sessionID is ignored and this behaves like Stream.
+func (c *Client) StreamResume(ctx context.Context, _ /*sessionID*/, model, system string, messages []llm.Message, maxTokens int) <-chan llm.Chunk {
+	return c.Stream(ctx, model, system, messages, maxTokens)
+}
+
 // ─── internal ─────────────────────────────────────────────────────────────────
 
 type requestBody struct {

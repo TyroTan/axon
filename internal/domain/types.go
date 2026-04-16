@@ -157,6 +157,35 @@ type SessionMetadata struct {
 	AccumulatedInputTokens int   `json:"accumulated_input_tokens,omitempty"`
 }
 
+// ─── Thread ───────────────────────────────────────────────────────────────────
+
+// ThreadMessageMeta records observability info for an assistant turn:
+// what call mode was used, how many tokens were sent, how many RAG chunks
+// were injected. This lets the user verify per-message context management.
+type ThreadMessageMeta struct {
+	CallMode          string `json:"call_mode"`           // "fresh" | "resumed" | "seeded"
+	InputTokensSent   int    `json:"input_tokens_sent"`   // 0 for seeded, actual for LLM calls
+	ContextChunksUsed int    `json:"context_chunks_used"` // RAG chunks injected (fresh calls)
+	ClaudeSessionID   string `json:"claude_session_id,omitempty"` // session ID returned by CLI
+}
+
+// ThreadMessage is one turn in a per-question follow-up conversation.
+type ThreadMessage struct {
+	Role      string             `json:"role"`       // "user" | "assistant"
+	Content   string             `json:"content"`
+	Timestamp time.Time          `json:"ts"`
+	Meta      *ThreadMessageMeta `json:"meta,omitempty"` // only on assistant turns
+}
+
+// Thread is the full conversation history for one question.
+// Written to sessions/session_NNN/threads/q_ID.json.
+type Thread struct {
+	QuestionID             string          `json:"question_id"`
+	ClaudeSessionID        string          `json:"claude_session_id,omitempty"`
+	AccumulatedInputTokens int             `json:"accumulated_input_tokens,omitempty"`
+	Messages               []ThreadMessage `json:"messages"`
+}
+
 // ─── Meta-Synthesis ───────────────────────────────────────────────────────────
 
 // MetaSynthesis is the track-level result written after all shards have been

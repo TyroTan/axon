@@ -28,18 +28,16 @@ func New(cliPath string) *Client {
 	return &Client{cliPath: cliPath}
 }
 
-// Stream implements llm.Client. The model parameter is ignored — the CLI uses
-// the account's default model. system + messages are concatenated into a single
-// prompt passed via --print (stdin not used to avoid shell escaping issues).
+// Stream implements llm.Client. Fresh call, no session reuse.
 func (c *Client) Stream(ctx context.Context, _, system string, messages []llm.Message, _ int) <-chan llm.Chunk {
-	ch := make(chan llm.Chunk, 64)
-	go func() {
-		defer close(ch)
-		if err := c.run(ctx, system, messages, ch); err != nil {
-			ch <- llm.Chunk{Error: err}
-		}
-	}()
-	return ch
+	return c.stream(ctx, "", system, messages)
+}
+
+// StreamResume implements llm.Client. Passes --resume sessionID to the CLI
+// when sessionID is non-empty. If the session has expired, the CLI starts
+// fresh — the Done chunk will carry the new session ID.
+func (c *Client) StreamResume(ctx context.Context, sessionID, _, system string, messages []llm.Message, _ int) <-chan llm.Chunk {
+	return c.stream(ctx, sessionID, system, messages)
 }
 
 // ─── internal ─────────────────────────────────────────────────────────────────
@@ -49,7 +47,12 @@ type cliEvent struct {
 	Type    string `json:"type"`
 	Subtype string `json:"subtype"`
 	IsError bool   `json:"is_error"`
-	Result  string `json:"result"` // present on type=result
+	Result  string `json:"result"`    // present on type=result
+	SessionID string `json:"session_id"` // conversation session — set on result event
+	Usage   *struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+	} `json:"usage"` // token usage — set on result event
 	Message *struct {
 		Content []struct {
 			Type string `json:"type"`
@@ -58,31 +61,54 @@ type cliEvent struct {
 	} `json:"message"` // present on type=assistant
 }
 
-func (c *Client) run(ctx context.Context, system string, messages []llm.Message, ch chan<- llm.Chunk) error {
-	// Build a single prompt string: system block + conversation turns.
-	var sb strings.Builder
-	if system != "" {
-		sb.WriteString(system)
-		sb.WriteString("\n\n---\n\n")
-	}
-	for _, m := range messages {
-		if m.Role == "user" {
-			sb.WriteString(m.Content)
+func (c *Client) stream(ctx context.Context, sessionID, system string, messages []llm.Message) <-chan llm.Chunk {
+	ch := make(chan llm.Chunk, 64)
+	go func() {
+		defer close(ch)
+		if err := c.run(ctx, sessionID, system, messages, ch); err != nil {
+			ch <- llm.Chunk{Error: err}
 		}
-		// assistant turns are rare at generation time; append if present
-		if m.Role == "assistant" {
-			sb.WriteString("\n\nAssistant: ")
-			sb.WriteString(m.Content)
-			sb.WriteString("\n\nHuman: ")
-		}
-	}
-	prompt := sb.String()
+	}()
+	return ch
+}
 
-	cmd := exec.CommandContext(ctx, c.cliPath,
+func (c *Client) run(ctx context.Context, sessionID, system string, messages []llm.Message, ch chan<- llm.Chunk) error {
+	// When resuming, we only send the new user message — the session carries
+	// the prior context. When fresh, we concatenate system + all messages.
+	var prompt string
+	if sessionID != "" && len(messages) > 0 {
+		// Only send the latest user message; claude --resume has the rest.
+		last := messages[len(messages)-1]
+		prompt = last.Content
+	} else {
+		var sb strings.Builder
+		if system != "" {
+			sb.WriteString(system)
+			sb.WriteString("\n\n---\n\n")
+		}
+		for _, m := range messages {
+			if m.Role == "user" {
+				sb.WriteString(m.Content)
+			}
+			if m.Role == "assistant" {
+				sb.WriteString("\n\nAssistant: ")
+				sb.WriteString(m.Content)
+				sb.WriteString("\n\nHuman: ")
+			}
+		}
+		prompt = sb.String()
+	}
+
+	args := []string{
 		"--print", prompt,
 		"--output-format", "stream-json",
 		"--verbose",
-	)
+	}
+	if sessionID != "" {
+		args = append(args, "--resume", sessionID)
+	}
+
+	cmd := exec.CommandContext(ctx, c.cliPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -126,7 +152,12 @@ func (c *Client) run(ctx context.Context, system string, messages []llm.Message,
 			if finalText == "" && ev.Result != "" {
 				ch <- llm.Chunk{Text: ev.Result}
 			}
-			ch <- llm.Chunk{Done: true}
+			// Emit session ID and token usage on the Done chunk.
+			inputTokens := 0
+			if ev.Usage != nil {
+				inputTokens = ev.Usage.InputTokens
+			}
+			ch <- llm.Chunk{Done: true, SessionID: ev.SessionID, InputTokens: inputTokens}
 			_ = cmd.Wait()
 			return nil
 		}

@@ -71,6 +71,9 @@ func New(cfg Config) *fiber.App {
 	cqrs.RegisterQuery[queries.GetContextTokensQuery, queries.GetContextTokensResult](
 		qryBus, queries.NewGetContextTokensHandler(trackStore),
 	)
+	cqrs.RegisterQuery[queries.GetThreadQuery, queries.GetThreadResult](
+		qryBus, queries.NewGetThreadHandler(trackStore),
+	)
 
 	// ── LLM client ───────────────────────────────────────────────────────────
 	// Default: claude CLI (uses existing auth, no API key needed).
@@ -106,6 +109,7 @@ func New(cfg Config) *fiber.App {
 	metaSynthesisHandler := commands.NewMetaSynthesisHandler(trackStore, llmClient, rec)
 	applyMetaSynthesisHandler := commands.NewApplyMetaSynthesisHandler(trackStore)
 	compactFileHandler := commands.NewCompactFileHandler(trackStore, llmClient, rec)
+	threadTurnHandler := commands.NewThreadTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -505,6 +509,72 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// GET /api/tracks/:id/sessions/:num/threads/:qid — load thread history for one question.
+	api.Get("/tracks/:id/sessions/:num/threads/:qid", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		result, err := cqrs.Ask[queries.GetThreadQuery, queries.GetThreadResult](
+			c.Context(), qryBus, queries.GetThreadQuery{
+				TrackID:       c.Params("id"),
+				SessionNumber: num,
+				QuestionID:    c.Params("qid"),
+			},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// POST /api/tracks/:id/sessions/:num/threads/:qid — send a message (SSE stream).
+	// Body (optional JSON): { "message": "why is option B wrong?" }
+	// Empty/absent message seeds the conversation from the evaluation.
+	api.Post("/tracks/:id/sessions/:num/threads/:qid", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		var body struct {
+			Message string `json:"message"`
+		}
+		_ = json.Unmarshal(c.Body(), &body)
+
+		chunks := threadTurnHandler.Stream(c.Context(), commands.ThreadTurnCommand{
+			TrackID:       c.Params("id"),
+			SessionNumber: num,
+			QuestionID:    c.Params("qid"),
+			UserMessage:   body.Message,
+		})
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]any{
+						"type":         "done",
+						"session_id":   chunk.SessionID,
+						"input_tokens": chunk.InputTokens,
+					})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
 	})
 
 	// GET /api/tracks/:id/context-tokens — per-file token breakdown for the full inherited context.

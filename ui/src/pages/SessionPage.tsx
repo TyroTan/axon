@@ -8,6 +8,7 @@ import type {
   Question,
   Response,
   Synthesis,
+  ThreadMessage,
 } from "@/api/types";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -218,12 +219,107 @@ function AnswerCard({
 
 // ─── evaluation card ──────────────────────────────────────────────────────────
 
-function EvalCard({ q, evalResult, response }: { q: Question; evalResult: Evaluation; response?: Response }) {
+function EvalCard({
+  q, evalResult, response, trackId, sessionNum,
+}: {
+  q: Question;
+  evalResult: Evaluation;
+  response?: Response;
+  trackId: string;
+  sessionNum: number;
+}) {
   const pct = Math.round(evalResult.correctness * 100);
   const correct = evalResult.correctness >= 0.5;
   const isMCQ = q.format === 'mcq' || q.format === 'scenario_mcq'
   const selectedKey = response?.selected_answer
   const explanationScore = Math.round((evalResult.explanation_score ?? 0) * 100)
+
+  // ── thread state ──────────────────────────────────────────────────────────
+  const [threadOpen, setThreadOpen] = useState(false)
+  const [messages, setMessages] = useState<ThreadMessage[]>([])
+  const [threadLoaded, setThreadLoaded] = useState(false)
+  const [seeding, setSeeding] = useState(false)
+  const [streaming, setStreaming] = useState(false)
+  const [inputText, setInputText] = useState('')
+  const [threadErr, setThreadErr] = useState<string | null>(null)
+  const [lastMeta, setLastMeta] = useState<{ sessionId: string; inputTokens: number } | null>(null)
+  const streamRef = useRef('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Load existing thread when panel opens for the first time
+  useEffect(() => {
+    if (!threadOpen || threadLoaded) return
+    api.getThread(trackId, sessionNum, q.id)
+      .then(r => {
+        setMessages(r.thread?.messages ?? [])
+        setThreadLoaded(true)
+      })
+      .catch(e => setThreadErr(String(e)))
+  }, [threadOpen, threadLoaded, trackId, sessionNum, q.id])
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, seeding, streaming])
+
+  async function seedConversation() {
+    setSeeding(true)
+    setThreadErr(null)
+    streamRef.current = ''
+    // Optimistically add a streaming placeholder
+    const placeholder: ThreadMessage = { role: 'assistant', content: '', ts: new Date().toISOString() }
+    setMessages(prev => [...prev, placeholder])
+    try {
+      let accumulated = ''
+      const meta = await api.threadTurn(trackId, sessionNum, q.id, '', (text) => {
+        accumulated += text
+        setMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { ...placeholder, content: accumulated }
+          return next
+        })
+      })
+      setLastMeta(meta)
+      // Reload thread to get persisted messages with meta
+      const r = await api.getThread(trackId, sessionNum, q.id)
+      setMessages(r.thread?.messages ?? [])
+    } catch (e) {
+      setThreadErr(String(e))
+      setMessages(prev => prev.slice(0, -1)) // remove placeholder
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  async function sendMessage() {
+    if (!inputText.trim() || streaming) return
+    const userMsg: ThreadMessage = { role: 'user', content: inputText.trim(), ts: new Date().toISOString() }
+    const placeholder: ThreadMessage = { role: 'assistant', content: '', ts: new Date().toISOString() }
+    setMessages(prev => [...prev, userMsg, placeholder])
+    setInputText('')
+    setStreaming(true)
+    setThreadErr(null)
+    try {
+      let accumulated = ''
+      const meta = await api.threadTurn(trackId, sessionNum, q.id, userMsg.content, (text) => {
+        accumulated += text
+        setMessages(prev => {
+          const next = [...prev]
+          next[next.length - 1] = { ...placeholder, content: accumulated }
+          return next
+        })
+      })
+      setLastMeta(meta)
+      const r = await api.getThread(trackId, sessionNum, q.id)
+      setMessages(r.thread?.messages ?? [])
+    } catch (e) {
+      setThreadErr(String(e))
+    } finally {
+      setStreaming(false)
+    }
+  }
+
+  const hasThread = threadLoaded && messages.length > 0
 
   return (
     <Card
@@ -260,18 +356,12 @@ function EvalCard({ q, evalResult, response }: { q: Question; evalResult: Evalua
               </Badge>
             )}
             {evalResult.calibration_flag && (
-              <Badge
-                variant='outline'
-                className='text-[10px] text-yellow-600 border-yellow-400'
-              >
+              <Badge variant='outline' className='text-[10px] text-yellow-600 border-yellow-400'>
                 {evalResult.calibration_flag}
               </Badge>
             )}
             {evalResult.error_taxonomy && (
-              <Badge
-                variant='outline'
-                className='text-[10px] text-red-500 border-red-300'
-              >
+              <Badge variant='outline' className='text-[10px] text-red-500 border-red-300'>
                 {evalResult.error_taxonomy.replace("_", " ")}
               </Badge>
             )}
@@ -346,6 +436,110 @@ function EvalCard({ q, evalResult, response }: { q: Question; evalResult: Evalua
             )}
           </div>
         )}
+
+        {/* ── Follow-up thread ───────────────────────────────────────────────── */}
+        <div className='pt-1 border-t border-border/40'>
+          {!threadOpen ? (
+            <button
+              onClick={() => setThreadOpen(true)}
+              className='text-xs text-primary hover:underline'
+            >
+              {hasThread ? 'Continue conversation' : 'Start conversation'}
+            </button>
+          ) : (
+            <div className='space-y-2'>
+              <div className='flex items-center justify-between'>
+                <span className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>Follow-up</span>
+                {lastMeta && (
+                  <span className={cn(
+                    'text-[10px] font-mono px-1.5 py-0.5 rounded',
+                    lastMeta.sessionId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                  )}>
+                    {lastMeta.sessionId ? `resumed · ${(lastMeta.inputTokens / 1000).toFixed(1)}k tok sent` : `fresh · ${(lastMeta.inputTokens / 1000).toFixed(1)}k tok sent`}
+                  </span>
+                )}
+              </div>
+
+              {/* Messages */}
+              {messages.length === 0 && !seeding && (
+                <div className='text-center py-3'>
+                  <button
+                    onClick={seedConversation}
+                    className={cn(buttonVariants({ size: 'sm' }), 'text-xs')}
+                    disabled={seeding}
+                  >
+                    Open tutoring conversation
+                  </button>
+                  <p className='text-[10px] text-muted-foreground mt-1'>
+                    Sends question + your answer + evaluation + relevant context chunks to Claude
+                  </p>
+                </div>
+              )}
+
+              {messages.length > 0 && (
+                <div className='space-y-2 max-h-80 overflow-y-auto pr-1'>
+                  {messages.map((m, i) => (
+                    <div key={i} className={cn('text-xs rounded-lg p-2.5', m.role === 'user' ? 'bg-primary/10 ml-6' : 'bg-muted/50 mr-6')}>
+                      {m.role === 'assistant' && m.meta && (
+                        <div className='flex gap-2 mb-1 flex-wrap'>
+                          <span className={cn(
+                            'text-[9px] px-1 rounded font-mono',
+                            m.meta.call_mode === 'resumed' ? 'bg-emerald-100 text-emerald-700' :
+                            m.meta.call_mode === 'seeded' ? 'bg-blue-100 text-blue-700' :
+                            'bg-amber-100 text-amber-700'
+                          )}>
+                            {m.meta.call_mode}
+                          </span>
+                          {m.meta.input_tokens_sent > 0 && (
+                            <span className='text-[9px] text-muted-foreground font-mono'>
+                              {(m.meta.input_tokens_sent / 1000).toFixed(1)}k tok sent
+                            </span>
+                          )}
+                          {m.meta.context_chunks_used > 0 && (
+                            <span className='text-[9px] text-muted-foreground font-mono'>
+                              {m.meta.context_chunks_used} RAG chunks
+                            </span>
+                          )}
+                          {m.meta.claude_session_id && (
+                            <span className='text-[9px] text-muted-foreground font-mono'>
+                              session {m.meta.claude_session_id.slice(0, 8)}…
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <p className='leading-relaxed whitespace-pre-wrap'>{m.content}</p>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+
+              {threadErr && <p className='text-xs text-red-500'>{threadErr}</p>}
+
+              {/* Input */}
+              {(messages.length > 0 || seeding) && (
+                <div className='flex gap-1.5'>
+                  <input
+                    type='text'
+                    value={inputText}
+                    onChange={e => setInputText(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                    placeholder='Ask a follow-up…'
+                    disabled={streaming || seeding}
+                    className='flex-1 text-xs border rounded px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary'
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={streaming || seeding || !inputText.trim()}
+                    className={cn(buttonVariants({ size: 'sm' }), 'text-xs px-3')}
+                  >
+                    {streaming ? '…' : 'Send'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -927,7 +1121,7 @@ export function SessionPage() {
             {questions.map((q, i) => {
               const evalResult = evalByID?.[q.id];
               if (evalResult) {
-                return <EvalCard key={q.id} q={q} evalResult={evalResult} response={responseByID[q.id]} />;
+                return <EvalCard key={q.id} q={q} evalResult={evalResult} response={responseByID[q.id]} trackId={trackId!} sessionNum={num} />;
               }
               return (
                 <AnswerCard

@@ -11,6 +11,7 @@ import type {
   GetContextTokensResult,
   PromptPreviewResult,
   MetricsSnapshot,
+  GetThreadResult,
   DuplicateTrackResult,
   CreateSessionResult,
   ListTracksResult,
@@ -212,4 +213,43 @@ export const api = {
   getContextTokens: (trackId: string) => get<GetContextTokensResult>(`/tracks/${trackId}/context-tokens`),
   getPromptPreview: (trackId: string, num: number) =>
     get<PromptPreviewResult>(`/tracks/${trackId}/sessions/${num}/prompt-preview`),
+  getThread: (trackId: string, num: number, questionId: string) =>
+    get<GetThreadResult>(`/tracks/${trackId}/sessions/${num}/threads/${questionId}`),
+  threadTurn: async (
+    trackId: string,
+    num: number,
+    questionId: string,
+    message: string,
+    onChunk: (text: string) => void,
+  ): Promise<{ sessionId: string; inputTokens: number }> => {
+    const res = await fetch(`${BASE}/tracks/${trackId}/sessions/${num}/threads/${questionId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    })
+    if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    let sessionId = ''
+    let inputTokens = 0
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const ev = JSON.parse(line.slice(6)) as { type: string; text?: string; message?: string; session_id?: string; input_tokens?: number }
+        if (ev.type === 'chunk' && ev.text) onChunk(ev.text)
+        if (ev.type === 'error') throw new Error(ev.message ?? 'thread turn failed')
+        if (ev.type === 'done') {
+          sessionId = ev.session_id ?? ''
+          inputTokens = ev.input_tokens ?? 0
+        }
+      }
+    }
+    return { sessionId, inputTokens }
+  },
 }

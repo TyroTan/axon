@@ -227,6 +227,33 @@ export interface PromptPreviewResult {
   context_limit: number
 }
 
+export interface ThreadMessageMeta {
+  call_mode: 'fresh' | 'resumed' | 'seeded'
+  input_tokens_sent: number
+  context_chunks_used: number
+  claude_session_id?: string
+}
+
+export interface ThreadMessage {
+  role: 'user' | 'assistant'
+  content: string
+  ts: string
+  meta?: ThreadMessageMeta
+}
+
+export interface Thread {
+  question_id: string
+  claude_session_id?: string
+  accumulated_input_tokens?: number
+  messages: ThreadMessage[]
+}
+
+export interface GetThreadResult {
+  track_id: string
+  session_number: number
+  thread: Thread | null
+}
+
 export interface MetricsSnapshot {
   uptime_seconds: number
   counts: Record<string, number>
