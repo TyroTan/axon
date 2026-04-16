@@ -296,13 +296,13 @@ func parseMetaSynthesis(
 		return domain.MetaSynthesis{}, fmt.Errorf("unmarshal: %w (raw prefix: %.200s)", err, s)
 	}
 
-	// Enrich with bloom_current_before + clamp.
+	// Enrich with bloom_current_before + clamp, then convert to domain type.
 	conceptByIdx := make(map[int]domain.Concept, len(cm.Concepts))
 	for _, c := range cm.Concepts {
 		conceptByIdx[c.Index] = c
 	}
-	for i := range ls.ConceptMapUpdates {
-		u := &ls.ConceptMapUpdates[i]
+	domainUpdates := make([]domain.ConceptMapUpdate, len(ls.ConceptMapUpdates))
+	for i, u := range ls.ConceptMapUpdates {
 		if c, ok := conceptByIdx[u.ConceptIndex]; ok {
 			u.BloomCurrentBefore = c.BloomCurrent
 			if u.BloomCurrentAfter > c.BloomTarget {
@@ -312,6 +312,12 @@ func parseMetaSynthesis(
 				u.BloomCurrentAfter = 1
 			}
 		}
+		domainUpdates[i] = domain.ConceptMapUpdate{
+			ConceptIndex:       u.ConceptIndex,
+			BloomCurrentBefore: u.BloomCurrentBefore,
+			BloomCurrentAfter:  u.BloomCurrentAfter,
+			SpacedRepetition:   u.SpacedRepetition.toDomain(),
+		}
 	}
 
 	return domain.MetaSynthesis{
@@ -320,7 +326,7 @@ func parseMetaSynthesis(
 		GenerationID:       generationID,
 		SessionsAggregated: sessionNums,
 		ShardsAggregated:   shardIDs,
-		ConceptMapUpdates:  ls.ConceptMapUpdates,
+		ConceptMapUpdates:  domainUpdates,
 		LearnerSummary:     ls.LearnerSummary,
 		Applied:            false,
 	}, nil

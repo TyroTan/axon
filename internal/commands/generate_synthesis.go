@@ -231,9 +231,41 @@ func buildSynthUserPrompt(
 
 // ─── parser ───────────────────────────────────────────────────────────────────
 
+// llmSpacedRepetition mirrors domain.SpacedRepetition but accepts date-only
+// strings ("2026-04-23") emitted by the LLM in addition to full RFC3339.
+type llmSpacedRepetition struct {
+	NextReview         string `json:"next_review"`
+	IntervalDays       int    `json:"interval_days"`
+	ConsecutiveCorrect int    `json:"consecutive_correct"`
+}
+
+func (sr llmSpacedRepetition) toDomain() domain.SpacedRepetition {
+	out := domain.SpacedRepetition{
+		IntervalDays:       sr.IntervalDays,
+		ConsecutiveCorrect: sr.ConsecutiveCorrect,
+	}
+	if sr.NextReview != "" {
+		// Try RFC3339 first, then date-only.
+		for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+			if t, err := time.Parse(layout, sr.NextReview); err == nil {
+				out.NextReview = &t
+				break
+			}
+		}
+	}
+	return out
+}
+
+type llmConceptMapUpdate struct {
+	ConceptIndex       int                 `json:"concept_index"`
+	BloomCurrentBefore int                 `json:"bloom_current_before"`
+	BloomCurrentAfter  int                 `json:"bloom_current_after"`
+	SpacedRepetition   llmSpacedRepetition `json:"spaced_repetition"`
+}
+
 type llmSynthesis struct {
-	ConceptMapUpdates []domain.ConceptMapUpdate `json:"concept_map_updates"`
-	LearnerSummary    string                    `json:"learner_summary"`
+	ConceptMapUpdates []llmConceptMapUpdate `json:"concept_map_updates"`
+	LearnerSummary    string                `json:"learner_summary"`
 }
 
 func parseSynthesis(raw string, sessionNum int, generationID string, cm domain.ConceptMap) (domain.Synthesis, error) {
@@ -253,13 +285,14 @@ func parseSynthesis(raw string, sessionNum int, generationID string, cm domain.C
 		return domain.Synthesis{}, fmt.Errorf("unmarshal: %w (raw prefix: %.200s)", err, s)
 	}
 
-	// Enrich each update with bloom_current_before from the live concept map.
+	// Enrich each update with bloom_current_before from the live concept map,
+	// then convert to domain type (resolving the date-only next_review string).
 	conceptByIdx := make(map[int]domain.Concept, len(cm.Concepts))
 	for _, c := range cm.Concepts {
 		conceptByIdx[c.Index] = c
 	}
-	for i := range ls.ConceptMapUpdates {
-		u := &ls.ConceptMapUpdates[i]
+	domainUpdates := make([]domain.ConceptMapUpdate, len(ls.ConceptMapUpdates))
+	for i, u := range ls.ConceptMapUpdates {
 		if c, ok := conceptByIdx[u.ConceptIndex]; ok {
 			u.BloomCurrentBefore = c.BloomCurrent
 			// Clamp after to target.
@@ -270,13 +303,19 @@ func parseSynthesis(raw string, sessionNum int, generationID string, cm domain.C
 				u.BloomCurrentAfter = 1
 			}
 		}
+		domainUpdates[i] = domain.ConceptMapUpdate{
+			ConceptIndex:       u.ConceptIndex,
+			BloomCurrentBefore: u.BloomCurrentBefore,
+			BloomCurrentAfter:  u.BloomCurrentAfter,
+			SpacedRepetition:   u.SpacedRepetition.toDomain(),
+		}
 	}
 
 	return domain.Synthesis{
 		SessionNumber:     sessionNum,
 		SessionDate:       time.Now().Format("2006-01-02"),
 		GenerationID:      generationID,
-		ConceptMapUpdates: ls.ConceptMapUpdates,
+		ConceptMapUpdates: domainUpdates,
 		LearnerSummary:    ls.LearnerSummary,
 		Applied:           false,
 	}, nil
