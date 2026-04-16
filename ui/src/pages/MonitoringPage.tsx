@@ -34,27 +34,30 @@ function barColor(p: number): string {
 
 interface EndpointDef {
   method: 'GET' | 'POST'
-  path: string   // e.g. /api/tracks/:id/sessions/:num/prompt-preview
+  path: string
   title: string
   desc: string
+  group: 'monitoring' | 'data'
 }
 
 const API_ENDPOINTS: EndpointDef[] = [
-  { method: 'GET', path: '/api/config', title: 'Server Config', desc: 'Live token limits: context_token_limit, soft_token_limit, hard_token_limit.' },
-  { method: 'GET', path: '/api/metrics', title: 'System Metrics', desc: 'Uptime, per-event counts, recent event log (last 50).' },
-  { method: 'GET', path: '/api/tracks', title: 'List Tracks', desc: 'All tracks with parent/child tree, branch list, created_at.' },
-  { method: 'GET', path: '/api/tracks/:id', title: 'Get Track', desc: 'Track detail: concept map (all concepts + bloom levels) + session list.' },
-  { method: 'GET', path: '/api/tracks/:id/context', title: 'Context Files', desc: 'All context files for a track (filename → raw content map).' },
-  { method: 'GET', path: '/api/tracks/:id/context-tokens', title: 'Context Token Breakdown', desc: 'Per-file token counts for the full inherited context, attributed to the source track in the ancestor chain. Sorted by size descending.' },
-  { method: 'GET', path: '/api/tracks/:id/split-plan', title: 'Split Plan', desc: 'Current shard split plan — null if corpus is within soft limit. Shows shard status, file assignments, token counts.' },
-  { method: 'GET', path: '/api/tracks/:id/meta-synthesis', title: 'Meta-Synthesis', desc: 'Track-level synthesis aggregated across all shard sessions. Null if not yet generated.' },
-  { method: 'GET', path: '/api/tracks/:id/meta-synthesis/readiness', title: 'Meta-Synthesis Readiness', desc: 'Which approved shards are still missing evaluated sessions. ready=true when all shards are covered.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/questions', title: 'Session Questions', desc: 'Generated questions for a session. Empty array if not yet generated.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/responses', title: 'Session Responses', desc: 'Submitted responses for a session.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/evaluations', title: 'Session Evaluations', desc: 'LLM evaluations per question — correctness, bloom level demonstrated, Brier score, calibration flag, feedback.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/synthesis', title: 'Session Synthesis', desc: 'Concept map update plan for a session — bloom advancement per concept, spaced repetition schedule.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/prompt-preview', title: 'Prompt Preview', desc: 'Exact system + user prompt that would be sent to the LLM for question generation — token estimates, call_mode (fresh/resumed), tokens_to_send, context files list.' },
-  { method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid', title: 'Question Thread', desc: 'Full follow-up conversation history for one question. Each assistant message includes meta: call_mode, input_tokens_sent, context_chunks_used, claude_session_id.' },
+  // ── Monitoring ──
+  { group: 'monitoring', method: 'GET', path: '/api/config', title: 'Server Config', desc: 'Live token limits: context_token_limit, soft_token_limit, hard_token_limit.' },
+  { group: 'monitoring', method: 'GET', path: '/api/metrics', title: 'System Metrics', desc: 'Uptime, per-event counts, recent event log (last 50).' },
+  { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/context-tokens', title: 'Context Token Breakdown', desc: 'Per-file token counts for the full inherited context, attributed to the source track in the ancestor chain. Sorted by size descending.' },
+  { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/prompt-preview', title: 'Prompt Preview', desc: 'Exact system + user prompt that would be sent to the LLM — token estimates, call_mode (fresh/resumed), tokens_to_send, context files list.' },
+  { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/meta-synthesis/readiness', title: 'Meta-Synthesis Readiness', desc: 'Which approved shards are still missing evaluated sessions. ready=true when all shards are covered.' },
+  { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid', title: 'Question Thread', desc: 'Full follow-up conversation history for one question — includes per-message meta: call_mode, input_tokens_sent, context_chunks_used, claude_session_id.' },
+  // ── Data ──
+  { group: 'data', method: 'GET', path: '/api/tracks', title: 'List Tracks', desc: 'All tracks with parent/child tree, branch list, created_at.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id', title: 'Get Track', desc: 'Track detail: concept map (all concepts + bloom levels) + session list.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/context', title: 'Context Files', desc: 'All context files for a track (filename → raw content map).' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/split-plan', title: 'Split Plan', desc: 'Current shard split plan — null if corpus is within soft limit. Shows shard status, file assignments, token counts.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/meta-synthesis', title: 'Meta-Synthesis', desc: 'Track-level synthesis aggregated across all shard sessions. Null if not yet generated.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/questions', title: 'Session Questions', desc: 'Generated questions for a session. Empty array if not yet generated.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/responses', title: 'Session Responses', desc: 'Submitted responses for a session.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/evaluations', title: 'Session Evaluations', desc: 'LLM evaluations per question — correctness, bloom level demonstrated, Brier score, calibration flag, feedback.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/synthesis', title: 'Session Synthesis', desc: 'Concept map update plan for a session — bloom advancement per concept, spaced repetition schedule.' },
 ]
 
 // ── sub-components ────────────────────────────────────────────────────────────
@@ -383,16 +386,28 @@ function EndpointRow({ ep }: { ep: EndpointDef }) {
 
 // ── explorer ──────────────────────────────────────────────────────────────────
 
+function EndpointGroup({ label, endpoints }: { label: string; endpoints: EndpointDef[] }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">{label}</p>
+      {endpoints.map(ep => (
+        <EndpointRow key={ep.method + ep.path} ep={ep} />
+      ))}
+    </div>
+  )
+}
+
 function APIExplorer() {
+  const monitoring = API_ENDPOINTS.filter(ep => ep.group === 'monitoring')
+  const data = API_ENDPOINTS.filter(ep => ep.group === 'data')
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base">API Explorer</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {API_ENDPOINTS.map(ep => (
-          <EndpointRow key={ep.method + ep.path} ep={ep} />
-        ))}
+      <CardContent className="space-y-6">
+        <EndpointGroup label="Monitoring" endpoints={monitoring} />
+        <EndpointGroup label="Data" endpoints={data} />
       </CardContent>
     </Card>
   )
