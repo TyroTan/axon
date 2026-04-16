@@ -4,6 +4,7 @@ import { api } from "@/api/client";
 import type {
   ConceptMapUpdate,
   Evaluation,
+  PromptPreviewResult,
   Question,
   Response,
   Synthesis,
@@ -561,6 +562,11 @@ export function SessionPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Token budget panel
+  const [preview, setPreview] = useState<PromptPreviewResult | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   // Load all session data on mount
   useEffect(() => {
     if (!trackId || !num) return;
@@ -737,13 +743,98 @@ export function SessionPage() {
         <h1 className='text-lg font-bold font-mono'>
           {trackId} / Session {num}
         </h1>
-        <Link
-          to={`/tracks/${trackId}`}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-        >
-          ← Track
-        </Link>
+        <div className='flex items-center gap-2'>
+          <button
+            onClick={() => {
+              const next = !previewOpen;
+              setPreviewOpen(next);
+              if (next && !preview && trackId) {
+                setPreviewLoading(true);
+                api.getPromptPreview(trackId, num)
+                  .then(setPreview)
+                  .finally(() => setPreviewLoading(false));
+              }
+            }}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            title="Show token budget for this session's LLM call"
+          >
+            {previewOpen ? "Hide budget" : "Token budget"}
+          </button>
+          <Link
+            to={`/tracks/${trackId}`}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+          >
+            ← Track
+          </Link>
+        </div>
       </div>
+
+      {/* ── token budget panel ───────────────────────────────────────────────── */}
+      {previewOpen && (
+        <Card className='text-sm'>
+          <CardContent className='pt-4 space-y-3'>
+            {previewLoading && (
+              <p className='text-muted-foreground text-xs'>Loading token budget…</p>
+            )}
+            {preview && (
+              <>
+                <div className='flex items-center gap-2 flex-wrap'>
+                  <span className={cn(
+                    'text-xs font-semibold px-2 py-0.5 rounded-full',
+                    preview.call_mode === 'resumed'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-amber-100 text-amber-700'
+                  )}>
+                    {preview.call_mode === 'resumed'
+                      ? `Riding Claude context · session ${preview.claude_session_id.slice(0, 8)}…`
+                      : 'Fresh call — full context will be sent'}
+                  </span>
+                  {preview.call_mode === 'resumed' && preview.accumulated_input_tokens > 0 && (
+                    <span className='text-xs text-muted-foreground'>
+                      {(preview.accumulated_input_tokens / 1000).toFixed(1)}k tokens accumulated so far
+                    </span>
+                  )}
+                </div>
+
+                <div className='grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-mono'>
+                  <span className='text-muted-foreground'>System prompt</span>
+                  <span>{preview.system_prompt_tokens.toLocaleString()} tok</span>
+                  <span className='text-muted-foreground'>Context files</span>
+                  <span>{preview.context_tokens.toLocaleString()} tok ({preview.context_files_included.length} files)</span>
+                  <span className='text-muted-foreground'>User prompt</span>
+                  <span>{preview.user_prompt_tokens.toLocaleString()} tok</span>
+                  <span className='text-muted-foreground font-semibold text-foreground'>Would send now</span>
+                  <span className='font-semibold text-foreground'>{preview.tokens_to_send.toLocaleString()} tok</span>
+                  {preview.call_mode === 'resumed' && (
+                    <>
+                      <span className='text-muted-foreground'>Saved by resume</span>
+                      <span className='text-emerald-600'>−{preview.tokens_saved_by_resume.toLocaleString()} tok</span>
+                    </>
+                  )}
+                  <span className='text-muted-foreground'>Context limit</span>
+                  <span className={preview.total_tokens > preview.context_limit ? 'text-red-500' : ''}>
+                    {(preview.context_limit / 1000).toFixed(0)}k
+                    {preview.total_tokens > preview.context_limit ? ' ⚠ over' : ''}
+                  </span>
+                </div>
+
+                {preview.context_files_included.length > 0 && (
+                  <details className='text-xs'>
+                    <summary className='cursor-pointer text-muted-foreground hover:text-foreground'>
+                      Context files ({preview.context_files_included.length})
+                    </summary>
+                    <ul className='mt-1 ml-3 space-y-0.5 font-mono text-muted-foreground'>
+                      {preview.context_files_included.sort().map(f => (
+                        <li key={f}>{f}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── no questions yet ─────────────────────────────────────────────────── */}
       {(!questions || questions.length === 0) && genPhase === "idle" && (

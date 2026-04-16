@@ -148,8 +148,13 @@ type Synthesis struct {
 
 // SessionMetadata is written to 00_metadata.json at session creation.
 // ShardID is empty for sessions that use the full (unsplit) context.
+// ClaudeSessionID is set after the first LLM call when --resume is wired (U2B).
+// AccumulatedInputTokens tracks the running total of tokens sent across all LLM
+// calls in this session (used by prompt-preview to show "tokens consumed so far").
 type SessionMetadata struct {
-	ShardID string `json:"shard_id"`
+	ShardID               string `json:"shard_id"`
+	ClaudeSessionID       string `json:"claude_session_id,omitempty"`
+	AccumulatedInputTokens int   `json:"accumulated_input_tokens,omitempty"`
 }
 
 // ─── Meta-Synthesis ───────────────────────────────────────────────────────────

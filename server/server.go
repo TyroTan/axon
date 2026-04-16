@@ -558,22 +558,45 @@ func New(cfg Config) *fiber.App {
 		userPrompt := commands.BuildUserPrompt(trackID, "preview", cm, contextFiles)
 		systemTokens := (len(systemPrompt) + 3) / 4
 		userTokens := (len(userPrompt) + 3) / 4
+		totalTokens := systemTokens + userTokens
 
 		fileList := make([]string, 0, len(contextFiles))
 		for name := range contextFiles {
 			fileList = append(fileList, name)
 		}
 
+		// ── Context-management / resume awareness ────────────────────────────
+		// call_mode: "fresh"    — no claude session ID stored; full context will be sent.
+		// call_mode: "resumed"  — a claude --resume session ID exists; only the new
+		//                         user prompt (delta) would be sent, saving context tokens.
+		//
+		// tokens_to_send: what the next LLM call would actually transmit.
+		// tokens_saved:   tokens avoided by resume (0 when fresh).
+		// accumulated_input_tokens: running total of tokens sent in prior LLM calls this session.
+		callMode := "fresh"
+		tokensToSend := totalTokens
+		tokensSaved := 0
+		if meta.ClaudeSessionID != "" {
+			callMode = "resumed"
+			tokensToSend = userTokens // only the new user message goes over the wire
+			tokensSaved = systemTokens + contextTokens
+		}
+
 		return c.JSON(fiber.Map{
 			"track_id":               trackID,
 			"session_number":         num,
 			"shard_id":               shardID,
+			"call_mode":              callMode,
+			"claude_session_id":      meta.ClaudeSessionID,
+			"accumulated_input_tokens": meta.AccumulatedInputTokens,
+			"tokens_to_send":         tokensToSend,
+			"tokens_saved_by_resume": tokensSaved,
 			"system_prompt":          systemPrompt,
 			"user_prompt":            userPrompt,
 			"system_prompt_tokens":   systemTokens,
 			"user_prompt_tokens":     userTokens,
 			"context_tokens":         contextTokens,
-			"total_tokens":           systemTokens + userTokens,
+			"total_tokens":           totalTokens,
 			"context_files_included": fileList,
 			"soft_limit":             cfg.SoftTokenLimit,
 			"hard_limit":             cfg.HardTokenLimit,

@@ -207,6 +207,13 @@ export interface PromptPreviewResult {
   track_id: string
   session_number: number
   shard_id: string
+  // Context-management / resume awareness
+  call_mode: 'fresh' | 'resumed'
+  claude_session_id: string
+  accumulated_input_tokens: number
+  tokens_to_send: number
+  tokens_saved_by_resume: number
+  // Prompt content
   system_prompt: string
   user_prompt: string
   system_prompt_tokens: number
@@ -214,6 +221,7 @@ export interface PromptPreviewResult {
   context_tokens: number
   total_tokens: number
   context_files_included: string[]
+  // Limits
   soft_limit: number
   hard_limit: number
   context_limit: number
