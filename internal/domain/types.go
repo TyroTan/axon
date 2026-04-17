@@ -231,3 +231,66 @@ type SteerIntent struct {
 	Branch       *string        `json:"branch,omitempty"`        // for fewer_branch
 	Note         string         `json:"note,omitempty"`
 }
+
+// ─── Conversation ─────────────────────────────────────────────────────────────
+
+// ConversationMessageMeta captures provenance for one assistant reply.
+type ConversationMessageMeta struct {
+	CallMode        string   `json:"call_mode"`                   // "fresh" | "resumed"
+	InputTokensSent int      `json:"input_tokens_sent"`
+	ContextChunks   int      `json:"context_chunks_used"`
+	ClaudeSessionID string   `json:"claude_session_id,omitempty"`
+	TrackIDsLoaded  []string `json:"track_ids_loaded,omitempty"`  // which tracks' chunks were searched
+}
+
+// ConversationMessage is one turn (user or assistant).
+type ConversationMessage struct {
+	Role    string                   `json:"role"` // "user" | "assistant"
+	Content string                   `json:"content"`
+	Ts      time.Time                `json:"ts"`
+	Meta    *ConversationMessageMeta `json:"meta,omitempty"`
+}
+
+// Conversation is a free-form, multi-track conversation stored as a flat document.
+// It lives at experimentsDir/conversations/{ID}.json — not under any single track.
+type Conversation struct {
+	ID                     string                `json:"id"`
+	Title                  string                `json:"title,omitempty"`
+	TrackIDs               []string              `json:"track_ids"`                // context sources (ordered; first is primary)
+	AdHocText              string                `json:"adhoc_text,omitempty"`     // extra inline context injected mid-conversation
+	CreatedAt              time.Time             `json:"created_at"`
+	UpdatedAt              time.Time             `json:"updated_at"`
+	ClaudeSessionID        string                `json:"claude_session_id,omitempty"`
+	AccumulatedInputTokens int                   `json:"accumulated_input_tokens"`
+	Messages               []ConversationMessage `json:"messages"`
+}
+
+// ─── Conversation Index ───────────────────────────────────────────────────────
+
+// ConversationPlyIndex is a per-message entry in the structured index.
+type ConversationPlyIndex struct {
+	Turn      int      `json:"turn"`       // 0-based message index
+	Role      string   `json:"role"`
+	Summary   string   `json:"summary"`    // LLM-generated summary of this message
+	Topics    []string `json:"topics"`
+	KeyPoints []string `json:"key_points,omitempty"` // assistant turns only
+	Tokens    int      `json:"tokens"`     // naive token estimate of message content
+}
+
+// ConversationIndex is the structured, queryable artifact produced by IndexConversation.
+// Stored as experimentsDir/conversations/{ID}.index.json.
+// Designed as a self-contained "document" — readable standalone like a MongoDB document.
+type ConversationIndex struct {
+	ConversationID          string                 `json:"conversation_id"`
+	TrackIDs                []string               `json:"track_ids"`
+	Title                   string                 `json:"title,omitempty"`
+	GenerationID            string                 `json:"generation_id"`
+	IndexedAt               time.Time              `json:"indexed_at"`
+	TurnCount               int                    `json:"turn_count"`
+	Summary                 string                 `json:"summary"`              // whole-conversation summary
+	Topics                  []string               `json:"topics"`               // top-level topics discussed
+	KeyDecisions            []string               `json:"key_decisions"`        // conclusions or commitments made
+	OpenQuestions           []string               `json:"open_questions"`       // unresolved threads
+	ConceptIndexesReferenced []int                 `json:"concept_indexes_referenced"` // concept map indexes mentioned
+	PlyIndex                []ConversationPlyIndex `json:"ply_index"`            // per-message detail
+}

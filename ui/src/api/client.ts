@@ -19,6 +19,10 @@ import type {
   CreateSessionResult,
   ListTracksResult,
   Response,
+  Conversation,
+  ListConversationsResult,
+  GetConversationResult,
+  ConversationIndex,
 } from './types'
 
 const BASE = '/api'
@@ -266,5 +270,94 @@ export const api = {
       }
     }
     return { sessionId, inputTokens }
+  },
+
+  // ─── Conversations ────────────────────────────────────────────────────────
+  listConversations: () => get<ListConversationsResult>('/conversations'),
+  getConversation: (id: string) => get<GetConversationResult>(`/conversations/${id}`),
+  createConversation: (trackIds: string[], title?: string) =>
+    fetch(`${BASE}/conversations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track_ids: trackIds, title: title ?? '' }),
+    }).then(async res => {
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      return res.json() as Promise<Conversation>
+    }),
+  addConversationContext: (id: string, trackIds: string[]) =>
+    fetch(`${BASE}/conversations/${id}/context`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track_ids: trackIds }),
+    }).then(async res => {
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      return res.json() as Promise<Conversation>
+    }),
+  conversationTurn: async (
+    id: string,
+    message: string,
+    adhocText: string,
+    onChunk: (text: string) => void,
+  ): Promise<{ callMode: string; inputTokens: number; contextChunks: number; claudeSessionId: string }> => {
+    const res = await fetch(`${BASE}/conversations/${id}/turn`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, adhoc_text: adhocText }),
+    })
+    if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    let callMode = 'fresh'
+    let inputTokens = 0
+    let contextChunks = 0
+    let claudeSessionId = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const ev = JSON.parse(line.slice(6)) as {
+          type: string; text?: string; message?: string
+          call_mode?: string; input_tokens?: number; context_chunks?: number; claude_session_id?: string
+        }
+        if (ev.type === 'chunk' && ev.text) onChunk(ev.text)
+        if (ev.type === 'error') throw new Error(ev.message ?? 'conversation turn failed')
+        if (ev.type === 'done') {
+          callMode = ev.call_mode ?? 'fresh'
+          inputTokens = ev.input_tokens ?? 0
+          contextChunks = ev.context_chunks ?? 0
+          claudeSessionId = ev.claude_session_id ?? ''
+        }
+      }
+    }
+    return { callMode, inputTokens, contextChunks, claudeSessionId }
+  },
+  getConversationIndex: (id: string) => get<ConversationIndex>(`/conversations/${id}/index`),
+  indexConversation: async (id: string, onChunk: (text: string) => void): Promise<ConversationIndex> => {
+    const res = await fetch(`${BASE}/conversations/${id}/index`, { method: 'POST' })
+    if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const ev = JSON.parse(line.slice(6)) as { type: string; text?: string; message?: string }
+        if (ev.type === 'chunk' && ev.text) onChunk(ev.text)
+        if (ev.type === 'error') throw new Error(ev.message ?? 'indexing failed')
+        if (ev.type === 'done') { /* index written server-side */ }
+      }
+    }
+    // Fetch the final index document.
+    return api.getConversationIndex(id)
   },
 }

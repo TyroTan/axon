@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -101,6 +102,15 @@ func New(cfg Config) *fiber.App {
 	)
 
 	mergeTracksHandler := commands.NewMergeTracksHandler(trackStore)
+	convTurnHandler := commands.NewConversationTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
+	indexConvHandler := commands.NewIndexConversationHandler(trackStore, llmClient, rec)
+
+	cqrs.RegisterQuery[queries.GetConversationQuery, queries.GetConversationResult](
+		qryBus, queries.NewGetConversationHandler(trackStore),
+	)
+	cqrs.RegisterQuery[queries.ListConversationsQuery, queries.ListConversationsResult](
+		qryBus, queries.NewListConversationsHandler(trackStore),
+	)
 
 	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
 	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit, cfg.SoftTokenLimit, cfg.HardTokenLimit, rec)
@@ -719,6 +729,166 @@ func New(cfg Config) *fiber.App {
 			"hard_limit":             cfg.HardTokenLimit,
 			"context_limit":          cfg.ContextTokenLimit,
 		})
+	})
+
+	// ── Conversations ─────────────────────────────────────────────────────────
+
+	// GET /api/conversations — list all conversations, newest first
+	api.Get("/conversations", func(c *fiber.Ctx) error {
+		result, err := cqrs.Ask[queries.ListConversationsQuery, queries.ListConversationsResult](
+			c.Context(), qryBus, queries.ListConversationsQuery{},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// POST /api/conversations — create a new conversation
+	// Body: { "track_ids": ["track_1", ...], "title": "optional" }
+	api.Post("/conversations", func(c *fiber.Ctx) error {
+		var body struct {
+			TrackIDs []string `json:"track_ids"`
+			Title    string   `json:"title"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
+		}
+		if len(body.TrackIDs) == 0 {
+			return fiber.NewError(fiber.StatusBadRequest, "track_ids required")
+		}
+		conv, err := convTurnHandler.Create(c.Context(), body.TrackIDs, body.Title)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.Status(fiber.StatusCreated).JSON(conv)
+	})
+
+	// GET /api/conversations/:id — get conversation + its index (if any)
+	api.Get("/conversations/:id", func(c *fiber.Ctx) error {
+		result, err := cqrs.Ask[queries.GetConversationQuery, queries.GetConversationResult](
+			c.Context(), qryBus, queries.GetConversationQuery{ConversationID: c.Params("id")},
+		)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		return c.JSON(result)
+	})
+
+	// POST /api/conversations/:id/turn — SSE: one user turn, streams assistant reply
+	// Body: { "message": "...", "adhoc_text": "..." }
+	api.Post("/conversations/:id/turn", func(c *fiber.Ctx) error {
+		var body struct {
+			Message   string `json:"message"`
+			AdHocText string `json:"adhoc_text"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
+		}
+		if strings.TrimSpace(body.Message) == "" {
+			return fiber.NewError(fiber.StatusBadRequest, "message required")
+		}
+		cmd := commands.ConversationTurnCommand{
+			ConversationID: c.Params("id"),
+			UserMessage:    body.Message,
+			AdHocText:      body.AdHocText,
+		}
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			var conv domain.Conversation
+			var turnErr error
+			conv, turnErr = convTurnHandler.Stream(c.Context(), cmd, func(text string) {
+				b, _ := json.Marshal(map[string]string{"type": "chunk", "text": text})
+				fmt.Fprintf(w, "data: %s\n\n", b)
+				w.Flush()
+			})
+			if turnErr != nil {
+				b, _ := json.Marshal(map[string]string{"type": "error", "message": turnErr.Error()})
+				fmt.Fprintf(w, "data: %s\n\n", b)
+				w.Flush()
+				return
+			}
+			// Send the last assistant message meta on Done.
+			var meta *domain.ConversationMessageMeta
+			for i := len(conv.Messages) - 1; i >= 0; i-- {
+				if conv.Messages[i].Role == "assistant" {
+					meta = conv.Messages[i].Meta
+					break
+				}
+			}
+			done := map[string]any{"type": "done"}
+			if meta != nil {
+				done["call_mode"] = meta.CallMode
+				done["input_tokens"] = meta.InputTokensSent
+				done["context_chunks"] = meta.ContextChunks
+				done["claude_session_id"] = meta.ClaudeSessionID
+			}
+			b, _ := json.Marshal(done)
+			fmt.Fprintf(w, "data: %s\n\n", b)
+			w.Flush()
+		}))
+		return nil
+	})
+
+	// POST /api/conversations/:id/context — add track IDs to an existing conversation
+	// Body: { "track_ids": ["track_2"] }
+	api.Post("/conversations/:id/context", func(c *fiber.Ctx) error {
+		var body struct {
+			TrackIDs []string `json:"track_ids"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
+		}
+		conv, err := convTurnHandler.AddContext(c.Context(), c.Params("id"), body.TrackIDs)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(conv)
+	})
+
+	// GET /api/conversations/:id/index — get the structured index (or 404 if not indexed yet)
+	api.Get("/conversations/:id/index", func(c *fiber.Ctx) error {
+		idx, err := trackStore.ReadConversationIndex(c.Context(), c.Params("id"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		if idx.ConversationID == "" {
+			return fiber.NewError(fiber.StatusNotFound, "not indexed yet — POST /index to generate")
+		}
+		return c.JSON(idx)
+	})
+
+	// POST /api/conversations/:id/index — SSE: generate structured index
+	api.Post("/conversations/:id/index", func(c *fiber.Ctx) error {
+		cmd := commands.IndexConversationCommand{ConversationID: c.Params("id")}
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			idx, err := indexConvHandler.Stream(c.Context(), cmd, func(text string) {
+				b, _ := json.Marshal(map[string]string{"type": "chunk", "text": text})
+				fmt.Fprintf(w, "data: %s\n\n", b)
+				w.Flush()
+			})
+			if err != nil {
+				b, _ := json.Marshal(map[string]string{"type": "error", "message": err.Error()})
+				fmt.Fprintf(w, "data: %s\n\n", b)
+				w.Flush()
+				return
+			}
+			done := map[string]any{
+				"type":         "done",
+				"turn_count":   idx.TurnCount,
+				"topics":       idx.Topics,
+				"generation_id": idx.GenerationID,
+			}
+			b, _ := json.Marshal(done)
+			fmt.Fprintf(w, "data: %s\n\n", b)
+			w.Flush()
+		}))
+		return nil
 	})
 
 	// ── SPA static serving (production) ──────────────────────────────────────

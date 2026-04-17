@@ -43,6 +43,70 @@ export interface MergeTracksResult {
   total_concepts: number
 }
 
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+export interface ConversationMessageMeta {
+  call_mode: 'fresh' | 'resumed'
+  input_tokens_sent: number
+  context_chunks_used: number
+  claude_session_id?: string
+  track_ids_loaded?: string[]
+}
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+  ts: string
+  meta?: ConversationMessageMeta
+}
+
+export interface Conversation {
+  id: string
+  title?: string
+  track_ids: string[]
+  adhoc_text?: string
+  created_at: string
+  updated_at: string
+  claude_session_id?: string
+  accumulated_input_tokens: number
+  messages: ConversationMessage[]
+}
+
+export interface ListConversationsResult {
+  conversations: Conversation[]
+}
+
+export interface GetConversationResult {
+  conversation: Conversation
+  index?: ConversationIndex
+}
+
+// ─── Conversation Index ───────────────────────────────────────────────────────
+
+export interface ConversationPlyIndex {
+  turn: number
+  role: 'user' | 'assistant'
+  summary: string
+  topics: string[]
+  key_points?: string[]
+  tokens: number
+}
+
+export interface ConversationIndex {
+  conversation_id: string
+  track_ids: string[]
+  title?: string
+  generation_id: string
+  indexed_at: string
+  turn_count: number
+  summary: string
+  topics: string[]
+  key_decisions: string[]
+  open_questions: string[]
+  concept_indexes_referenced: number[]
+  ply_index: ConversationPlyIndex[]
+}
+
 export interface Session {
   track_id: string
   number: number

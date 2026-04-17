@@ -472,6 +472,102 @@ func (s *TrackStore) WriteTrackFile(_ context.Context, trackID, filename string,
 	return os.WriteFile(path, content, 0o644)
 }
 
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+// conversationsDir returns the path to the global conversations directory.
+func (s *TrackStore) conversationsDir() string {
+	return filepath.Join(s.experimentsDir, "conversations")
+}
+
+// conversationPath returns the path to a conversation JSON file.
+func (s *TrackStore) conversationPath(id string) string {
+	return filepath.Join(s.conversationsDir(), id+".json")
+}
+
+// conversationIndexPath returns the path to a conversation's index file.
+func (s *TrackStore) conversationIndexPath(id string) string {
+	return filepath.Join(s.conversationsDir(), id+".index.json")
+}
+
+// WriteConversation persists a conversation document.
+func (s *TrackStore) WriteConversation(_ context.Context, conv domain.Conversation) error {
+	if err := os.MkdirAll(s.conversationsDir(), 0o755); err != nil {
+		return fmt.Errorf("conversation store: mkdir: %w", err)
+	}
+	return writeJSON(s.conversationPath(conv.ID), conv)
+}
+
+// ReadConversation loads a conversation by ID. Returns (zero, nil) if not found.
+func (s *TrackStore) ReadConversation(_ context.Context, id string) (domain.Conversation, error) {
+	b, err := os.ReadFile(s.conversationPath(id))
+	if os.IsNotExist(err) {
+		return domain.Conversation{}, nil
+	}
+	if err != nil {
+		return domain.Conversation{}, fmt.Errorf("conversation store: read %s: %w", id, err)
+	}
+	var conv domain.Conversation
+	if err := json.Unmarshal(b, &conv); err != nil {
+		return domain.Conversation{}, fmt.Errorf("conversation store: parse %s: %w", id, err)
+	}
+	return conv, nil
+}
+
+// ListConversations returns all conversations sorted by UpdatedAt descending (newest first).
+func (s *TrackStore) ListConversations(_ context.Context) ([]domain.Conversation, error) {
+	dir := s.conversationsDir()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("conversation store: readdir: %w", err)
+	}
+	var convs []domain.Conversation
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") || strings.HasSuffix(e.Name(), ".index.json") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		var conv domain.Conversation
+		if json.Unmarshal(b, &conv) == nil {
+			convs = append(convs, conv)
+		}
+	}
+	// Sort: newest updated_at first.
+	sort.Slice(convs, func(i, j int) bool {
+		return convs[i].UpdatedAt.After(convs[j].UpdatedAt)
+	})
+	return convs, nil
+}
+
+// WriteConversationIndex persists the structured index for a conversation.
+func (s *TrackStore) WriteConversationIndex(_ context.Context, idx domain.ConversationIndex) error {
+	if err := os.MkdirAll(s.conversationsDir(), 0o755); err != nil {
+		return fmt.Errorf("conversation store: mkdir: %w", err)
+	}
+	return writeJSON(s.conversationIndexPath(idx.ConversationID), idx)
+}
+
+// ReadConversationIndex loads the index for a conversation. Returns (zero, nil) if absent.
+func (s *TrackStore) ReadConversationIndex(_ context.Context, id string) (domain.ConversationIndex, error) {
+	b, err := os.ReadFile(s.conversationIndexPath(id))
+	if os.IsNotExist(err) {
+		return domain.ConversationIndex{}, nil
+	}
+	if err != nil {
+		return domain.ConversationIndex{}, fmt.Errorf("conversation store: read index %s: %w", id, err)
+	}
+	var idx domain.ConversationIndex
+	if err := json.Unmarshal(b, &idx); err != nil {
+		return domain.ConversationIndex{}, fmt.Errorf("conversation store: parse index %s: %w", id, err)
+	}
+	return idx, nil
+}
+
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

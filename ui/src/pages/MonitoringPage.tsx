@@ -60,6 +60,10 @@ const API_ENDPOINTS: EndpointDef[] = [
   { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/responses', title: 'Session Responses', desc: 'Submitted responses for a session.' },
   { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/evaluations', title: 'Session Evaluations', desc: 'LLM evaluations per question — correctness, bloom level demonstrated, Brier score, calibration flag, feedback.' },
   { group: 'data', method: 'GET', path: '/api/tracks/:id/sessions/:num/synthesis', title: 'Session Synthesis', desc: 'Concept map update plan for a session — bloom advancement per concept, spaced repetition schedule.' },
+  // ── Conversations ──
+  { group: 'data', method: 'GET', path: '/api/conversations', title: 'List Conversations', desc: 'All conversations sorted newest first. Includes id, title, track_ids, message count, accumulated_input_tokens.' },
+  { group: 'data', method: 'GET', path: '/api/conversations/:id', title: 'Get Conversation', desc: 'Full conversation transcript + index (if generated). Messages include per-turn meta: call_mode, input_tokens_sent, context_chunks_used, claude_session_id.' },
+  { group: 'data', method: 'GET', path: '/api/conversations/:id/index', title: 'Conversation Index', desc: 'Structured index: summary, topics, key_decisions, open_questions, concept_indexes_referenced, per-ply breakdown. 404 if not yet indexed.' },
 ]
 
 // ── sub-components ────────────────────────────────────────────────────────────
