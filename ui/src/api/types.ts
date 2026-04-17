@@ -33,6 +33,14 @@ export interface Track {
   major_branches: string[]
   children?: Track[]
   created_at: string
+  is_composite?: boolean
+  source_ids?: string[]
+}
+
+export interface MergeTracksResult {
+  new_track_id: string
+  file_count: number
+  total_concepts: number
 }
 
 export interface Session {

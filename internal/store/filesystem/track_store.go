@@ -160,7 +160,37 @@ func (s *TrackStore) readTrack(id string) (domain.Track, error) {
 			t.Branches = cm.MajorBranches
 		}
 	}
+
+	// Load optional track_meta.json (composite / source provenance).
+	if meta, err := s.ReadTrackMeta(id); err == nil {
+		t.IsComposite = meta.IsComposite
+		t.SourceIDs = meta.SourceIDs
+	}
+
 	return t, nil
+}
+
+// ReadTrackMeta loads track_meta.json. Returns zero-value + nil error when absent.
+func (s *TrackStore) ReadTrackMeta(trackID string) (domain.TrackMeta, error) {
+	path := filepath.Join(s.experimentsDir, trackID, "track_meta.json")
+	b, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return domain.TrackMeta{}, nil
+	}
+	if err != nil {
+		return domain.TrackMeta{}, fmt.Errorf("track store: read track_meta %s: %w", trackID, err)
+	}
+	var m domain.TrackMeta
+	if err := json.Unmarshal(b, &m); err != nil {
+		return domain.TrackMeta{}, fmt.Errorf("track store: parse track_meta %s: %w", trackID, err)
+	}
+	return m, nil
+}
+
+// WriteTrackMeta persists track_meta.json for a track.
+func (s *TrackStore) WriteTrackMeta(_ context.Context, trackID string, meta domain.TrackMeta) error {
+	path := filepath.Join(s.experimentsDir, trackID, "track_meta.json")
+	return writeJSON(path, meta)
 }
 
 // parentID derives the parent track ID from a child ID.

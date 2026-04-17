@@ -15,6 +15,7 @@ import type {
   GetThreadResult,
   ThreadPreviewResult,
   DuplicateTrackResult,
+  MergeTracksResult,
   CreateSessionResult,
   ListTracksResult,
   Response,
@@ -56,6 +57,15 @@ export const api = {
   listTracks: () => get<ListTracksResult>('/tracks'),
   getTrack: (id: string) => get<GetTrackResult>(`/tracks/${id}`),
   duplicateTrack: (id: string) => post<DuplicateTrackResult>(`/tracks/${id}/duplicate`),
+  mergeTracks: (sourceIds: string[], parentId: string) =>
+    fetch(`${BASE}/tracks/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_ids: sourceIds, parent_id: parentId }),
+    }).then(async res => {
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+      return res.json() as Promise<MergeTracksResult>
+    }),
   getTrackContext: (id: string) => get<GetTrackContextResult>(`/tracks/${id}/context`),
   updateContextFile: (id: string, filename: string, content: string) =>
     put(`/tracks/${id}/context/${encodeURIComponent(filename)}`, content),

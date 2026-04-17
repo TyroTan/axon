@@ -6,11 +6,21 @@ import "time"
 
 // Track represents one learning track folder (e.g. "track_1", "track_1_2").
 type Track struct {
-	ID       string   `json:"id"`        // e.g. "track_1"
-	ParentID string   `json:"parent_id"` // "" if root track
-	Branches []string `json:"major_branches"`
-	Children []Track  `json:"children,omitempty"` // populated by ListTracks query
-	CreatedAt time.Time `json:"created_at"`
+	ID          string    `json:"id"`                    // e.g. "track_1"
+	ParentID    string    `json:"parent_id"`             // "" if root track
+	Branches    []string  `json:"major_branches"`
+	Children    []Track   `json:"children,omitempty"`    // populated by ListTracks query
+	CreatedAt   time.Time `json:"created_at"`
+	// Composite track fields — set when track_meta.json exists.
+	IsComposite bool     `json:"is_composite,omitempty"` // true if merged from multiple sources
+	SourceIDs   []string `json:"source_ids,omitempty"`   // source track IDs used at merge time
+}
+
+// TrackMeta is persisted as track_meta.json for tracks that carry extra provenance.
+// It is always optional — tracks without it are treated as plain lineage tracks.
+type TrackMeta struct {
+	IsComposite bool     `json:"is_composite,omitempty"`
+	SourceIDs   []string `json:"source_ids,omitempty"`
 }
 
 // ─── Concept ──────────────────────────────────────────────────────────────────

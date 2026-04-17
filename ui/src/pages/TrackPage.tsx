@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { GetTrackResult, Concept, Session, SplitPlan, MetaSynthesis } from '@/api/types'
+import type { GetTrackResult, Concept, Session, SplitPlan, MetaSynthesis, Track } from '@/api/types'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -91,6 +91,11 @@ export function TrackPage() {
   const [duplicating, setDuplicating] = useState(false)
   const [startingSession, setStartingSession] = useState(false)
   const [shardPickerOpen, setShardPickerOpen] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const [allTracks, setAllTracks] = useState<Track[]>([])
+  const [mergeSelected, setMergeSelected] = useState<string[]>([])
+  const [merging, setMerging] = useState(false)
+  const [mergeParentId, setMergeParentId] = useState('')
 
   async function startSession(shardId?: string) {
     if (!trackId || startingSession) return
@@ -296,10 +301,22 @@ export function TrackPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold font-mono">{track.id}</h1>
+          <h1 className="text-xl font-bold font-mono flex items-center gap-2">
+            {track.id}
+            {track.is_composite && (
+              <Badge variant="outline" className="text-[10px] border-amber-500/50 text-amber-400 font-normal">composite</Badge>
+            )}
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {(track.major_branches ?? []).join(' · ')}
           </p>
+          {track.is_composite && track.source_ids && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Merged from: {track.source_ids.map(id => (
+                <Link key={id} to={`/tracks/${id}`} className="font-mono hover:text-foreground mx-0.5 underline underline-offset-2">{id}</Link>
+              ))}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Link
@@ -327,6 +344,22 @@ export function TrackPage() {
             {duplicating ? 'Duplicating…' : 'Duplicate'}
           </button>
           <button
+            onClick={async () => {
+              if (mergeOpen) { setMergeOpen(false); return }
+              const res = await api.listTracks()
+              const flat: Track[] = []
+              const walk = (ts: Track[]) => ts.forEach(t => { flat.push(t); if (t.children) walk(t.children) })
+              walk(res.tracks ?? [])
+              setAllTracks(flat.filter(t => t.id !== trackId))
+              setMergeSelected([trackId!])
+              setMergeParentId(track.parent_id ?? '')
+              setMergeOpen(true)
+            }}
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+          >
+            Merge…
+          </button>
+          <button
             onClick={() => startSession()}
             disabled={startingSession}
             className={cn(buttonVariants({ size: 'sm' }), startingSession && 'opacity-60 cursor-not-allowed')}
@@ -335,6 +368,85 @@ export function TrackPage() {
           </button>
         </div>
       </div>
+
+      {/* Merge panel */}
+      {mergeOpen && (
+        <Card className="border-amber-500/40 bg-amber-950/10">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-amber-400 flex items-center justify-between">
+              <span>Merge Tracks → new composite track</span>
+              <button onClick={() => setMergeOpen(false)} className="text-muted-foreground hover:text-foreground text-xs">✕</button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Select additional tracks to merge with <span className="font-mono text-foreground">{trackId}</span>.
+              The new track gets a union of all inherited context files and concept maps (re-indexed).
+              Source tracks are untouched.
+            </p>
+
+            {/* Track checkboxes */}
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {/* Current track — always included, shown as locked */}
+              <label className="flex items-center gap-2 text-sm opacity-60 cursor-default select-none">
+                <input type="checkbox" checked readOnly className="accent-amber-400" />
+                <span className="font-mono">{trackId}</span>
+                <span className="text-xs text-muted-foreground">(this track)</span>
+              </label>
+              {allTracks.map(t => (
+                <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="accent-amber-400"
+                    checked={mergeSelected.includes(t.id)}
+                    onChange={e => setMergeSelected(prev =>
+                      e.target.checked ? [...prev, t.id] : prev.filter(x => x !== t.id)
+                    )}
+                  />
+                  <span className="font-mono">{t.id}</span>
+                  {t.is_composite && <Badge variant="outline" className="text-[10px] py-0 border-amber-500/50 text-amber-400">composite</Badge>}
+                  {t.major_branches && <span className="text-xs text-muted-foreground truncate">{t.major_branches.slice(0, 2).join(' · ')}</span>}
+                </label>
+              ))}
+            </div>
+
+            {/* Parent ID for new track */}
+            <div className="flex items-center gap-2 text-sm">
+              <label className="text-muted-foreground shrink-0">Parent ID of new track:</label>
+              <input
+                type="text"
+                value={mergeParentId}
+                onChange={e => setMergeParentId(e.target.value)}
+                placeholder="(leave blank for root)"
+                className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs font-mono"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                disabled={mergeSelected.length < 2 || merging}
+                onClick={async () => {
+                  if (mergeSelected.length < 2 || merging) return
+                  setMerging(true)
+                  try {
+                    const res = await api.mergeTracks(mergeSelected, mergeParentId)
+                    navigate(`/tracks/${res.new_track_id}`)
+                  } catch (e) {
+                    setError(String(e))
+                    setMerging(false)
+                  }
+                }}
+                className={cn(buttonVariants({ size: 'sm' }), (mergeSelected.length < 2 || merging) && 'opacity-50 cursor-not-allowed')}
+              >
+                {merging ? 'Merging…' : `Merge ${mergeSelected.length} tracks`}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                {mergeSelected.length < 2 ? 'Select at least 2 tracks' : `→ new child of "${mergeParentId || '(root)'}" will be created`}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Body */}
       <div className="grid grid-cols-[1fr_300px] gap-5 items-start">

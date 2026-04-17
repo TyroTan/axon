@@ -50,8 +50,9 @@ const API_ENDPOINTS: EndpointDef[] = [
   { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid', title: 'Question Thread', desc: 'Full follow-up conversation history for one question — includes per-message meta: call_mode, input_tokens_sent, context_chunks_used, claude_session_id.' },
   { group: 'monitoring', method: 'GET', path: '/api/tracks/:id/sessions/:num/threads/:qid/preview', title: 'Thread Seed Preview', desc: 'Dry-run of the seed call for a question thread — shows call_mode, tokens_to_send, RAG chunks selected (file, heading, score, preview), system + user prompt, without calling the LLM.' },
   // ── Data ──
-  { group: 'data', method: 'GET', path: '/api/tracks', title: 'List Tracks', desc: 'All tracks with parent/child tree, branch list, created_at.' },
-  { group: 'data', method: 'GET', path: '/api/tracks/:id', title: 'Get Track', desc: 'Track detail: concept map (all concepts + bloom levels) + session list.' },
+  { group: 'data', method: 'GET', path: '/api/tracks', title: 'List Tracks', desc: 'All tracks with parent/child tree, branch list, created_at. Includes is_composite and source_ids for merged tracks.' },
+  { group: 'data', method: 'GET', path: '/api/tracks/:id', title: 'Get Track', desc: 'Track detail: concept map (all concepts + bloom levels) + session list. Includes composite provenance fields.' },
+  { group: 'data', method: 'POST', path: '/api/tracks/merge', title: 'Merge Tracks', desc: 'Create a composite track from multiple source tracks. Body: { source_ids: string[], parent_id: string }. Returns new_track_id, file_count, total_concepts.' },
   { group: 'data', method: 'GET', path: '/api/tracks/:id/context', title: 'Context Files', desc: 'All context files for a track (filename → raw content map).' },
   { group: 'data', method: 'GET', path: '/api/tracks/:id/split-plan', title: 'Split Plan', desc: 'Current shard split plan — null if corpus is within soft limit. Shows shard status, file assignments, token counts.' },
   { group: 'data', method: 'GET', path: '/api/tracks/:id/meta-synthesis', title: 'Meta-Synthesis', desc: 'Track-level synthesis aggregated across all shard sessions. Null if not yet generated.' },

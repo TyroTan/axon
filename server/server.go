@@ -100,6 +100,8 @@ func New(cfg Config) *fiber.App {
 		cmdBus, commands.NewUpdateContextHandler(trackStore),
 	)
 
+	mergeTracksHandler := commands.NewMergeTracksHandler(trackStore)
+
 	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
 	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit, cfg.SoftTokenLimit, cfg.HardTokenLimit, rec)
 	submitResponsesHandler := commands.NewSubmitResponsesHandler(trackStore)
@@ -168,6 +170,29 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"new_track_id": newID})
+	})
+
+	// POST /api/tracks/merge — create a composite track from multiple source tracks.
+	// Body: { "source_ids": ["track_1", "track_2"], "parent_id": "" }
+	api.Post("/tracks/merge", func(c *fiber.Ctx) error {
+		var body struct {
+			SourceIDs []string `json:"source_ids"`
+			ParentID  string   `json:"parent_id"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
+		}
+		if len(body.SourceIDs) < 2 {
+			return fiber.NewError(fiber.StatusBadRequest, "source_ids must contain at least 2 track IDs")
+		}
+		result, err := mergeTracksHandler.Handle(c.Context(), commands.MergeTracksCommand{
+			SourceIDs: body.SourceIDs,
+			ParentID:  body.ParentID,
+		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.Status(fiber.StatusCreated).JSON(result)
 	})
 
 	api.Get("/tracks/:id/context", func(c *fiber.Ctx) error {
