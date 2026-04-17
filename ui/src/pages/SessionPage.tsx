@@ -16,6 +16,36 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
+// ─── localStorage auto-save ───────────────────────────────────────────────────
+
+const LS_PREFIX = 'axon:session'
+
+function lsKey(trackId: string, sessionNum: number) {
+  return `${LS_PREFIX}:${trackId}:${sessionNum}`
+}
+
+function lsLoad(trackId: string, sessionNum: number): Record<string, LocalAnswer> | null {
+  try {
+    const raw = localStorage.getItem(lsKey(trackId, sessionNum))
+    if (!raw) return null
+    return JSON.parse(raw) as Record<string, LocalAnswer>
+  } catch {
+    return null
+  }
+}
+
+function lsSave(trackId: string, sessionNum: number, answers: Record<string, LocalAnswer>) {
+  try {
+    localStorage.setItem(lsKey(trackId, sessionNum), JSON.stringify(answers))
+  } catch { /* storage full — ignore */ }
+}
+
+function lsClear(trackId: string, sessionNum: number) {
+  try {
+    localStorage.removeItem(lsKey(trackId, sessionNum))
+  } catch { /* ignore */ }
+}
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const BLOOM_LABELS = [
@@ -843,6 +873,7 @@ export function SessionPage() {
   const [synthError, setSynthError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const streamRef = useRef("");
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Submit state
   const [submitting, setSubmitting] = useState(false);
@@ -873,24 +904,43 @@ export function SessionPage() {
         setEvaluations(es);
         setSynthesis(sy);
 
-        // Pre-populate answers from saved responses or blank defaults
+        // Pre-populate answers: server responses > localStorage draft > blank defaults
         if (qs) {
           const init: Record<string, LocalAnswer> = {};
-          for (const q of qs) {
-            const saved = rs?.find((r) => r.question_id === q.id);
-            init[q.id] = saved
-              ? {
-                  answer: saved.selected_answer,
-                  confidence: saved.confidence,
-                  explanation: saved.explanation,
-                }
-              : { answer: "", confidence: 3, explanation: "" };
+          // If server has saved responses, use those (session already submitted).
+          if (rs && rs.length > 0) {
+            for (const q of qs) {
+              const saved = rs.find((r) => r.question_id === q.id);
+              init[q.id] = saved
+                ? { answer: saved.selected_answer, confidence: saved.confidence, explanation: saved.explanation }
+                : { answer: "", confidence: 3, explanation: "" };
+            }
+          } else {
+            // No server responses — hydrate from localStorage draft if present.
+            const draft = trackId ? lsLoad(trackId, num) : null;
+            for (const q of qs) {
+              init[q.id] = draft?.[q.id] ?? { answer: "", confidence: 3, explanation: "" };
+            }
           }
           setAnswers(init);
         }
       })
       .finally(() => setLoading(false));
   }, [trackId, num]);
+
+  // Debounced auto-save to localStorage (only while unanswered — stops once submitted)
+  useEffect(() => {
+    if (!trackId || !num) return;
+    if (savedResponses && savedResponses.length > 0) return; // already submitted — don't overwrite
+    if (Object.keys(answers).length === 0) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      lsSave(trackId, num, answers);
+    }, 1500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [answers, trackId, num, savedResponses]);
 
   // ── actions ─────────────────────────────────────────────────────────────────
 
@@ -913,6 +963,7 @@ export function SessionPage() {
       setAnswers(init);
       setSavedResponses(null);
       setEvaluations(null);
+      lsClear(trackId, num); // clear any stale draft from a prior generation
       setGenPhase("done");
     } catch (e) {
       setGenPhase("error");
@@ -935,6 +986,7 @@ export function SessionPage() {
       }));
       await api.submitResponses(trackId, num, responses);
       setSavedResponses(responses);
+      lsClear(trackId, num); // submitted — draft no longer needed
     } catch (e) {
       setSubmitError(String(e));
     } finally {

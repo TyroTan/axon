@@ -155,10 +155,10 @@ Tasks (in order):
 
 ## Active / Queued
 
-### U1 — localStorage auto-save 📋
-Debounced (2s) save of in-progress answers to `localStorage` keyed by `trackId/sessionNum`.
-- Hydrates on mount if no server-saved responses exist (i.e. `02_responses.json` absent)
-- Clears on successful submit
+### U1 — localStorage auto-save ✅
+Debounced (1.5s) save of in-progress answers to `localStorage` keyed by `axon:session:{trackId}:{sessionNum}`.
+- Hydrates on mount: server responses > localStorage draft > blank defaults
+- Clears on successful submit and on fresh question generation
 - Covers: MCQ selection, free-text answer, explanation, confidence
 - No backend changes — pure UI
 

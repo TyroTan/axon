@@ -9,6 +9,19 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.19.0] — 2026-04-17 — U1: localStorage auto-save for in-progress quiz answers
+
+### Added
+- `lsKey / lsLoad / lsSave / lsClear` helpers in `SessionPage.tsx` — key format `axon:session:{trackId}:{sessionNum}`
+- Debounced auto-save (1.5 s) of `answers` state to `localStorage` while the session is unanswered; stops once `savedResponses` is non-empty (i.e. already submitted to server)
+- Hydration priority on load: server responses (submitted) > `localStorage` draft > blank defaults — so a page reload mid-quiz restores MCQ selections, free-text answers, explanations, and confidence ratings
+- `lsClear` called on successful submit (draft no longer needed) and on `generateQuestions` success (clears stale draft from any prior question generation for the same session slot)
+
+### Changed
+- No backend changes — pure UI, zero new API calls
+
+---
+
 ## [0.18.0] — 2026-04-17 — Composite track merge
 
 ### Added
