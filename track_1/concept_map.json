@@ -18,10 +18,15 @@
       "bloom_target": 4,
       "is_bottleneck": true,
       "prerequisite_indexes": [],
-      "unlocks_indexes": [1, 2, 3, 4],
+      "unlocks_indexes": [
+        1,
+        2,
+        3,
+        4
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
         "consecutive_correct": 0
       }
     },
@@ -33,12 +38,17 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": true,
-      "prerequisite_indexes": [0],
-      "unlocks_indexes": [2, 8],
+      "prerequisite_indexes": [
+        0
+      ],
+      "unlocks_indexes": [
+        2,
+        8
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
-        "consecutive_correct": 0
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
       }
     },
     {
@@ -49,11 +59,17 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": true,
-      "prerequisite_indexes": [1],
-      "unlocks_indexes": [3, 9, 10],
+      "prerequisite_indexes": [
+        1
+      ],
+      "unlocks_indexes": [
+        3,
+        9,
+        10
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
         "consecutive_correct": 0
       }
     },
@@ -65,8 +81,13 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [0, 2],
-      "unlocks_indexes": [4],
+      "prerequisite_indexes": [
+        0,
+        2
+      ],
+      "unlocks_indexes": [
+        4
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -81,7 +102,9 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [0],
+      "prerequisite_indexes": [
+        0
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -97,8 +120,13 @@
       "bloom_current": 1,
       "bloom_target": 3,
       "is_bottleneck": false,
-      "prerequisite_indexes": [2],
-      "unlocks_indexes": [6, 7],
+      "prerequisite_indexes": [
+        2
+      ],
+      "unlocks_indexes": [
+        6,
+        7
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -113,8 +141,12 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [5],
-      "unlocks_indexes": [30],
+      "prerequisite_indexes": [
+        5
+      ],
+      "unlocks_indexes": [
+        30
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -129,15 +161,19 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": true,
-      "prerequisite_indexes": [5],
-      "unlocks_indexes": [28, 29],
+      "prerequisite_indexes": [
+        5
+      ],
+      "unlocks_indexes": [
+        28,
+        29
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
         "consecutive_correct": 0
       }
     },
-
     {
       "index": 8,
       "name": "calculus for ML — chain rule and backpropagation",
@@ -146,11 +182,17 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": true,
-      "prerequisite_indexes": [1, 2],
-      "unlocks_indexes": [9, 10],
+      "prerequisite_indexes": [
+        1,
+        2
+      ],
+      "unlocks_indexes": [
+        9,
+        10
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-19T00:00:00Z",
+        "interval_days": 3,
         "consecutive_correct": 0
       }
     },
@@ -163,7 +205,11 @@
       "bloom_target": 4,
       "is_bottleneck": true,
       "prerequisite_indexes": [],
-      "unlocks_indexes": [10, 16, 17],
+      "unlocks_indexes": [
+        10,
+        16,
+        17
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -178,7 +224,10 @@
       "bloom_current": 1,
       "bloom_target": 3,
       "is_bottleneck": false,
-      "prerequisite_indexes": [8, 9],
+      "prerequisite_indexes": [
+        8,
+        9
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -195,7 +244,9 @@
       "bloom_target": 3,
       "is_bottleneck": false,
       "prerequisite_indexes": [],
-      "unlocks_indexes": [12],
+      "unlocks_indexes": [
+        12
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -210,7 +261,9 @@
       "bloom_current": 1,
       "bloom_target": 3,
       "is_bottleneck": false,
-      "prerequisite_indexes": [11],
+      "prerequisite_indexes": [
+        11
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -226,29 +279,38 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": true,
-      "prerequisite_indexes": [9],
-      "unlocks_indexes": [16, 17, 18],
+      "prerequisite_indexes": [
+        9
+      ],
+      "unlocks_indexes": [
+        16,
+        17,
+        18
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
         "consecutive_correct": 0
       }
     },
-
     {
       "index": 14,
       "name": "chunking strategies and tradeoffs",
       "branch": "RAG Architecture",
       "description": "Fixed-size vs semantic chunking, chunk overlap, why chunk size affects retrieval quality",
-      "bloom_current": 1,
+      "bloom_current": 2,
       "bloom_target": 5,
       "is_bottleneck": true,
       "prerequisite_indexes": [],
-      "unlocks_indexes": [15, 16, 17],
+      "unlocks_indexes": [
+        15,
+        16,
+        17
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
-        "consecutive_correct": 0
+        "next_review": "2026-04-30T00:00:00Z",
+        "interval_days": 14,
+        "consecutive_correct": 1
       }
     },
     {
@@ -259,8 +321,13 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [13, 14],
-      "unlocks_indexes": [16],
+      "prerequisite_indexes": [
+        13,
+        14
+      ],
+      "unlocks_indexes": [
+        16
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -275,8 +342,13 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [13, 15],
-      "unlocks_indexes": [17],
+      "prerequisite_indexes": [
+        13,
+        15
+      ],
+      "unlocks_indexes": [
+        17
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -291,8 +363,12 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [16],
-      "unlocks_indexes": [18],
+      "prerequisite_indexes": [
+        16
+      ],
+      "unlocks_indexes": [
+        18
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -307,7 +383,9 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [17],
+      "prerequisite_indexes": [
+        17
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -323,7 +401,10 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [14, 15],
+      "prerequisite_indexes": [
+        14,
+        15
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -339,7 +420,9 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [16],
+      "prerequisite_indexes": [
+        16
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -355,7 +438,11 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [16, 17, 18],
+      "prerequisite_indexes": [
+        16,
+        17,
+        18
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -363,7 +450,6 @@
         "consecutive_correct": 0
       }
     },
-
     {
       "index": 22,
       "name": "context window mechanics and implications",
@@ -372,12 +458,18 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": true,
-      "prerequisite_indexes": [7],
-      "unlocks_indexes": [23, 24, 25],
+      "prerequisite_indexes": [
+        7
+      ],
+      "unlocks_indexes": [
+        23,
+        24,
+        25
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
-        "consecutive_correct": 0
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
       }
     },
     {
@@ -389,7 +481,9 @@
       "bloom_target": 3,
       "is_bottleneck": false,
       "prerequisite_indexes": [],
-      "unlocks_indexes": [22],
+      "unlocks_indexes": [
+        22
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -404,8 +498,13 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [22],
-      "unlocks_indexes": [25, 26],
+      "prerequisite_indexes": [
+        22
+      ],
+      "unlocks_indexes": [
+        25,
+        26
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -420,7 +519,9 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [24],
+      "prerequisite_indexes": [
+        24
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -436,8 +537,12 @@
       "bloom_current": 1,
       "bloom_target": 4,
       "is_bottleneck": false,
-      "prerequisite_indexes": [24],
-      "unlocks_indexes": [27],
+      "prerequisite_indexes": [
+        24
+      ],
+      "unlocks_indexes": [
+        27
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -452,8 +557,12 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": true,
-      "prerequisite_indexes": [26],
-      "unlocks_indexes": [28],
+      "prerequisite_indexes": [
+        26
+      ],
+      "unlocks_indexes": [
+        28
+      ],
       "spaced_repetition": {
         "next_review": null,
         "interval_days": 0,
@@ -468,7 +577,9 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [27],
+      "prerequisite_indexes": [
+        27
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -484,7 +595,10 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [7, 22],
+      "prerequisite_indexes": [
+        7,
+        22
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -500,7 +614,10 @@
       "bloom_current": 1,
       "bloom_target": 5,
       "is_bottleneck": false,
-      "prerequisite_indexes": [6, 21],
+      "prerequisite_indexes": [
+        6,
+        21
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -516,7 +633,11 @@
       "bloom_current": 1,
       "bloom_target": 3,
       "is_bottleneck": false,
-      "prerequisite_indexes": [2, 7, 32],
+      "prerequisite_indexes": [
+        2,
+        7,
+        32
+      ],
       "unlocks_indexes": [],
       "spaced_repetition": {
         "next_review": null,
@@ -533,10 +654,12 @@
       "bloom_target": 4,
       "is_bottleneck": true,
       "prerequisite_indexes": [],
-      "unlocks_indexes": [31],
+      "unlocks_indexes": [
+        31
+      ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-19T00:00:00Z",
+        "interval_days": 3,
         "consecutive_correct": 0
       }
     }

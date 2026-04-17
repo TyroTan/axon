@@ -35,7 +35,7 @@ go run .
 | `PORT` | `3456` | Go API server port |
 | `AXON_DIST_DIR` | `$AXON_DIR/web/dist` | Built React app (production only) |
 | `ANTHROPIC_API_KEY` | *(unset)* | Set to use Anthropic HTTP API; omit to use `claude` CLI auth |
-| `AXON_CONTEXT_LIMIT` | `80000` | Max tokens passed to LLM per generation call |
+| `AXON_CONTEXT_LIMIT` | `50000` | Max tokens passed to LLM per generation call |
 | `AXON_SOFT_LIMIT` | `250000` | Corpus size that triggers split plan generation |
 | `AXON_HARD_LIMIT` | `300000` | Corpus size that blocks generation entirely |
 
@@ -95,7 +95,38 @@ Useful for: experimenting with a different context slice, resetting bloom levels
 
 ---
 
-### 5. Observe what the system is doing
+### 5. Merge tracks into a composite track
+
+Combines the compiled (fully cascaded) contexts of two or more tracks into a new track. Source tracks are never modified.
+
+1. Open any track page → **Merge…**
+2. Check the additional tracks to merge in (current track is pre-selected)
+3. Optionally set the parent ID of the new track (leave blank for root)
+4. Click **Merge N tracks** → navigates to the new composite track
+
+The new track gets:
+- Union of all inherited context files (first listed source wins on filename collision)
+- Re-indexed union of all concept maps (intra-source prerequisite/unlock links remapped; cross-source links cleared)
+- `track_meta.json` recording `is_composite: true` and the source track IDs
+
+Composite tracks are standard tree nodes — they support sessions, synthesis, and further merging.
+
+---
+
+### 6. Per-question follow-up conversations
+
+After evaluating a session, each question card has a **Context preview before sending** panel and an **Open tutoring conversation** button.
+
+1. Click **Context preview before sending** to inspect — without firing an LLM call — the exact context that will be sent: call mode (fresh vs resumed), token breakdown, and the RAG chunks selected from your track's context files
+2. Click **Open tutoring conversation** to start a streaming conversation seeded with the question, your answer, and the LLM's evaluation
+3. Messages are persisted in `sessions/session_NNN/threads/{question_id}.json`; conversations survive page reloads
+4. Each assistant message shows a proof badge: call mode, tokens sent, RAG chunks used, and Claude session ID prefix
+
+Context reuse (`--resume`) is automatic when the Claude session is still live; Axon falls back to a fresh call if the session has expired.
+
+---
+
+### 7. Observe what the system is doing
 
 ```bash
 curl http://localhost:3456/api/metrics | jq
@@ -138,14 +169,16 @@ jq -s '[.[].tokens // 0] | add / length' metrics.jsonl
 | `track_1` | Root track. Context files sourced from `context/`. |
 | `track_1_2` | Second iteration of the same topic cluster. Inherits `track_1/context/`. |
 | `track_2` | New topic combination entirely. Self-contained. |
+| `track_N` (composite) | Merged from multiple source tracks. Has `track_meta.json` with `is_composite: true`. Behaves identically to any other track for sessions and synthesis. |
 
 Each track directory:
 
 ```
 track_N/
   concept_map.json          32–40 concepts, Bloom targets, bottleneck graph
+  track_meta.json           (optional) is_composite, source_ids — only on merged tracks
   context/                  .md files fed to the LLM — editable via UI
-    _sources.md             (optional) source registry
+    _sources.md             (optional) source registry / merge lineage note
     _split_plan.md          (auto-generated) shard assignments when corpus > soft limit
   sessions/
     session_001/
@@ -154,6 +187,8 @@ track_N/
       02_responses.json
       03_evaluations.json
       04_synthesis.json
+      threads/
+        {question_id}.json  follow-up conversation history + per-message meta
   meta_synthesis.json       (auto-generated) unified bloom update across all shards
 ```
 
@@ -166,24 +201,32 @@ axon/
   main.go                   entry point — reads env vars, calls server.New()
   server/server.go          composition root — wires all deps, registers routes
   internal/
-    domain/types.go         Track, ConceptMap, Session, Question, Response,
-                            Evaluation, Synthesis, MetaSynthesis, SessionMetadata, SteerIntent
-    store/filesystem/       JSON-file store: TrackStore, split plan helpers
+    domain/types.go         Track, TrackMeta, ConceptMap, Session, Question, Response,
+                            Evaluation, Synthesis, MetaSynthesis, SessionMetadata,
+                            Thread, ThreadMessage, ThreadMessageMeta, SteerIntent
+    store/filesystem/       JSON-file store: TrackStore (incl. ReadTrackMeta/WriteTrackMeta,
+                            ReadSessionFile/WriteSessionFile with threads/ subdir support)
     cqrs/bus.go             CommandBus + QueryBus — type-safe generic dispatch
     commands/               generate_questions, evaluate_responses, generate_synthesis,
                             apply_synthesis, meta_synthesis, apply_meta_synthesis,
-                            create_session, duplicate_track, update_context, submit_responses
+                            create_session, duplicate_track, merge_tracks, update_context,
+                            submit_responses, compact_file, thread_turn
     queries/                list_tracks, get_track, get_track_context, get_session_*,
-                            get_synthesis, get_meta_synthesis
-    llm/                    Client interface — claudecli (default) or anthropic HTTP
+                            get_synthesis, get_meta_synthesis, get_context_tokens, get_thread
+    llm/                    Client interface — Stream + StreamResume;
+                            claudecli (default, --resume session reuse) or anthropic HTTP
+    rag/                    naive.go — ChunkFiles (heading-based), TopK (keyword overlap)
     metrics/                file-persisted JSONL event recorder
   ui/src/                   React + Vite + Tailwind v4 + shadcn/ui
-    api/client.ts           typed fetch helpers
+    api/client.ts           typed fetch helpers (incl. SSE streaming methods)
     api/types.ts            TypeScript mirrors of Go domain types
-    pages/                  TrackPage, SessionPage, ContextEditorPage, HomePage
+    pages/                  TrackPage, SessionPage, ContextEditorPage, HomePage,
+                            MonitoringPage (token budget, metrics, context tokens, API explorer)
 ```
 
 **LLM auth:** defaults to the `claude` CLI binary (uses your existing Claude Code session — no API key). Set `ANTHROPIC_API_KEY` to switch to the Anthropic HTTP API.
+
+**Monitoring:** the `/monitoring` page in the UI provides live token budget info (from `GET /api/config`), event metrics, per-file context token breakdown, and a Swagger-style API explorer with inline JSON output (long strings are collapsible). All endpoints are also accessible via `curl /api/*`.
 
 **Store interface:** `Collection[T]` in `store/interface.go` uses MongoDB-style operators (`$set`, `$inc`, `$push`, `$unset`) and dot-notation paths. Swapping to MongoDB requires only a new store implementation — zero handler changes.
 
@@ -200,6 +243,12 @@ axon/
 **Inherited context** — child tracks inherit parent context files; child wins on filename collision. Token budget is enforced naively before each generation call.
 
 **Split plan** — when corpus exceeds `AXON_SOFT_LIMIT`, a `_split_plan.md` is generated with greedy bin-packed shards. Human-approved via the context editor; shard-tagged sessions load only their assigned files.
+
+**Composite track** — a merged track whose `context/` is the union of the fully cascaded contexts of N source tracks, compiled at merge time. Source tracks are untouched. Concept maps are re-indexed unions. Tracked via `track_meta.json` (`is_composite`, `source_ids`).
+
+**Thread context reuse** — follow-up conversations use `--resume <session_id>` when the Claude session is still live, sending only the new user message. On expiry, Axon rebuilds the full seed context + prior message history and starts a fresh session. Per-message metadata records exactly what was sent.
+
+**Naive RAG** — context retrieval for threads splits markdown files at `#` heading boundaries into chunks, scores by stopword-filtered keyword overlap against the question text, and fills an 8k-token budget greedily. No embeddings, no index — deterministic and inspectable via the thread preview endpoint.
 
 ---
 

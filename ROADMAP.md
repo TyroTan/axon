@@ -3,7 +3,7 @@
 > Adaptive knowledge assessment system. Local-first, file-persisted, browser UI.
 > Go Fiber · React + shadcn/ui · CQRS · backend-agnostic store · claude CLI auth.
 
-Last updated: 2026-04-16
+Last updated: 2026-04-17
 
 ---
 
@@ -125,7 +125,35 @@ Tasks (in order):
 
 ---
 
-## Active / Queued (UX + Observability)
+## Completed (UX + Observability)
+
+### U2 — Prompt preview endpoint ✅
+`GET /api/tracks/:id/sessions/:num/prompt-preview`
+- Returns exact system + user prompt + full token breakdown (`call_mode`, `tokens_to_send`, `tokens_saved_by_resume`, `context_files_included`, `accumulated_input_tokens`)
+- SessionPage: collapsible token budget button in session header — lazy-fetched on first open
+- MonitoringPage: context token breakdown panel, metrics panel, token budget info (live from `/api/config`)
+
+### U3 — Per-question follow-up threads ✅
+- Storage: `sessions/session_NNN/threads/{question_id}.json`
+- `domain.Thread` / `ThreadMessage` / `ThreadMessageMeta` — persisted per-message proof: `call_mode`, `input_tokens_sent`, `context_chunks_used`, `claude_session_id`
+- Naive RAG: `internal/rag/naive.go` — heading-based markdown chunking, stopword-filtered keyword overlap scoring, budget-greedy `TopK`; RAG budget 8k tokens, up to 10 chunks
+- `--resume` session reuse: `claudecli.StreamResume` passes only the latest message + `--resume <sessionID>`; gracefully falls back to fresh call on expired session
+- Seed prompt: question + options + student answer + evaluation feedback + misconception + RAG chunks; fresh-resume rebuilds seed + replays prior messages
+- Dry-run preview before firing LLM: `GET .../threads/:qid/preview` returns `call_mode`, token grid, RAG chunks list; EvalCard shows collapsible preview panel before "Open tutoring conversation" button
+
+### Monitoring + API Explorer ✅
+- MonitoringPage (`/monitoring`): token budget panel, metrics panel, context tokens panel
+- Interactive API Explorer: two groups (Monitoring / Data), per-endpoint param inputs, Execute button, elapsed time, recursive `JsonNode` renderer with collapsible long strings
+- `GET /api/config` — live server limits
+
+### Composite Track Merge ✅
+- `POST /api/tracks/merge` — unions compiled (cascaded) contexts of N source tracks; re-indexes concept maps; writes `track_meta.json` with `is_composite`, `source_ids`
+- Tree stays intact — composite track is a standard node; source tracks untouched
+- TrackPage: **Merge…** inline panel; composite badge + source links in header
+
+---
+
+## Active / Queued
 
 ### U1 — localStorage auto-save 📋
 Debounced (2s) save of in-progress answers to `localStorage` keyed by `trackId/sessionNum`.
@@ -134,22 +162,18 @@ Debounced (2s) save of in-progress answers to `localStorage` keyed by `trackId/s
 - Covers: MCQ selection, free-text answer, explanation, confidence
 - No backend changes — pure UI
 
-### U2 — Prompt preview endpoint 📋
-`GET /api/tracks/:id/sessions/:num/prompt-preview`
-- Builds the exact system + user prompt that would be sent to the LLM (same code path as `GenerateQuestionsHandler`, without actually calling it)
-- Returns: `{ system_prompt, user_prompt, token_estimate, context_files_included[], soft_limit, hard_limit }`
-- UI: expandable "Prompt" panel on session page before/after generation
-- Purpose: let you tune context leanness without blind trial-and-error
-- Note on 2A/2B: all LLM calls are currently stateless (each `claude --print` is a fresh invocation). Incremental/reused conversation context (2B) would require message-history threading — deferred as U2B.
+### RAG Retriever interface 📋
+Modularize the current naive retrieval behind a `Retriever` interface in `internal/rag/`:
+- `NaiveRetriever` — current heading/keyword implementation; constructed from `map[string]string`
+- `EmbeddingRetriever` (future) — reads `_embeddings.bin` / `_index.json` per track; same interface
+- `ThreadTurnHandler` and `PromptPreview` accept `Retriever` instead of calling `rag.ChunkFiles` + `rag.TopK` directly
+- Swap to semantic retrieval without touching callers: add embedding index file → point factory at `EmbeddingRetriever`
 
-### U3 — Per-question follow-up threads 📋
-After evaluation, collapsible discussion thread per question for eval demystification.
-- Storage: `sessions/session_NNN/threads/{question_id}.json` — array of `{ role, content, ts }`
-- First message auto-seeded from evaluation (feedback + subscores + misconception) so LLM has full context
-- UI: "Ask a follow-up" input below each eval card; streams response inline
-- Backend: `POST /tracks/:id/sessions/:num/threads/:question_id` (SSE stream), `GET` to load history
-- New commands: `AppendThreadMessageCommand`, `GetThreadQuery`
-- Scope: single-question context window (eval + Q&A history for that question only — manageable size)
+### Session-outcome indexing 📋
+Per-track `_index.md` — file-by-file summaries, headings, symbols, cross-refs — built from session + conversation outcomes.
+- `GenerateIndexCommand` populates `_index.md` after synthesis is applied
+- `indexed.go` retrieval strategy: score chunks against `_index.md` headings first, then full-text fallback
+- Feeds retrieval for composite tracks where context spans many original sources
 
 ---
 
@@ -189,8 +213,9 @@ After evaluation, collapsible discussion thread per question for eval demystific
 |---|---|
 | Auth | CLI auth via `claude` binary — no API key management |
 | Persistence | Filesystem JSON — swap to MongoDB via store interface, zero handler changes |
-| LLM | `llm.Client` interface — anthropic HTTP or claudecli, caller-agnostic |
-| Context | Inherited parent→child, token-budgeted, child wins on filename collision |
+| LLM | `llm.Client` interface — `Stream` + `StreamResume`; claudecli (default) or anthropic HTTP |
+| Context | Inherited parent→child (cascaded), child wins on filename collision; composite tracks union compiled snapshots |
 | Splitting | Lossless (HITL sharding) preferred over lossy (compaction) |
+| RAG | Naive heading/keyword retrieval today; `Retriever` interface planned for drop-in semantic swap |
 | CQRS | All reads via QueryBus, all writes via CommandBus — composition root owns wiring |
 | Frontend | React SPA on :5173 (dev) / served from web/dist (prod), /api proxy to :3456 |

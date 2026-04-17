@@ -9,6 +9,91 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.18.0] — 2026-04-17 — Composite track merge
+
+### Added
+- `domain.TrackMeta` — `{ is_composite, source_ids }` persisted as `track_meta.json` (optional sidecar; absent = plain lineage track)
+- `Track` domain type gains `IsComposite bool`, `SourceIDs []string`; `readTrack` populates them when `track_meta.json` exists
+- `ReadTrackMeta` / `WriteTrackMeta` on `TrackStore`
+- `MergeTracksCommand` + `MergeTracksHandler` — validates sources, calls `LoadInheritedContext(limit=0)` for each (gets fully compiled cascaded snapshot), unions file maps (first source wins on collision), re-indexes concept maps (intra-source prerequisite/unlock links remapped by offset; cross-source links cleared), creates track dir, writes context files + `_sources.md` + `track_meta.json`; returns `new_track_id`, `file_count`, `total_concepts`
+- `POST /api/tracks/merge` — body `{ source_ids: string[], parent_id: string }`
+- TrackPage: **Merge…** button opens inline panel — checkboxes for all other tracks (current track locked-in), parent ID field, merge button navigates to new track on success
+- Composite tracks display amber "composite" badge + clickable source track links in header
+- MonitoringPage API explorer: merge endpoint entry in Data group
+
+### Design
+- Tree stays a tree — composite node is a standard child track; `track_meta.json` is the only new artifact
+- Source tracks are never modified — merge is a read + copy operation on already-compiled snapshots
+
+---
+
+## [0.17.1] — 2026-04-17 — Fix synthesis date parsing
+
+### Fixed
+- `parseSynthesis` and `parseMetaSynthesis` now accept `next_review` as a bare date string (`"2026-04-23"`) in addition to full RFC3339. The LLM consistently emits date-only; `time.Time` JSON unmarshalling rejected it. Fix: intermediate `llmSpacedRepetition` + `llmConceptMapUpdate` types absorb the string, `toDomain()` tries RFC3339 first then `"2006-01-02"`.
+
+---
+
+## [0.17.0] — 2026-04-16 — Thread seed dry-run preview
+
+### Added
+- `ThreadTurnHandler.Preview(ctx, trackID, sessionNum, questionID)` — builds full seed context (RAG chunks, system + user prompts, call_mode, token breakdown) without calling the LLM; returns `ThreadPreviewResult`
+- `ThreadPreviewChunk` — `{ file, heading, tokens, score, preview }` (120-char content preview)
+- `ThreadPreviewResult` — `{ question_id, call_mode, claude_session_id, accumulated_tokens, system_prompt, user_prompt, system_tokens, user_tokens, tokens_to_send, tokens_saved_by_resume, rag_chunks }`
+- `GET /api/tracks/:id/sessions/:num/threads/:qid/preview` route
+- `types.ts`: `ThreadPreviewChunk`, `ThreadPreviewResult`; `client.ts`: `getThreadPreview()`
+- SessionPage EvalCard: collapsible **Context preview before sending** panel — lazy-fetches on first expand, shows call_mode badge (amber = fresh, green = resumed), accumulated tokens, token grid (system / user seed / would-send / saved), RAG chunks `<details>` (file, heading, tokens, score, 120-char preview); **Open tutoring conversation** button placed below the panel
+- MonitoringPage API explorer: thread preview endpoint entry
+
+---
+
+## [0.16.0] — 2026-04-15 — Interactive API Explorer + config fix
+
+### Added
+- MonitoringPage: Swagger-style **API Explorer** — endpoint rows with extracted `:param` text inputs, resolved URL preview, Execute button, status + elapsed, formatted JSON output
+- Endpoints split into two groups: **Monitoring** (config, metrics, context-tokens, prompt-preview, meta-synthesis readiness, thread, thread preview) and **Data** (tracks, sessions, questions, responses, evaluations, synthesis, meta-synthesis)
+- `JsonNode` recursive renderer — type-colored JSON tree; strings >80 chars or containing `\n` rendered as collapsible `<details>` with `pre-wrap` so long system/user prompts are readable
+
+### Fixed
+- Default `AXON_CONTEXT_LIMIT` changed from 80,000 → 50,000 tokens in `main.go`
+- `GET /api/config` exposes live `context_token_limit`, `soft_token_limit`, `hard_token_limit`; MonitoringPage token budget panel and context token progress bars now use real server values instead of hardcoded constants
+
+---
+
+## [0.15.0] — 2026-04-15 — Per-question follow-up threads (U3)
+
+### Added
+- `domain.ThreadMessageMeta` — `{ call_mode, input_tokens_sent, context_chunks_used, claude_session_id }`
+- `domain.ThreadMessage` — `{ role, content, ts time.Time, meta *ThreadMessageMeta }`
+- `domain.Thread` — `{ question_id, claude_session_id, accumulated_input_tokens, messages }`
+- `internal/rag/naive.go` — deterministic retrieval: `ChunkFiles` splits non-`_`-prefixed markdown files at `#` heading boundaries (then by double-newline paragraph if chunk > `maxChunkTokens`); `TopK` scores by stopword-filtered keyword overlap, fills token budget greedily
+- `llm.Client` extended with `StreamResume(ctx, sessionID, system, messages, maxTokens)`
+- `claudecli` client rewritten: `stream()` internal method used by both `Stream` and `StreamResume`; when `sessionID != ""` passes only the last user message as prompt + `--resume sessionID`; parses `session_id` + `usage.input_tokens` from `result` SSE event; emits both on Done chunk
+- `anthropic` client: `StreamResume` stub delegates to `Stream` (HTTP API has no session resumption)
+- `ThreadTurnHandler` — load thread → load q/response/eval context → retrieve RAG chunks if fresh → build seed/fresh-resume prompt → `StreamResume` → persist thread with per-message meta; `ragTokenBudget = 8000`, `ragMaxChunks = 10`, `ragChunkSize = 1000`
+- `GetThreadQuery` / `GetThreadResult` — reads `sessions/session_NNN/threads/{question_id}.json`
+- `WriteSessionFile` fix: uses `os.MkdirAll(filepath.Dir(dest))` so `threads/` subdirectory is created
+- `BuildSystemPrompt()` / `BuildUserPrompt()` exported from `generate_questions.go` for reuse
+- Routes: `GET /api/tracks/:id/sessions/:num/threads/:qid`, `POST .../threads/:qid` (SSE — Done event carries `session_id` + `input_tokens`)
+- SessionPage EvalCard: per-question thread UI — messages list, per-message proof badges (call_mode, tokens sent, RAG chunk count, session ID prefix), streaming input, "Open tutoring conversation" button
+- Token budget button in session header (lazy-fetches `getPromptPreview`)
+
+### Changed
+- `SessionMetadata` gains `ClaudeSessionID string`, `AccumulatedInputTokens int`
+
+---
+
+## [0.14.0] — 2026-04-15 — Monitoring page + prompt preview + token budget panel
+
+### Added
+- `GET /api/tracks/:id/context-tokens` — per-file token counts for full inherited context, attributed to source track; sorted by size; `GetContextTokensQuery` / `GetContextTokensResult`
+- `GET /api/tracks/:id/sessions/:num/prompt-preview` — exact system + user prompt that would be sent, plus `call_mode` (fresh/resumed), `claude_session_id`, `accumulated_input_tokens`, `tokens_to_send`, `tokens_saved_by_resume`, `context_files_included`, `system_prompt_tokens`, `user_prompt_tokens`, `context_tokens`, `total_tokens`, `soft_limit`, `hard_limit`, `context_limit`
+- MonitoringPage (`/monitoring`): **Token Budget** panel (live limits from `/api/config`), **Metrics** panel (uptime, per-event counts, recent event log), **Context Tokens** panel (track selector, dual progress bars vs context + soft limit, per-file table with inline share bars)
+- Sidebar entry for Monitoring with `Activity` icon
+- SessionPage: collapsible **Token Budget** button in session header — shows `call_mode`, `accumulated_input_tokens`, `tokens_to_send`, `tokens_saved_by_resume`, system/user/context token breakdown; lazy-fetches on first expand
+
+---
+
 ## [0.13.0] — 2026-04-15 — T6: file-level compaction + README catch-up
 
 ### Added
