@@ -6,6 +6,7 @@ import { ContextEditorPage } from '@/pages/ContextEditorPage'
 import { SessionPage } from '@/pages/SessionPage'
 import { MonitoringPage } from '@/pages/MonitoringPage'
 import { ConversationPage, NewConversationPage } from '@/pages/ConversationPage'
+import { NewTrackPage } from '@/pages/NewTrackPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<HomePage />} />
           <Route path="monitoring" element={<MonitoringPage />} />
+          <Route path="tracks/new" element={<NewTrackPage />} />
           <Route path="conversations/new" element={<NewConversationPage />} />
           <Route path="conversations/:convId" element={<ConversationPage />} />
           <Route path="tracks/:trackId" element={<TrackPage />} />
