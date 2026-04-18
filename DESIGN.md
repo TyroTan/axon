@@ -98,18 +98,24 @@ are discarded before injection.
 
 **Status: ✅ fully implemented**
 
-### US-03: Create a new track for a different topic
-- Click **+** in the sidebar Tracks header → `/tracks/new` page
-- Page shows two paths: **Duplicate** (pick any existing track) or **Merge**
-- No blank-slate creation exists — every track inherits from a parent
+### US-03: Create a new root track (new topic cluster)
+- Click **+** in the sidebar → `/tracks/new`
+- Enter 2–5 major branch names (e.g. "RAG Architecture · LLM Systems")
+- Click **Create** → navigates to new track (e.g. `track_2`)
+- Track is created with an empty concept map and `_sources.md` stub
+- Next: **Edit Context** to add `.md` files, then run `prompts/00_concept_map_generator.md` manually
+  in Claude to populate `concept_map.json`, then start sessions
 
-**Status: ✅ UI exists (NewTrackPage), backend actions are Duplicate and Merge**
+**Status: ✅ fully implemented** (`POST /api/tracks`, `NewTrackPage`)
 
-> Note: There is no `POST /api/tracks` endpoint to create a track from scratch.
-> The design decision is that every track derives from a parent via duplication or merge.
-> Track 1 (`track_1`) was bootstrapped manually by running the `prompts/00_concept_map_generator.md`
-> system prompt in Claude and writing the output to disk. This is a one-time human action,
-> not automated.
+### US-04a: Create a child track (specialize or iterate on a parent)
+- Open the parent track (e.g. `track_1`) → click **Duplicate**
+- Child track ID is assigned automatically: `track_1` → `track_1_2` → `track_1_2_2`
+- Child inherits parent's `concept_map.json` (with `bloom_current` preserved) and all `prompts/`
+- Child's `context/` starts with only `_sources.md`; add new `.md` files via Edit Context
+- Context is inherited at question-generation time: child files + parent files (child wins on collision)
+
+**Status: ✅ fully implemented** (Duplicate button on TrackPage)
 
 ### US-04: Specialize a track for a specific job or context
 1. Open parent track → **Duplicate** → navigates to child track
@@ -214,10 +220,35 @@ next two steps. Fine-tuning loop on session-labeled data is a longer-term goal.
 
 ---
 
-## 5. Track lifecycle — how a track is born
+## 5. Track naming convention and tree structure
 
-All tracks except the very first root track are created via the UI (`+` in the sidebar → `/tracks/new`,
-then Duplicate or Merge). The first root track (`track_1`) was bootstrapped manually:
+Track IDs encode the tree structure directly:
+
+```
+track_1          ← root (new topic cluster, created via + button)
+  track_1_2      ← child of track_1 (Duplicate button inside track_1)
+    track_1_2_2  ← child of track_1_2 (Duplicate button inside track_1_2)
+  track_1_3      ← second child of track_1
+
+track_2          ← second root track (different topic entirely, + button)
+  track_2_2      ← child of track_2
+```
+
+**Root tracks** (`track_N`): new topic cluster, no parent, created via `+` sidebar → `/tracks/new`.
+Concept map starts empty; user populates it via `prompts/00_concept_map_generator.md`.
+
+**Child tracks** (`track_N_M`): specialization of a parent, created via Duplicate button on
+the parent's track page. Inherits `concept_map.json` (with `bloom_current` preserved) and `prompts/`.
+Context is inherited at question-generation time — no copying, just cascade via `LoadInheritedContext`.
+
+The `_` separator is significant: `NextTrackID("track_1")` → `track_1_2`, `track_1_3`, …
+`NextTrackID("")` → `track_1`, `track_2`, …
+
+---
+
+## 6. Track lifecycle — how a track is born
+
+All root tracks are created via `+` in the sidebar. The very first root track (`track_1`) was bootstrapped manually before the `POST /api/tracks` endpoint existed:
 
 1. Added context `.md` files to `track_1/context/` (copied from the wider repo — `BROWSER_CLI_PARITY.md`,
    `agent_state_machine.md`, `debug_usage.md` — per the instructions in `context/_sources.md`)
@@ -246,7 +277,7 @@ They do not need to re-run prompts 00 or 01 — the concept map and context are 
 
 ---
 
-## 6. Data model — file layout
+## 7. Data model — file layout
 
 ```
 axon/
@@ -277,7 +308,7 @@ axon/
 
 ---
 
-## 7. LLM integration
+## 8. LLM integration
 
 All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two implementations:
 
@@ -292,14 +323,15 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 
 ---
 
-## 8. API surface (selected)
+## 9. API surface (selected)
 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/tracks` | List all tracks |
+| POST | `/api/tracks` | Create new root track. Body: `{ branches: string[] }`. Returns `new_track_id` |
 | GET | `/api/tracks/:id` | Track detail + concept map |
-| POST | `/api/tracks/:id/duplicate` | Create child track |
-| POST | `/api/tracks/merge` | Create composite track |
+| POST | `/api/tracks/:id/duplicate` | Create child track (`track_N` → `track_N_2`) |
+| POST | `/api/tracks/merge` | Create composite track from multiple sources |
 | GET/PUT | `/api/tracks/:id/context/:filename` | Read/write context file |
 | POST | `/api/tracks/:id/context/:filename/compact` | SSE compact |
 | GET | `/api/tracks/:id/split-plan` | Read split plan |

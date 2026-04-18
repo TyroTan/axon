@@ -15,6 +15,7 @@ import type {
   GetThreadResult,
   ThreadPreviewResult,
   DuplicateTrackResult,
+  CreateTrackResult,
   MergeTracksResult,
   CreateSessionResult,
   ListTracksResult,
@@ -48,6 +49,16 @@ async function postJSON(path: string, body: unknown): Promise<void> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${path}`)
 }
 
+async function postJSONResult<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${path}`)
+  return res.json() as Promise<T>
+}
+
 async function put(path: string, body: string, contentType = 'text/plain'): Promise<void> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'PUT',
@@ -60,6 +71,7 @@ async function put(path: string, body: string, contentType = 'text/plain'): Prom
 export const api = {
   listTracks: () => get<ListTracksResult>('/tracks'),
   getTrack: (id: string) => get<GetTrackResult>(`/tracks/${id}`),
+  createTrack: (branches: string[]) => postJSONResult<CreateTrackResult>('/tracks', { branches }),
   duplicateTrack: (id: string) => post<DuplicateTrackResult>(`/tracks/${id}/duplicate`),
   mergeTracks: (sourceIds: string[], parentId: string) =>
     fetch(`${BASE}/tracks/merge`, {

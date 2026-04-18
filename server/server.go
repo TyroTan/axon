@@ -94,6 +94,8 @@ func New(cfg Config) *fiber.App {
 
 	// ── Command bus ──────────────────────────────────────────────────────────
 	cmdBus := cqrs.NewCommandBus()
+	createTrackHandler := commands.NewCreateTrackHandler(trackStore)
+
 	cqrs.Register[commands.DuplicateTrackCommand](
 		cmdBus, commands.NewDuplicateTrackHandler(trackStore),
 	)
@@ -165,6 +167,24 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusNotFound, err.Error())
 		}
 		return c.JSON(result)
+	})
+
+	// POST /api/tracks — create a new root track from branch names.
+	// Body: { "branches": ["RAG Architecture", "LLM Systems"] }
+	api.Post("/tracks", func(c *fiber.Ctx) error {
+		var body struct {
+			Branches []string `json:"branches"`
+		}
+		if err := c.BodyParser(&body); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
+		}
+		result, err := createTrackHandler.Handle(c.Context(), commands.CreateTrackCommand{
+			Branches: body.Branches,
+		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
+		}
+		return c.Status(fiber.StatusCreated).JSON(result)
 	})
 
 	api.Post("/tracks/:id/duplicate", func(c *fiber.Ctx) error {

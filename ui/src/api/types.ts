@@ -138,6 +138,10 @@ export interface DuplicateTrackResult {
   new_track_id: string
 }
 
+export interface CreateTrackResult {
+  new_track_id: string
+}
+
 export interface CreateSessionResult {
   session_number: number
   shard_id?: string
