@@ -216,7 +216,12 @@ Rules:
 - Target bloom_level = bloom_current + 1 for each concept (don't exceed 6)
 - Bottleneck concepts must appear in at least 2 questions
 - Include at least 3 MCQ and 1 free_text
-- is_cross_branch=true when concept_indexes span multiple branches`
+- is_cross_branch=true when concept_indexes span multiple branches
+- If a context file is a conversation analysis (contains sections like "Reasoning Patterns",
+  "Misconception Fingerprint", or "Distractor Affinities"), use it to adapt question framing
+  and distractor selection — not to change which concepts are tested, but how questions are
+  framed. Mirror the learner's reasoning style, and target distractors at their specific
+  misframings, not generic misconceptions.`
 }
 
 func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string) string {

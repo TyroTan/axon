@@ -268,3 +268,117 @@ When activated, the format shifts from Q&A to:
 
 This maps to the ultimate goal: not just knowing the industry, but having the judgment
 to make novel decisions in it.
+
+---
+
+## 9. Roadmap: Conversation analyzer — fourth evidence source
+
+**Status:** Planned (Sprint 2+)
+**Blocks:** Richer question calibration; adaptive framing; misconception-targeted distractors
+
+### The gap
+
+The current system triangulates from three evidence sources (§1). All three capture
+**what the learner knows** at varying depths. None capture **how the learner thinks** —
+their reasoning patterns, the analogies they reach for, the misconceptions they hold
+structurally (not just on individual questions).
+
+The `conversations/` directory holds free-form tutoring dialogue between the learner and
+the system. This is richer signal than quiz performance: it reveals *cognitive fingerprint*
+— reasoning style, curiosity clusters, misconception framings — that structured Q&A cannot
+surface. A conversation where the learner consistently frames retrieval as a "database
+lookup problem" reveals a mental model gap that no multiple-choice question would catch.
+
+### The fourth evidence source
+
+```
+Source 4: free-form conversation   → cognitive fingerprint
+          (how you reason, not just what you know and recall)
+```
+
+### Implementation: prompt 05 — Conversation Analyzer
+
+**New prompt:** `05_conversation_analyzer.md`
+
+**Input:** `conversations/*.json` — the raw conversation thread(s) for this track,
+compiled into a single snapshot. Not the quiz Q&A (that's already in sessions/), but
+the free-form tutoring dialogue: the learner's follow-up questions, their pushback,
+their analogies, their confusions.
+
+**Output:** `conversation_analysis.json` stored in `context/` (gitignored alongside
+other snapshots):
+
+```json
+{
+  "analyzed_at": "YYYY-MM-DD",
+  "source_conversations": ["uuid1.json", "uuid2.json"],
+  "reasoning_style": "bottom-up (mechanics before system design) | top-down | example-driven | first-principles",
+  "misconception_fingerprint": [
+    {
+      "concept_index": 17,
+      "pattern": "frames chunking as a storage concern, not a retrieval concern",
+      "evidence_quote": "...",
+      "frequency": "recurring"
+    }
+  ],
+  "curiosity_clusters": [
+    {
+      "concept_indexes": [18, 19],
+      "signal": "asked 3 follow-up questions on hybrid retrieval failure modes — high interest, uncertain mastery"
+    }
+  ],
+  "mental_models_that_clicked": ["analogy between vector similarity and gradient direction worked well"],
+  "mental_models_that_failed": ["formal definition of BM25 required 2 re-framings"],
+  "distractor_affinities": [
+    "tends to conflate embedding model quality with retrieval quality (treats them as one lever)"
+  ]
+}
+```
+
+**How it feeds into question generation:**
+
+The `conversation_analysis.json` is placed in `context/` and included in question
+generation (full file, `--- filename ---` separator, same as other context files).
+The question generator's system prompt (`generate_questions.go:BuildSystemPrompt`) needs
+one added instruction:
+
+> "If context includes a `conversation_analysis.json`, use `reasoning_style` to adapt
+> question framing (analogical, scenario-based, or first-principles) and use
+> `misconception_fingerprint` to select distractors that target the learner's specific
+> misframings — not generic misconceptions for the concept."
+
+**What this adapts (not what concepts are asked, but how):**
+
+- If `reasoning_style = "example-driven"` → wrap scenarios in concrete examples before
+  asking the conceptual question
+- If `misconception_fingerprint` shows "conflates embedding quality with retrieval quality"
+  → distractors in chunking/retrieval MCQs specifically probe this boundary
+- If `curiosity_clusters` shows high interest in hybrid retrieval → prioritize that
+  concept cluster slightly above what `bloom_gap` alone would suggest
+
+### Conversation snapshotting workflow
+
+When a track's conversation threads have accumulated enough signal (suggested: 2+ sessions
+of tutoring dialogue):
+
+1. Identify relevant conversation UUIDs from `conversations/` — those linked to this track
+2. Run prompt 05 against those conversation files
+3. Output: `context/conversation_analysis.json` (gitignored)
+4. On next session: question generator automatically picks it up via `LoadInheritedContext`
+
+### Why this is achievable before §8's other features
+
+- The data already exists in `conversations/` — no new infrastructure needed
+- It is additive: a new prompt + a new context file, not a replacement of existing prompts
+- The injection point (`generate_questions.go` system prompt) is a one-line addition
+- The conversation analysis file follows the exact same `context/` loading pattern as
+  existing snapshots — `LoadInheritedContext` already handles it
+
+### Alignment with Axon's core mission
+
+Axon's goal is not just tracking mastery scores — it is building a progressively accurate
+model of how a specific learner thinks, so that every subsequent question is as precisely
+calibrated as possible. The conversation analyzer closes the loop between free-form
+learning (where real reasoning happens) and structured assessment (where it is measured).
+It makes the tutoring conversations a first-class input to the adaptive engine, not just
+a side channel.

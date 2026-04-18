@@ -3,7 +3,7 @@
 > Adaptive knowledge assessment system. Local-first, file-persisted, browser UI.
 > Go Fiber · React + shadcn/ui · CQRS · backend-agnostic store · claude CLI auth.
 
-Last updated: 2026-04-18
+Last updated: 2026-04-18 (evening)
 
 ---
 
@@ -194,6 +194,26 @@ Per-track `_index.md` — file-by-file summaries, headings, symbols, cross-refs 
 - `GenerateIndexCommand` populates `_index.md` after synthesis is applied
 - `indexed.go` retrieval strategy: score chunks against `_index.md` headings first, then full-text fallback
 - Feeds retrieval for composite tracks where context spans many original sources
+
+### Conversation cognitive fingerprint 📋
+Use free-form conversation records (`conversations/*.json`) as a fourth evidence source for
+adaptive question generation — complementing corpus analysis, quiz performance, and explanation
+quality. Currently `plan.md §8` territory; achievable earlier since the data already exists.
+
+**What it extracts from a conversation record:**
+- Reasoning style — bottom-up (mechanics first) vs top-down (system design); analogical vs first-principles
+- Misconception fingerprint — not "wrong on concept X" but "consistently frames chunking as a storage concern, not a retrieval concern"
+- Curiosity clusters — topics with the most follow-up questions (signal: cares but not confident)
+- Mental models that clicked vs. required multiple re-framings
+
+**Implementation path:**
+- `AnalyzeConversationCommand(conversationID, trackID)` — loads `conversations/{id}.json` + concept map; prompts LLM to extract cognitive fingerprint as structured JSON
+- Output: `conversation_analysis.snapshot.md` written into the target track's `context/` directory with sections `## Reasoning Patterns`, `## Misconception Fingerprint`, `## Distractor Affinities`, `## Curiosity Clusters`
+- `BuildSystemPrompt()` already updated (0.21.0) to instruct the question generator to use conversation analysis files when present — adapts framing and distractor selection, not which concepts are tested
+- Inheritance: when a track is duplicated, the analysis snapshot carries forward into the child — cognitive calibration is not reset
+- UI: "Analyze conversation → track" button in ConversationPage; selects target track, runs command, confirms snapshot written
+
+**Design constraint:** The snapshot must be self-describing (heading-based structure) so the LLM can infer its purpose even without explicit system prompt instructions — the system prompt instruction is belt-and-suspenders, not the only load-bearing mechanism.
 
 ---
 
