@@ -32,9 +32,15 @@ func ChunkFiles(files map[string]string, maxChunkTokens int) []Chunk {
 	return chunks
 }
 
+// MinScore is the minimum relevance score a chunk must reach to be included
+// in TopK results. Chunks scoring below this threshold are discarded as
+// off-topic. Set to 0 to disable filtering.
+const MinScore = 0.30
+
 // TopK ranks chunks by relevance to query and returns the highest-scoring
 // chunks that fit within tokenLimit total tokens.
 // k is an upper bound on the number of chunks returned.
+// Chunks with Score < MinScore are excluded.
 func TopK(chunks []Chunk, query string, k, tokenLimit int) []Chunk {
 	queryWords := tokenizeQuery(query)
 	if len(queryWords) == 0 {
@@ -42,10 +48,12 @@ func TopK(chunks []Chunk, query string, k, tokenLimit int) []Chunk {
 		return budgetFill(chunks, k, tokenLimit)
 	}
 
-	scored := make([]Chunk, len(chunks))
-	copy(scored, chunks)
-	for i := range scored {
-		scored[i].Score = score(scored[i].Content+" "+scored[i].Heading, queryWords)
+	scored := make([]Chunk, 0, len(chunks))
+	for _, c := range chunks {
+		c.Score = score(c.Content+" "+c.Heading, queryWords)
+		if c.Score >= MinScore {
+			scored = append(scored, c)
+		}
 	}
 	sort.Slice(scored, func(i, j int) bool { return scored[i].Score > scored[j].Score })
 	return budgetFill(scored, k, tokenLimit)

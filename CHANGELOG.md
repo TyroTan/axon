@@ -9,6 +9,18 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.20.0] — 2026-04-18 — Submit UX, RAG quality threshold, conversation markdown
+
+### Added
+- **Submit success confirmation bar** — sticky bottom bar no longer disappears silently after answers are submitted; transforms into a green "Responses submitted" banner with an "Evaluate with AI ↑" button that smooth-scrolls to the evaluate section at the top of the page. `submitDone` state drives visibility; clears on `generateQuestions` so the normal submit bar returns for a fresh attempt.
+- **`evaluateSectionRef`** anchor on the phase header div — target for the scroll-to-evaluate button.
+
+### Changed
+- **RAG MinScore threshold** — `internal/rag/naive.go` now drops chunks scoring below `MinScore = 0.30` before filling the token budget. Previously all chunks were ranked and budget-filled regardless of score; low-relevance chunks (0.13 etc.) were injected as noise. Chunks with zero keyword overlap are now excluded. `MinScore` is an exported constant — set to `0` to disable.
+- **Conversation markdown rendering** — `ConversationPage.tsx` now renders assistant messages with `react-markdown` (already in `package.json`, not yet wired). Headings, bold/italic, lists, inline code, fenced code blocks, blockquotes all rendered natively. Streaming buffer also uses `ReactMarkdown` so formatting appears live during generation. User messages remain `whitespace-pre-wrap` plain text.
+
+---
+
 ## [0.19.0] — 2026-04-17 — U1: localStorage auto-save for in-progress quiz answers
 
 ### Added

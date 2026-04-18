@@ -3,7 +3,7 @@
 > Adaptive knowledge assessment system. Local-first, file-persisted, browser UI.
 > Go Fiber · React + shadcn/ui · CQRS · backend-agnostic store · claude CLI auth.
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18
 
 ---
 
@@ -153,7 +153,7 @@ Tasks (in order):
 
 ---
 
-## Active / Queued
+## Completed (continued)
 
 ### U1 — localStorage auto-save ✅
 Debounced (1.5s) save of in-progress answers to `localStorage` keyed by `axon:session:{trackId}:{sessionNum}`.
@@ -161,6 +161,26 @@ Debounced (1.5s) save of in-progress answers to `localStorage` keyed by `axon:se
 - Clears on successful submit and on fresh question generation
 - Covers: MCQ selection, free-text answer, explanation, confidence
 - No backend changes — pure UI
+
+### Submit success confirmation ✅
+- Sticky bottom bar transforms into green "Responses submitted" banner after `submitAll()` succeeds
+- "Evaluate with AI ↑" button smooth-scrolls to the evaluate section — user no longer stranded at the bottom
+- `submitDone` state resets on `generateQuestions` so the normal submit bar returns
+
+### RAG quality threshold ✅
+- `rag.MinScore = 0.30` — chunks scoring below 30% keyword overlap excluded before budget fill
+- Eliminates off-topic noise injection (was returning chunks at 0.13 score)
+- Exported constant; set to `0` to disable
+
+### Conversation markdown rendering ✅
+- `ConversationPage` assistant bubbles rendered via `react-markdown` (was `whitespace-pre-wrap` plain text)
+- Covers: headings, bold/italic, lists, inline code, fenced code blocks, blockquotes
+- Streaming buffer also renders markdown live during generation
+- User message bubbles remain plain text (no interpretation needed)
+
+---
+
+## Active / Queued
 
 ### RAG Retriever interface 📋
 Modularize the current naive retrieval behind a `Retriever` interface in `internal/rag/`:
@@ -186,7 +206,7 @@ Per-track `_index.md` — file-by-file summaries, headings, symbols, cross-refs 
 - 🔮 Multiple generation tabs: `Run 1 | Run 2 | Run 3`
 
 ### Phase 8 — Polish 🔮
-- 🔮 Markdown rendering in question text, feedback, learner summary (react-markdown)
+- 🔮 Markdown rendering in question text, feedback, learner summary (react-markdown — done for conversation bubbles; SessionPage still plain text)
 - 🔮 Session progress bar (Q4 of 12)
 - 🔮 Keyboard shortcuts: `1–5` = confidence, `s` = submit, `→` = next question
 - 🔮 Concept filter: click concept in sidebar → filter session questions to that concept

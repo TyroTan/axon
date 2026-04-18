@@ -878,6 +878,8 @@ export function SessionPage() {
   // Submit state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitDone, setSubmitDone] = useState(false);
+  const evaluateSectionRef = useRef<HTMLDivElement>(null);
 
   // Token budget panel
   const [preview, setPreview] = useState<PromptPreviewResult | null>(null);
@@ -946,6 +948,7 @@ export function SessionPage() {
 
   async function generateQuestions() {
     if (!trackId || !num) return;
+    setSubmitDone(false);
     setGenPhase("streaming");
     setStreamError(null);
     streamRef.current = "";
@@ -986,6 +989,7 @@ export function SessionPage() {
       }));
       await api.submitResponses(trackId, num, responses);
       setSavedResponses(responses);
+      setSubmitDone(true);
       lsClear(trackId, num); // submitted — draft no longer needed
     } catch (e) {
       setSubmitError(String(e));
@@ -1199,8 +1203,8 @@ export function SessionPage() {
       {/* ── questions exist ──────────────────────────────────────────────────── */}
       {questions !== null && questions.length > 0 && (
         <>
-          {/* Phase header */}
-          <div className='flex items-center justify-between'>
+          {/* Phase header — anchor for scroll-to-evaluate */}
+          <div ref={evaluateSectionRef} className='flex items-center justify-between'>
             <p className='text-sm text-muted-foreground'>
               {evaluations && evaluations.length > 0
                 ? `${evaluations.length} evaluations complete`
@@ -1306,27 +1310,44 @@ export function SessionPage() {
             <StreamOverlay label='Synthesising session…' text={streamText} />
           )}
 
-          {/* Submit bar — only shown in answering phase */}
-          {!(savedResponses && savedResponses.length > 0) &&
-            evalPhase === "idle" &&
-            genPhase !== "streaming" && (
-              <div className='sticky bottom-4 flex justify-end'>
-                <button
-                  onClick={submitAll}
-                  disabled={submitting || !allAnswered}
-                  className={cn(
-                    buttonVariants({ size: "sm" }),
-                    "shadow-lg",
-                    (!allAnswered || submitting) &&
-                      "opacity-60 cursor-not-allowed",
-                  )}
-                >
-                  {submitting
-                    ? "Saving…"
-                    : `Submit Responses (${answeredCount}/${questions.length})`}
-                </button>
-              </div>
-            )}
+          {/* Submit bar — answering phase + post-submit confirmation */}
+          {evalPhase === "idle" && genPhase !== "streaming" && (
+            <>
+              {submitDone && savedResponses && savedResponses.length > 0 && !(evaluations && evaluations.length > 0) && (
+                <div className='sticky bottom-4 flex items-center justify-between rounded-lg border border-green-500/40 bg-green-950/60 px-4 py-2.5 shadow-lg backdrop-blur'>
+                  <span className='text-sm font-medium text-green-400'>
+                    Responses submitted
+                  </span>
+                  <button
+                    onClick={() =>
+                      evaluateSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                    className={cn(buttonVariants({ size: "sm" }), "ml-4")}
+                  >
+                    Evaluate with AI ↑
+                  </button>
+                </div>
+              )}
+              {!(savedResponses && savedResponses.length > 0) && (
+                <div className='sticky bottom-4 flex justify-end'>
+                  <button
+                    onClick={submitAll}
+                    disabled={submitting || !allAnswered}
+                    className={cn(
+                      buttonVariants({ size: "sm" }),
+                      "shadow-lg",
+                      (!allAnswered || submitting) &&
+                        "opacity-60 cursor-not-allowed",
+                    )}
+                  >
+                    {submitting
+                      ? "Saving…"
+                      : `Submit Responses (${answeredCount}/${questions.length})`}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>

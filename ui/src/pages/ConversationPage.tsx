@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import { api } from '@/api/client'
 import type {
   Conversation,
@@ -56,13 +57,17 @@ function MessageBubble({ msg, idx }: { msg: ConversationMessage; idx: number }) 
   return (
     <div className={cn('flex flex-col gap-0.5', isUser ? 'items-end' : 'items-start')}>
       <div className={cn(
-        'max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap',
+        'max-w-[80%] rounded-lg px-3 py-2 text-sm',
         isUser
-          ? 'bg-primary text-primary-foreground'
+          ? 'bg-primary text-primary-foreground whitespace-pre-wrap'
           : 'bg-muted text-foreground',
       )}>
         <span className="text-[10px] font-mono opacity-50 select-none mr-2">#{idx}</span>
-        {msg.content}
+        {isUser ? msg.content : (
+          <div className="space-y-2 [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:my-0.5 [&_code]:bg-black/30 [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_pre]:bg-black/30 [&_pre]:rounded [&_pre]:p-2 [&_pre]:overflow-x-auto [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_blockquote]:opacity-70">
+            <ReactMarkdown>{msg.content}</ReactMarkdown>
+          </div>
+        )}
       </div>
       {!isUser && <MsgMeta msg={msg} />}
     </div>
@@ -484,8 +489,10 @@ export function ConversationPage() {
         ))}
         {streaming && streamBuf && (
           <div className="flex flex-col items-start gap-0.5">
-            <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted text-foreground whitespace-pre-wrap">
-              {streamBuf}
+            <div className="max-w-[80%] rounded-lg px-3 py-2 text-sm bg-muted text-foreground">
+              <div className="space-y-2 [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-medium [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:my-0.5 [&_code]:bg-black/30 [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs [&_pre]:bg-black/30 [&_pre]:rounded [&_pre]:p-2 [&_pre]:overflow-x-auto [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_strong]:font-semibold [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_blockquote]:opacity-70">
+                <ReactMarkdown>{streamBuf}</ReactMarkdown>
+              </div>
               <span className="animate-pulse ml-1">▍</span>
             </div>
           </div>
