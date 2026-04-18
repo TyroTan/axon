@@ -72,6 +72,7 @@ export const api = {
   listTracks: () => get<ListTracksResult>('/tracks'),
   getTrack: (id: string) => get<GetTrackResult>(`/tracks/${id}`),
   createTrack: (branches: string[]) => postJSONResult<CreateTrackResult>('/tracks', { branches }),
+  cloneTrack: (sourceId: string) => postJSONResult<CreateTrackResult>('/tracks', { source_id: sourceId }),
   duplicateTrack: (id: string) => post<DuplicateTrackResult>(`/tracks/${id}/duplicate`),
   mergeTracks: (sourceIds: string[], parentId: string) =>
     fetch(`${BASE}/tracks/merge`, {

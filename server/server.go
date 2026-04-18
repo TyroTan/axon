@@ -169,17 +169,21 @@ func New(cfg Config) *fiber.App {
 		return c.JSON(result)
 	})
 
-	// POST /api/tracks — create a new root track from branch names.
-	// Body: { "branches": ["RAG Architecture", "LLM Systems"] }
+	// POST /api/tracks — create a new root track.
+	// Blank:  { "branches": ["RAG Architecture", "LLM Systems"] }
+	// Clone:  { "source_id": "track_1" }  — copies concept map + context from source
+	// Clone with rename: { "source_id": "track_1", "branches": ["New Branch"] }
 	api.Post("/tracks", func(c *fiber.Ctx) error {
 		var body struct {
 			Branches []string `json:"branches"`
+			SourceID string   `json:"source_id"`
 		}
 		if err := c.BodyParser(&body); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "invalid JSON body")
 		}
 		result, err := createTrackHandler.Handle(c.Context(), commands.CreateTrackCommand{
-			Branches: body.Branches,
+			Branches:      body.Branches,
+			SourceTrackID: body.SourceID,
 		})
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
