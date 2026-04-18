@@ -63,20 +63,28 @@ func (s *TrackStore) ListTracks(_ context.Context) ([]domain.Track, error) {
 	}
 	sort.Strings(ids)
 
-	// Attach children to parents.
-	var roots []domain.Track
-	for _, id := range ids {
-		t := byID[id]
+	// Build tree bottom-up: process deeper IDs first so parent snapshots include
+	// fully-assembled children. Reverse sorted order = deepest IDs first.
+	for i := len(ids) - 1; i >= 0; i-- {
+		id := ids[i]
 		parent := parentID(id)
 		if parent == "" {
-			roots = append(roots, *t)
 			continue
 		}
 		if p, ok := byID[parent]; ok {
-			p.Children = append(p.Children, *t)
-		} else {
-			// Orphaned child (parent track deleted) — surface as root.
-			roots = append(roots, *t)
+			p.Children = append(p.Children, *byID[id])
+		}
+		// Orphaned children (parent deleted) are surfaced as roots below.
+	}
+
+	// Collect roots and orphans.
+	var roots []domain.Track
+	for _, id := range ids {
+		p := parentID(id)
+		if p == "" {
+			roots = append(roots, *byID[id])
+		} else if _, ok := byID[p]; !ok {
+			roots = append(roots, *byID[id])
 		}
 	}
 	return roots, nil

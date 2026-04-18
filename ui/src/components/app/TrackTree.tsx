@@ -25,11 +25,12 @@ export function TrackTree({ tracks }: { tracks: Track[] }) {
       {tracks.map(track => {
         const isActive = track.id === trackId
         const children = track.children ?? []
+        const childActive = children.some(c => c.id === trackId)
 
         if (children.length > 0) {
           return (
             <SidebarMenuItem key={track.id}>
-              <Collapsible defaultOpen={isActive}>
+              <Collapsible defaultOpen={isActive || childActive}>
                 <div className="flex items-center w-full">
                   <SidebarMenuButton isActive={isActive} className="flex-1 min-w-0">
                     <Link to={`/tracks/${track.id}`} className="flex items-center gap-2 min-w-0 w-full">

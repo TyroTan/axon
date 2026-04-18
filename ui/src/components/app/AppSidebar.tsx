@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { BookOpen, Plus, Activity, MessageSquare } from 'lucide-react'
 import { api } from '@/api/client'
 import type { Track, Conversation } from '@/api/types'
@@ -20,13 +20,14 @@ export function AppSidebar() {
   const [tracks, setTracks] = useState<Track[]>([])
   const [convs, setConvs] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
+  const location = useLocation()
 
   useEffect(() => {
     Promise.all([
       api.listTracks().then(r => setTracks(r.tracks ?? [])),
       api.listConversations().then(r => setConvs(r.conversations ?? [])),
     ]).finally(() => setLoading(false))
-  }, [])
+  }, [location.pathname])
 
   return (
     <Sidebar collapsible="icon">
