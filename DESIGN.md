@@ -109,13 +109,13 @@ are discarded before injection.
 **Status: ✅ fully implemented** (`POST /api/tracks`, `NewTrackPage`)
 
 ### US-04a: Create a child track (specialize or iterate on a parent)
-- Open the parent track (e.g. `track_1`) → click **Duplicate**
+- Open the parent track (e.g. `track_1`) → click **Fork**
 - Child track ID is assigned automatically: `track_1` → `track_1_2` → `track_1_2_2`
 - Child inherits parent's `concept_map.json` (with `bloom_current` preserved) and all `prompts/`
 - Child's `context/` starts with only `_sources.md`; add new `.md` files via Edit Context
 - Context is inherited at question-generation time: child files + parent files (child wins on collision)
 
-**Status: ✅ fully implemented** (Duplicate button on TrackPage)
+**Status: ✅ fully implemented** (Fork button on TrackPage)
 
 ### US-04: Specialize a track for a specific job or context
 1. Open parent track → **Duplicate** → navigates to child track
@@ -237,7 +237,7 @@ track_2          ← second root track (different topic entirely, + button)
 **Root tracks** (`track_N`): new topic cluster, no parent, created via `+` sidebar → `/tracks/new`.
 Concept map starts empty; user populates it via `prompts/00_concept_map_generator.md`.
 
-**Child tracks** (`track_N_M`): specialization of a parent, created via Duplicate button on
+**Child tracks** (`track_N_M`): specialization of a parent, created via **Fork** button on
 the parent's track page. Inherits `concept_map.json` (with `bloom_current` preserved) and `prompts/`.
 Context is inherited at question-generation time — no copying, just cascade via `LoadInheritedContext`.
 
@@ -330,7 +330,7 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 | GET | `/api/tracks` | List all tracks |
 | POST | `/api/tracks` | Create new root track. Body: `{ branches: string[] }`. Returns `new_track_id` |
 | GET | `/api/tracks/:id` | Track detail + concept map |
-| POST | `/api/tracks/:id/duplicate` | Create child track (`track_N` → `track_N_2`) |
+| POST | `/api/tracks/:id/duplicate` | Fork — create child track (`track_N` → `track_N_2`) |
 | POST | `/api/tracks/merge` | Create composite track from multiple sources |
 | GET/PUT | `/api/tracks/:id/context/:filename` | Read/write context file |
 | POST | `/api/tracks/:id/context/:filename/compact` | SSE compact |

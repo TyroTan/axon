@@ -341,7 +341,7 @@ export function TrackPage() {
             disabled={duplicating}
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), duplicating && 'opacity-60 cursor-not-allowed')}
           >
-            {duplicating ? 'Duplicating…' : 'Duplicate'}
+            {duplicating ? 'Forking…' : 'Fork'}
           </button>
           <button
             onClick={async () => {

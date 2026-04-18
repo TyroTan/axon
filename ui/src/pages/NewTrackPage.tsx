@@ -118,7 +118,7 @@ export function NewTrackPage() {
             To create <code className="bg-muted px-1 rounded text-xs">track_1_2</code> (a child of{' '}
             <code className="bg-muted px-1 rounded text-xs">track_1</code>), open{' '}
             <code className="bg-muted px-1 rounded text-xs">track_1</code> and click{' '}
-            <strong>Duplicate</strong>. Child tracks inherit the parent's context files and concept map.
+            <strong>Fork</strong>. Child tracks inherit the parent's context files and concept map.
           </p>
         </CardContent>
       </Card>
