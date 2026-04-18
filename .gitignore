@@ -11,6 +11,10 @@ web/dist/
 ui/node_modules/
 ui/.vite/
 
+# Runtime data — local only
+conversations/
+metrics.jsonl
+
 # Environment
 .env
 .env.*
