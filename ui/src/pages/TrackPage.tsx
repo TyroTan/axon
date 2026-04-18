@@ -471,6 +471,29 @@ export function TrackPage() {
           </CardContent>
         </Card>
 
+        {/* Onboarding callout — shown only on fresh tracks with no sessions */}
+        {(!sessions || sessions.length === 0) && (
+          <Card className="border-dashed border-primary/40 bg-primary/5">
+            <CardContent className="pt-4 pb-4 space-y-2">
+              <p className="text-sm font-medium">Getting started with this track</p>
+              <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                <li>
+                  <Link to={`/tracks/${track.id}/context`} className="underline underline-offset-2 hover:text-foreground">
+                    Edit Context
+                  </Link>
+                  {' '}— add or review <code className="text-xs bg-muted px-1 rounded">.md</code> files
+                  that the question generator will study. This track already inherited context from its parent.
+                </li>
+                <li>Click <strong>+ Start Session</strong> below — questions are generated from the concept map + context files.</li>
+              </ol>
+              <p className="text-xs text-muted-foreground pt-1">
+                The <code className="bg-muted px-1 rounded">prompts/</code> folder contains the system prompt templates
+                used for each step — useful if you want to understand or adapt what the backend is doing.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Sessions */}
         <Card className="sticky top-0">
           <CardHeader className="pb-2">

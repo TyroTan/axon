@@ -216,19 +216,33 @@ next two steps. Fine-tuning loop on session-labeled data is a longer-term goal.
 
 ## 5. Track lifecycle — how a track is born
 
-All tracks except the very first root track are created via the UI (Duplicate or Merge).
-The first root track (`track_1`) was created by:
+All tracks except the very first root track are created via the UI (`+` in the sidebar → `/tracks/new`,
+then Duplicate or Merge). The first root track (`track_1`) was bootstrapped manually:
 
-1. Running `prompts/00_concept_map_generator.md` as a system prompt in Claude with branch
-   names as user message → copying the JSON output to `track_1/concept_map.json`
-2. Running `prompts/01_profile_from_docs.md` with context files as input → writing
-   `sessions/session_001/00_profile_snapshot.json` (a starting bloom profile)
-3. Adding context `.md` files to `track_1/context/`
+1. Added context `.md` files to `track_1/context/` (copied from the wider repo — `BROWSER_CLI_PARITY.md`,
+   `agent_state_machine.md`, `debug_usage.md` — per the instructions in `context/_sources.md`)
+2. Ran `prompts/00_concept_map_generator.md` as a system prompt in Claude with the branch names
+   as user message → pasted the JSON output into `track_1/concept_map.json`
+3. Ran `prompts/01_profile_from_docs.md` with the context files as input → wrote
+   `sessions/session_001/00_profile_snapshot.json` (starting bloom profile)
 
-The `prompts/` directory in each track contains standalone system prompts for these
-manual bootstrap steps. They are NOT executed by Axon's backend. They are used once to
-bootstrap a new root track, then replaced by the automated session/synthesis/apply cycle.
-Child tracks (via Duplicate) inherit the concept map and context without needing prompt 00 or 01.
+After that one-time bootstrap, all subsequent operation is automated by Axon's backend.
+
+### What `prompts/` actually is
+
+The `prompts/` directory contains **human-readable system prompt templates** that mirror what
+Axon's backend does automatically. They are NOT executed by the backend. Their purposes:
+
+| File | What it documents | When you'd use it manually |
+|---|---|---|
+| `00_concept_map_generator.md` | How to generate a concept map from branch names | Only when creating a brand-new root track from scratch |
+| `01_profile_from_docs.md` | How to build a starting bloom profile from context files | Only for a root track's first session before any quiz data exists |
+| `02_question_generator.md` | The question generation schema + rules | Reference / debugging — the backend uses `BuildSystemPrompt()` in `generate_questions.go` |
+| `03_response_evaluator.md` | The evaluation schema + Brier scoring rules | Reference only |
+| `04_session_synthesizer.md` | The synthesis + bloom advancement rules | Reference only |
+
+Child tracks created via Duplicate get a copy of `prompts/` automatically (since 0.22.0).
+They do not need to re-run prompts 00 or 01 — the concept map and context are inherited.
 
 ---
 

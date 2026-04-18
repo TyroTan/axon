@@ -3,6 +3,8 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/tyrohunt/axon/internal/domain"
@@ -104,6 +106,25 @@ To reset to a blank slate, set all bloom_current to 1 manually in concept_map.js
 
 	if err := h.store.WriteContextFile(ctx, newID, "_sources.md", sourcesContent); err != nil {
 		return fmt.Errorf("duplicate track: write _sources.md: %w", err)
+	}
+
+	// Copy prompts/ from source track into new track.
+	// prompts/ contains the human-readable system prompt templates that mirror
+	// the backend logic — they travel with the track so the user can inspect
+	// what the backend is doing and adapt prompts for manual bootstrapping.
+	srcPrompts := filepath.Join(h.store.ExperimentsDir(), cmd.SourceTrackID, "prompts")
+	entries, err := os.ReadDir(srcPrompts)
+	if err == nil { // non-fatal — source may have an empty prompts dir
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			content, err := os.ReadFile(filepath.Join(srcPrompts, e.Name()))
+			if err != nil {
+				continue // skip unreadable file, don't abort the whole duplicate
+			}
+			_ = h.store.WriteTrackFile(ctx, newID, filepath.Join("prompts", e.Name()), content)
+		}
 	}
 
 	return nil
