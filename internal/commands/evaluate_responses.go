@@ -146,7 +146,7 @@ Scoring rules:
 - explanation_subscores: all zeros if no explanation; 0–5 each otherwise.
 - error_taxonomy: "recall_gap" (didn't know the fact), "misconception" (wrong mental model), "reasoning_error" (knew facts but wrong logic), or null if correct.
 - bloom_level_demonstrated: the actual Bloom level the response evidence shows (1-6).
-- feedback_for_learner: 1-3 sentences, constructive and specific.`
+- feedback_for_learner: 1-3 sentences, constructive and specific. IMPORTANT for MCQ: evaluate only the learner's own explanation text. Do NOT attribute option wording to the learner — they selected a letter, they did not write the option text. If the explanation is thin but the selection is correct, tell them specifically what reasoning they should be able to articulate in their own words, using language distinct from the option text.`
 }
 
 func buildEvalUserPrompt(questions []domain.Question, respByID map[string]domain.Response) string {
@@ -161,6 +161,7 @@ func buildEvalUserPrompt(questions []domain.Question, respByID map[string]domain
 		fmt.Fprintf(&sb, "Q: %s\n", q.Question)
 
 		if q.Options != nil {
+			sb.WriteString("Options:\n")
 			for _, key := range []string{"A", "B", "C", "D"} {
 				if text, ok := q.Options[key]; ok {
 					fmt.Fprintf(&sb, "  %s: %s\n", key, text)
@@ -177,10 +178,13 @@ func buildEvalUserPrompt(questions []domain.Question, respByID map[string]domain
 		if !hasResp {
 			sb.WriteString("Learner: (no response)\n")
 		} else {
-			fmt.Fprintf(&sb, "Learner answered: %s\n", r.SelectedAnswer)
+			sb.WriteString("--- Learner response (evaluate only what is below this line) ---\n")
+			fmt.Fprintf(&sb, "Selected option: %s\n", r.SelectedAnswer)
 			fmt.Fprintf(&sb, "Confidence: %d/5\n", r.Confidence)
 			if r.Explanation != "" {
-				fmt.Fprintf(&sb, "Explanation: %s\n", r.Explanation)
+				fmt.Fprintf(&sb, "Learner's own explanation (their words, not the option text): %s\n", r.Explanation)
+			} else {
+				sb.WriteString("Learner's own explanation: (none provided)\n")
 			}
 		}
 	}
