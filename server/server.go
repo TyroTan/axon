@@ -123,6 +123,7 @@ func New(cfg Config) *fiber.App {
 	metaSynthesisHandler := commands.NewMetaSynthesisHandler(trackStore, llmClient, rec)
 	applyMetaSynthesisHandler := commands.NewApplyMetaSynthesisHandler(trackStore)
 	compactFileHandler := commands.NewCompactFileHandler(trackStore, llmClient, rec)
+	distillThreadsHandler := commands.NewDistillThreadsHandler(trackStore, llmClient)
 	threadTurnHandler := commands.NewThreadTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -261,6 +262,37 @@ func New(cfg Config) *fiber.App {
 			TrackID:      c.Params("id"),
 			Filename:     c.Params("filename"),
 			TargetTokens: body.TargetTokens,
+		})
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]string{"type": "done"})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
+	})
+
+	// POST /api/tracks/:id/distill-threads — SSE stream.
+	// Reads all tutoring threads across all sessions, extracts learning signal,
+	// writes context/session_insights.snapshot.md.
+	api.Post("/tracks/:id/distill-threads", func(c *fiber.Ctx) error {
+		chunks := distillThreadsHandler.Stream(c.Context(), commands.DistillThreadsCommand{
+			TrackID: c.Params("id"),
 		})
 		c.Set("Content-Type", "text/event-stream")
 		c.Set("Cache-Control", "no-cache")

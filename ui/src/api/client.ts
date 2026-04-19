@@ -73,6 +73,27 @@ export const api = {
   getTrack: (id: string) => get<GetTrackResult>(`/tracks/${id}`),
   createTrack: (branches: string[]) => postJSONResult<CreateTrackResult>('/tracks', { branches }),
   cloneTrack: (sourceId: string) => postJSONResult<CreateTrackResult>('/tracks', { source_id: sourceId }),
+  distillThreads: async (trackId: string, onChunk: (text: string) => void): Promise<void> => {
+    const res = await fetch(`${BASE}/tracks/${trackId}/distill-threads`, { method: 'POST' })
+    if (!res.ok || !res.body) throw new Error(`${res.status} ${res.statusText}`)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const ev = JSON.parse(line.slice(6)) as { type: string; text?: string; message?: string }
+        if (ev.type === 'chunk' && ev.text) onChunk(ev.text)
+        if (ev.type === 'error') throw new Error(ev.message ?? 'distillation failed')
+        if (ev.type === 'done') return
+      }
+    }
+  },
   duplicateTrack: (id: string) => post<DuplicateTrackResult>(`/tracks/${id}/duplicate`),
   mergeTracks: (sourceIds: string[], parentId: string) =>
     fetch(`${BASE}/tracks/merge`, {

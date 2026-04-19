@@ -7,7 +7,7 @@
 > Complements: ROADMAP.md (what's planned), CHANGELOG.md (what changed when),
 > README.md (quick-start + usage), plan.md (learning system theory).
 
-Last updated: 2026-04-18
+Last updated: 2026-04-19
 
 ---
 
@@ -185,6 +185,28 @@ RAG is applied per turn: context files from all selected tracks are chunked, sco
 
 **Status: ✅ fully implemented**
 
+### US-16: Distill tutoring threads into a reusable context snapshot
+Quiz tutoring conversations (per-question `threads/*.json`) accumulate rich learning signal
+that would otherwise stay buried in session directories. **Distill Threads** extracts this
+signal into a context file that future sessions — and forked/cloned tracks — can use.
+
+1. Track page → **Distill Threads** button (visible when at least one session exists)
+2. Backend scans all sessions for threads with at least one learner follow-up turn
+3. LLM generates a structured learning signal document with five sections:
+   - **Reasoning Patterns** — how the learner approaches problems
+   - **Misconception Fingerprint** — specific wrong beliefs surfaced, whether resolved
+   - **Distractor Affinities** — MCQ wrong-answer patterns (informs future distractor generation)
+   - **Concepts Needing Reinforcement** — persistent confusion areas
+   - **Calibration Notes** — confidence vs correctness patterns
+4. Output written to `context/session_insights.snapshot.md`
+5. File propagates automatically: inherited via Fork cascade, physically copied on Clone
+
+The question generator already reads `context/*.md` files verbatim and has an existing
+instruction (0.21.0) to adapt framing when it finds `## Reasoning Patterns` /
+`## Misconception Fingerprint` / `## Distractor Affinities` sections.
+
+**Status: ✅ fully implemented** (`POST /api/tracks/:id/distill-threads`, TrackPage button)
+
 ---
 
 ## 4. User stories — planned / deferred
@@ -195,6 +217,9 @@ Running `AnalyzeConversationCommand` extracts a cognitive fingerprint — reason
 misconception framings, curiosity clusters — into a `conversation_analysis.snapshot.md`
 file written to the target track's `context/`. The question generator already has an
 instruction to use this file when present (0.21.0).
+
+Note: **quiz thread distillation** (US-16) is the implemented counterpart for session
+threads. US-12 is specifically for free-form `conversations/*.json` records.
 
 **Status: 📋 queued — backend command + UI entry point not yet built**
 See ROADMAP.md → "Conversation cognitive fingerprint"
@@ -343,6 +368,7 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 | POST | `/api/tracks/:id/sessions/:num/apply-synthesis` | Apply synthesis to concept map |
 | POST | `/api/tracks/:id/meta-synthesis/generate` | SSE meta-synthesis |
 | POST | `/api/tracks/:id/meta-synthesis/apply` | Apply meta-synthesis |
+| POST | `/api/tracks/:id/distill-threads` | SSE — distill tutoring threads → `context/session_insights.snapshot.md` |
 | GET | `/api/tracks/:id/sessions/:num/prompt-preview` | Token budget preview |
 | POST | `/api/tracks/:id/sessions/:num/threads/:qid` | SSE thread turn |
 | GET | `/api/tracks/:id/sessions/:num/threads/:qid/preview` | Thread context preview |

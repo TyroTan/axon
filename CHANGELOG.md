@@ -9,6 +9,74 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.25.0] — 2026-04-19 — Distill Threads → context snapshot
+
+### Added
+- **`DistillThreadsCommand`** (`internal/commands/distill_threads.go`) — scans all sessions of a track for tutoring threads that have at least one learner follow-up turn; builds a structured prompt from the full conversation history; streams an LLM-generated learning signal document with five sections: Reasoning Patterns, Misconception Fingerprint, Distractor Affinities, Concepts Needing Reinforcement, Calibration Notes. Output written to `context/session_insights.snapshot.md`.
+- **`POST /api/tracks/:id/distill-threads`** — SSE endpoint following the same chunk/done/error envelope as `/compact`.
+- **Distill Threads button** on TrackPage — visible only when the track has at least one session; streams live output in an expandable panel below the header; button label changes to `Distilled ✓` on completion.
+- `api.distillThreads()` in `client.ts` — SSE consumer matching the other streaming helpers.
+
+### Design
+- `session_insights.snapshot.md` is a first-class context file: injected into future question generation prompts, inherited via Fork cascade, physically copied on Clone. No new plumbing required.
+- Threads with only the seed assistant turn (no learner reply) are skipped — no real signal.
+- File is overwritten on each run; idempotent.
+
+---
+
+## [0.24.0] — 2026-04-19 — Clone operation
+
+### Added
+- **Clone mode** in `CreateTrackCommand` — `SourceTrackID` field triggers `clone()` path: reads source concept map (bloom_current preserved), physically copies all non-`_sources.md` context files, writes clone-origin `_sources.md`, copies `prompts/` directory. New track gets a root-level ID (track_N) with no parent.
+- **`POST /api/tracks`** now accepts `{ source_id }` body field to trigger clone mode.
+- **NewTrackPage** rewritten with blank / clone mode toggle; clone mode shows a radio list of all tracks (flattened tree via `flattenTracks()`).
+- `api.cloneTrack(sourceId)` added to `client.ts`.
+
+---
+
+## [0.23.0] — 2026-04-18 — Root track creation from UI
+
+### Added
+- **`CreateTrackCommand` + `CreateTrackHandler`** — blank mode: takes branch names, writes empty concept map + `_sources.md` stub; `POST /api/tracks` body `{ branches: string[] }`.
+- **`NewTrackPage`** at `/tracks/new` — branch name inputs (dynamic add/remove, Enter to add next), Create button, navigates to new track on success.
+- **`/tracks/new` route** wired in `App.tsx` — was previously 404.
+- `CreateTrackResult { new_track_id }` in `types.ts`; `postJSONResult<T>()` helper in `client.ts` (returns parsed JSON body, not void).
+- **`api.createTrack(branches)`** in `client.ts`.
+
+### Fixed
+- **ListTracks tree assembly** — children (`track_1_2`, `track_1_3`) were not appearing in the API response. Root cause: sorted iteration snapshot root track before children were attached. Fixed with reverse-sort bottom-up processing.
+- **Sidebar live re-fetch** — sidebar only fetched track list on mount; new tracks created during a session were invisible until reload. Fixed by adding `location.pathname` to the `useEffect` dependency array.
+- **Child-active collapsible** — parent track in the sidebar was collapsing when navigating to a child. Fixed with `childActive` check in `TrackTree`.
+
+---
+
+## [0.22.0] — 2026-04-18 — Copy prompts/ on Fork, onboarding callout, DESIGN.md
+
+### Added
+- **Copy `prompts/` on Fork** — `DuplicateTrackHandler` now copies all files from the source track's `prompts/` directory into the new child track. Child tracks have the full system prompt templates for reference and manual bootstrapping without needing to locate the parent.
+- **Onboarding callout** on TrackPage — shown only on fresh tracks with no sessions; card with numbered steps (Edit Context → Start Session) + note about `prompts/` directory.
+- **`DESIGN.md`** — LLM-readable ground truth for the entire project: core concepts, all user stories (US-01 through US-15) with status, track naming convention (ASCII tree diagram), track lifecycle, data model file layout, LLM integration table, full API surface table.
+
+### Fixed
+- Documentation disconnect: `DESIGN.md` now correctly distinguishes Fork (child track_N_M, cascade inheritance) from Clone (root copy, physical snapshot).
+
+---
+
+## [0.21.1] — 2026-04-18 — Rename Duplicate → Fork
+
+### Changed
+- **Duplicate → Fork** throughout the UI — button label, loading state, and tooltip on TrackPage all renamed. Fork more precisely names the operation (creates a child track inheriting concept map, not a same-level copy).
+
+---
+
+## [0.21.0] — 2026-04-18 — Cognitive fingerprint instruction, interview prep context
+
+### Added
+- **Cognitive fingerprint instruction** in `BuildSystemPrompt()` (`generate_questions.go`) — when `context/` includes a file with sections `## Reasoning Patterns`, `## Misconception Fingerprint`, `## Distractor Affinities`, the question generator now uses it to adapt question framing and distractor selection (not concept selection — those are still governed by bloom state + spaced repetition).
+- **`track_1_2/context/upwork_rag_jobs.snapshot.md`** — interview prep corpus for two Upwork RAG roles: RAGFlow deployment expert and Yuktha Health AI RAG audit. Includes skill matrices, likely interview probes, L4/L5 scenario seeds, cross-job concept matrix, self-assessment anchors, question format guidance.
+
+---
+
 ## [0.20.0] — 2026-04-18 — Submit UX, RAG quality threshold, conversation markdown
 
 ### Added

@@ -96,6 +96,9 @@ export function TrackPage() {
   const [mergeSelected, setMergeSelected] = useState<string[]>([])
   const [merging, setMerging] = useState(false)
   const [mergeParentId, setMergeParentId] = useState('')
+  const [distilling, setDistilling] = useState(false)
+  const [distillStream, setDistillStream] = useState('')
+  const [distillDone, setDistillDone] = useState(false)
 
   async function startSession(shardId?: string) {
     if (!trackId || startingSession) return
@@ -325,6 +328,28 @@ export function TrackPage() {
           >
             Edit Context
           </Link>
+          {sessions && sessions.length > 0 && (
+            <button
+              onClick={async () => {
+                if (!trackId || distilling) return
+                setDistilling(true)
+                setDistillStream('')
+                setDistillDone(false)
+                try {
+                  await api.distillThreads(trackId, t => setDistillStream(p => p + t))
+                  setDistillDone(true)
+                } catch (e) {
+                  setError(String(e))
+                } finally {
+                  setDistilling(false)
+                }
+              }}
+              disabled={distilling}
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), distilling && 'opacity-60 cursor-not-allowed')}
+            >
+              {distilling ? 'Distilling…' : distillDone ? 'Distilled ✓' : 'Distill Threads'}
+            </button>
+          )}
           <button
             onClick={async () => {
               if (!trackId || duplicating) return
@@ -444,6 +469,21 @@ export function TrackPage() {
                 {mergeSelected.length < 2 ? 'Select at least 2 tracks' : `→ new child of "${mergeParentId || '(root)'}" will be created`}
               </span>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Distill threads streaming output */}
+      {(distilling || distillDone) && distillStream && (
+        <Card className={cn('border', distillDone ? 'border-green-500/40 bg-green-950/10' : 'border-border')}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              Session Insights
+              {distillDone && <span className="text-green-400 text-xs font-normal">Written to context/session_insights.snapshot.md</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-xs text-muted-foreground bg-muted rounded p-3 max-h-64 overflow-auto whitespace-pre-wrap">{distillStream}</pre>
           </CardContent>
         </Card>
       )}
