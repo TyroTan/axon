@@ -9,6 +9,22 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.26.0] — 2026-04-19 — Import Job Description → interview prep context file
+
+### Added
+- **`AnalyzeJobCommand`** (`internal/commands/analyze_job.go`) — accepts raw pasted job description + optional role label; calls LLM to extract structured interview prep signal; writes `{role}.job.md` to `context/`. Output sections: Role Signal, Must-Have Skills, Likely Interview Probes, Interview Scenario Seeds, Self-Assessment Anchors, Question Format Guidance.
+- **`POST /api/tracks/:id/context/import-job`** — SSE endpoint. Body: `{ role_label, job_text }`. Done event carries written filename.
+- **Import Job Description panel** on ContextEditorPage — collapsible; role label input + JD textarea + Import & Analyze button; streams live output; confirms filename on completion and reloads file list.
+- `api.importJob()` in `client.ts` — SSE consumer returning the written filename.
+- `slugify()` helper derives filename from role label or first line of JD; falls back to `job_{date}`.
+
+### Design
+- `.job.md` files are first-class context files: injected into question generation, inherited via Fork cascade, physically copied on Clone.
+- Question generation prompt already (0.21.0) recognises `## Likely Interview Probes` and `## Interview Scenario Seeds` sections and adapts framing accordingly.
+- Idempotent: re-running with the same role label overwrites the existing file.
+
+---
+
 ## [0.25.0] — 2026-04-19 — Distill Threads → context snapshot
 
 ### Added

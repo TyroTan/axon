@@ -7,7 +7,7 @@
 > Complements: ROADMAP.md (what's planned), CHANGELOG.md (what changed when),
 > README.md (quick-start + usage), plan.md (learning system theory).
 
-Last updated: 2026-04-19
+Last updated: 2026-04-19 (evening)
 
 ---
 
@@ -207,6 +207,23 @@ instruction (0.21.0) to adapt framing when it finds `## Reasoning Patterns` /
 
 **Status: ✅ fully implemented** (`POST /api/tracks/:id/distill-threads`, TrackPage button)
 
+### US-17: Import a job description and get interview-ready context instantly
+After cloning or forking a track for interview prep:
+
+1. Track context editor → **Import Job Description** (collapsible panel)
+2. Optional role label (e.g. `ragflow_expert`) + paste raw JD text
+3. Click **Import & Analyze** — LLM streams structured analysis
+4. Output written to `{role}.job.md` in `context/` with six sections:
+   - **Role Signal** — what the client actually wants beyond the stated requirements
+   - **Must-Have Skills** — with role-specific rationale per skill
+   - **Likely Interview Probes** — specific questions a technical screen would ask
+   - **Interview Scenario Seeds** — L4/L5 scenario questions grounded in the JD's deliverables
+   - **Self-Assessment Anchors** — what to close before interviewing
+   - **Question Format Guidance** — instructions for the quiz generator (types, distractors, Bloom floor)
+5. File is immediately picked up by question generation; inherited via Fork, copied on Clone
+
+**Status: ✅ fully implemented** (`POST /api/tracks/:id/context/import-job`, ContextEditorPage panel)
+
 ---
 
 ## 4. User stories — planned / deferred
@@ -369,6 +386,7 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 | POST | `/api/tracks/:id/meta-synthesis/generate` | SSE meta-synthesis |
 | POST | `/api/tracks/:id/meta-synthesis/apply` | Apply meta-synthesis |
 | POST | `/api/tracks/:id/distill-threads` | SSE — distill tutoring threads → `context/session_insights.snapshot.md` |
+| POST | `/api/tracks/:id/context/import-job` | SSE — analyze raw JD → `context/{role}.job.md` |
 | GET | `/api/tracks/:id/sessions/:num/prompt-preview` | Token budget preview |
 | POST | `/api/tracks/:id/sessions/:num/threads/:qid` | SSE thread turn |
 | GET | `/api/tracks/:id/sessions/:num/threads/:qid/preview` | Thread context preview |

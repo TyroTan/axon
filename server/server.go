@@ -124,6 +124,7 @@ func New(cfg Config) *fiber.App {
 	applyMetaSynthesisHandler := commands.NewApplyMetaSynthesisHandler(trackStore)
 	compactFileHandler := commands.NewCompactFileHandler(trackStore, llmClient, rec)
 	distillThreadsHandler := commands.NewDistillThreadsHandler(trackStore, llmClient)
+	analyzeJobHandler := commands.NewAnalyzeJobHandler(trackStore, llmClient)
 	threadTurnHandler := commands.NewThreadTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -305,6 +306,47 @@ func New(cfg Config) *fiber.App {
 					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
 				} else if chunk.Done {
 					payload, _ = json.Marshal(map[string]string{"type": "done"})
+				} else {
+					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
+				}
+				fmt.Fprintf(w, "data: %s\n\n", payload)
+				w.Flush()
+				if chunk.Done || chunk.Error != nil {
+					return
+				}
+			}
+		}))
+		return nil
+	})
+
+	// POST /api/tracks/:id/context/import-job — SSE stream.
+	// Body: { "role_label": "ragflow_expert", "job_text": "..." }
+	// Analyzes a raw job description and writes {role}.job.md to context/.
+	// Done event carries the written filename in the session_id field.
+	api.Post("/tracks/:id/context/import-job", func(c *fiber.Ctx) error {
+		var body struct {
+			RoleLabel string `json:"role_label"`
+			JobText   string `json:"job_text"`
+		}
+		if err := json.Unmarshal(c.Body(), &body); err != nil || strings.TrimSpace(body.JobText) == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "job_text is required"})
+		}
+		chunks := analyzeJobHandler.Stream(c.Context(), commands.AnalyzeJobCommand{
+			TrackID:   c.Params("id"),
+			RoleLabel: body.RoleLabel,
+			JobText:   body.JobText,
+		})
+		c.Set("Content-Type", "text/event-stream")
+		c.Set("Cache-Control", "no-cache")
+		c.Set("Connection", "keep-alive")
+		c.Set("Transfer-Encoding", "chunked")
+		c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+			for chunk := range chunks {
+				var payload []byte
+				if chunk.Error != nil {
+					payload, _ = json.Marshal(map[string]string{"type": "error", "message": chunk.Error.Error()})
+				} else if chunk.Done {
+					payload, _ = json.Marshal(map[string]string{"type": "done", "filename": chunk.SessionID})
 				} else {
 					payload, _ = json.Marshal(map[string]string{"type": "chunk", "text": chunk.Text})
 				}

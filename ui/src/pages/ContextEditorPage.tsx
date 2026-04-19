@@ -31,6 +31,15 @@ export function ContextEditorPage() {
   const [compactStream, setCompactStream] = useState('')
   const [compactError, setCompactError] = useState<string | null>(null)
 
+  // Import Job
+  const [jobPanelOpen, setJobPanelOpen] = useState(false)
+  const [jobRoleLabel, setJobRoleLabel] = useState('')
+  const [jobText, setJobText] = useState('')
+  const [importingJob, setImportingJob] = useState(false)
+  const [importJobStream, setImportJobStream] = useState('')
+  const [importJobDone, setImportJobDone] = useState<string | null>(null) // filename written
+  const [importJobError, setImportJobError] = useState<string | null>(null)
+
   useEffect(() => {
     if (!trackId) return
     api.getTrackContext(trackId)
@@ -110,6 +119,27 @@ export function ContextEditorPage() {
     }
   }
 
+  async function importJob() {
+    if (!trackId || importingJob || !jobText.trim()) return
+    setImportingJob(true)
+    setImportJobStream('')
+    setImportJobDone(null)
+    setImportJobError(null)
+    try {
+      const filename = await api.importJob(trackId, jobRoleLabel, jobText, t => setImportJobStream(p => p + t))
+      setImportJobDone(filename)
+      // Reload context so new .job.md appears in the file list.
+      const fresh = await api.getTrackContext(trackId)
+      setData(fresh)
+      setJobText('')
+      setJobRoleLabel('')
+    } catch (e) {
+      setImportJobError(String(e))
+    } finally {
+      setImportingJob(false)
+    }
+  }
+
   if (loading) return (
     <div className="space-y-3 max-w-5xl">
       <Skeleton className="h-7 w-40" />
@@ -141,6 +171,62 @@ export function ContextEditorPage() {
         >
           ← Back to track
         </Link>
+      </div>
+
+      {/* Import Job Description panel */}
+      <div className="border rounded-lg overflow-hidden">
+        <button
+          onClick={() => setJobPanelOpen(v => !v)}
+          className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted/60 transition-colors text-sm font-medium"
+        >
+          <span>Import Job Description</span>
+          <span className="text-muted-foreground text-xs">{jobPanelOpen ? '▲ collapse' : '▼ expand'}</span>
+        </button>
+        {jobPanelOpen && (
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Paste a raw job description. The AI will extract a structured interview prep file
+              ({' '}<code className="bg-muted px-1 rounded">role.job.md</code>) and write it to this track's context.
+              Question generation will automatically use it to adapt framing, scenarios, and distractors.
+            </p>
+            <div className="flex gap-2 items-center">
+              <label className="text-xs text-muted-foreground shrink-0">Role label (optional):</label>
+              <input
+                type="text"
+                value={jobRoleLabel}
+                onChange={e => setJobRoleLabel(e.target.value)}
+                placeholder="e.g. ragflow_expert"
+                className="flex-1 text-xs px-2 py-1.5 rounded border border-border bg-background font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <textarea
+              value={jobText}
+              onChange={e => setJobText(e.target.value)}
+              placeholder="Paste job description here…"
+              rows={10}
+              className="w-full text-sm font-mono p-3 rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+            />
+            {importJobError && <p className="text-xs text-destructive">{importJobError}</p>}
+            {importJobDone && (
+              <p className="text-xs text-green-400">
+                Written to <code className="bg-muted px-1 rounded">{importJobDone}</code> — visible in file list.
+              </p>
+            )}
+            {importJobStream && (
+              <pre className="text-xs text-muted-foreground bg-muted rounded p-3 max-h-48 overflow-auto whitespace-pre-wrap">{importJobStream}</pre>
+            )}
+            <button
+              onClick={importJob}
+              disabled={importingJob || !jobText.trim()}
+              className={cn(
+                'px-4 py-1.5 rounded text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors',
+                (importingJob || !jobText.trim()) && 'opacity-60 cursor-not-allowed'
+              )}
+            >
+              {importingJob ? 'Analyzing…' : 'Import & Analyze'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Editor layout */}

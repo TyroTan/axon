@@ -3,7 +3,7 @@
 > Adaptive knowledge assessment system. Local-first, file-persisted, browser UI.
 > Go Fiber · React + shadcn/ui · CQRS · backend-agnostic store · claude CLI auth.
 
-Last updated: 2026-04-19
+Last updated: 2026-04-19 (evening)
 
 ---
 
@@ -194,6 +194,12 @@ Per-track `_index.md` — file-by-file summaries, headings, symbols, cross-refs 
 - `GenerateIndexCommand` populates `_index.md` after synthesis is applied
 - `indexed.go` retrieval strategy: score chunks against `_index.md` headings first, then full-text fallback
 - Feeds retrieval for composite tracks where context spans many original sources
+
+### Job description import ✅ (0.26.0)
+`POST /api/tracks/:id/context/import-job` — paste raw JD, LLM extracts structured
+interview prep signal, writes `{role}.job.md` to context/. Six sections: Role Signal,
+Must-Have Skills, Likely Interview Probes, Interview Scenario Seeds, Self-Assessment
+Anchors, Question Format Guidance. ContextEditorPage collapsible panel.
 
 ### Session thread distillation ✅ (0.25.0)
 `POST /api/tracks/:id/distill-threads` — scans all tutoring threads across all sessions,
