@@ -43,7 +43,9 @@ func (h *MetaSynthesisHandler) ReadinessCheck(ctx context.Context, trackID strin
 		return nil, err
 	}
 	if plan == nil {
-		return nil, fmt.Errorf("meta-synthesis: no split plan found for %s", trackID)
+		// No split plan — non-sharded track, meta-synthesis not applicable.
+		// Return empty slice so the caller gets ready:false without a 500.
+		return []string{}, nil
 	}
 
 	sessions, err := h.store.ListSessionsWithMeta(ctx, trackID)
