@@ -1,13 +1,13 @@
 {
-  "track": "track_1_2",
+  "track": "track_2",
   "major_branches": [
     "ML Fundamentals",
     "ML Math Theory",
     "RAG Architecture",
     "LLM Systems"
   ],
-  "generated_at": "2026-04-18",
-  "note": "Inherited from track_1 on 2026-04-18. bloom_current preserved.",
+  "generated_at": "2026-04-19",
+  "note": "Cloned from track_1 on 2026-04-19. bloom_current preserved.",
   "concepts": [
     {
       "index": 0,
