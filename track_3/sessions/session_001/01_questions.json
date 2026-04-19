@@ -1,0 +1,227 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "Maestro.io's RAG pipeline serves 400 business case studies. Queries like 'how should a $2M ARR SaaS business reduce churn?' return generic advice instead of relevant case studies. Chunks are 1024 tokens with no overlap; each case study averages 3,000 tokens. Which chunking change most directly fixes the precision problem?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "Increase chunk size to 2048 tokens so each chunk captures more complete context from a single case study",
+      "B": "Switch to semantic chunking at paragraph/section boundaries with 10–15% overlap between adjacent chunks",
+      "C": "Decrease chunk size to 128 tokens to maximize retrieval precision across all 400 documents",
+      "D": "Keep the current chunk size but increase top-k from 5 to 20 retrieved chunks"
+    },
+    "correct": "B",
+    "correct_explanation": "1024-token fixed chunks of 3000-token case studies split mid-argument, returning partial context whose embedding is semantically diluted. Semantic chunking respects the document's natural structure (problem / solution / outcome sections), so each retrieved chunk is a coherent unit. A 10–15% overlap prevents answers that span chunk boundaries from falling into the gap. This improves both precision (chunks are meaningful units) and recall (boundary-spanning answers are duplicated into adjacent chunks).",
+    "distractor_explanations": {
+      "A": "Larger chunks dilute specificity — a 2048-token chunk from a 3000-token case study mixes the problem description with unrelated details, making cosine similarity scores noisier, not sharper.",
+      "C": "128-token chunks are too small to contain a coherent argument. Retrieval precision appears to rise but each chunk is a sentence fragment — the LLM receives isolated phrases, not reasoned examples.",
+      "D": "Increasing top-k retrieves more chunks but does not fix the semantic incoherence of chunks that split mid-argument. Sending more noise to the LLM degrades answer quality further."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      22,
+      18
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "You are designing Maestro.io's RAG chat endpoint using claude-sonnet (200k context window). Fixed overhead per turn: system prompt 800 tokens, user financial context 1,200 tokens, top-8 retrieved chunks at ~300 tokens each (2,400 tokens). Conversation history grows at ~150 tokens per turn. A user reports incoherent responses after many turns. What is the most likely failure mechanism, and which mitigation is most appropriate?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "Hard context overflow: at ~1,290 turns the window fills completely. Mitigation: cap conversation history at 50 turns using a sliding window.",
+      "B": "'Lost in the middle' attention degradation: with 200k of filled context, retrieved chunks and instructions in the middle of a long context receive disproportionately low attention weight. Mitigation: place the most critical context (system prompt, latest user message, top-ranked chunks) at the beginning and end of the context, and summarize older turns rather than dropping them.",
+      "C": "KV cache overflow: the KV cache has a fixed size and evicts early tokens silently, causing the model to lose system prompt instructions. Mitigation: resend the system prompt every 20 turns.",
+      "D": "Tokenization asymmetry: financial data serialized as JSON tokenizes inefficiently, inflating the effective context usage by 3–4×. Mitigation: switch financial context encoding from JSON to a compact key=value format."
+    },
+    "correct": "B",
+    "correct_explanation": "With 200k tokens, hard overflow at 1,290 turns is not the near-term failure mode — the practical ceiling for a chat product is far lower. The real issue is 'lost in the middle': transformer attention tends to underweight tokens in the middle of a long context relative to tokens at the start and end. As the context grows, retrieved chunks inserted mid-context receive less attention weight, leading to answers that ignore retrieved evidence. The mitigation is positional: anchor critical instructions at boundaries and summarize history into a compact representation rather than appending verbatim turns indefinitely.",
+    "distractor_explanations": {
+      "A": "Hard overflow at 1,290 turns is mathematically accurate but practically irrelevant for a chat interface. No user reaches 1,290 turns in a single session. Framing coherence problems as overflow misdiagnoses the actual failure and leads to unnecessary truncation.",
+      "C": "KV cache stores intermediate attention computations and does not silently evict tokens — the full sequence remains in the attention window. KV cache limitations affect inference speed and memory cost, not context visibility.",
+      "D": "JSON vs key=value formatting produces at most a 10–20% tokenization difference for typical financial objects — not a 3–4× inflation. This is a real optimization but not the cause of incoherent responses after many turns."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.6,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In a Transformer's self-attention mechanism, what role do Query and Key vectors play, and why does this mechanism enable long-range dependencies that RNNs struggled with?",
+    "format": "mcq",
+    "options": {
+      "A": "Queries determine which tokens to emit as output; Keys store the output representation. Long-range dependencies are handled because Transformers process all tokens in a single pass without sequential state.",
+      "B": "Queries represent what a token is 'looking for'; Keys represent what a token 'offers.' The attention score Q·Kᵀ/√d is computed between every token pair simultaneously, so any token can directly attend to any other regardless of distance.",
+      "C": "Queries and Keys are identical weight matrices that compress embeddings before the feed-forward layer, reducing the path length for gradient flow across positions.",
+      "D": "Queries select which attention head to route tokens to; Keys determine the positional encoding weight applied before Value aggregation."
+    },
+    "correct": "B",
+    "correct_explanation": "Each token projects its embedding into three learned vectors: Q (what am I searching for?), K (what do I offer?), and V (what information do I carry?). The dot product Q·Kᵀ scores compatibility between every pair of tokens; softmax normalizes these into attention weights over Values. Because this is an all-pairs O(n²) operation rather than a sequential scan, any two tokens interact directly in a single layer — the path length between any positions is always 1. In an RNN, the path between position 1 and position n grows with sequence length, causing gradients to vanish or explode before reaching early positions.",
+    "distractor_explanations": {
+      "A": "The 'output' in attention is a weighted sum of Value vectors, not a function of Query directly. Calling Q the output emitter confuses Q/K scoring with the V aggregation step.",
+      "C": "Q and K are distinct projections with different semantics — they are not identical. The mechanism does reduce effective path length, but not through matrix compression; it does so through direct all-pairs attention scoring.",
+      "D": "Positional encoding is added to embeddings before Q/K/V projection — it is not computed by or stored in K. Head routing in multi-head attention is a separate mechanism that splits the embedding dimension, not a Q/K operation."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      16,
+      15
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "Maestro.io's corpus contains 400 case studies and 50 financial glossary documents. A user asks: 'What are the key SaaS metrics a $500k ARR company should track?' Embedding retrieval returns semantically relevant case study chunks but misses the glossary entry defining 'Net Revenue Retention' — a term absent from the query. Which strategy best closes this gap?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "Increase the embedding model's vector dimensionality to capture rarer financial terminology",
+      "B": "Add BM25 keyword retrieval in a hybrid configuration: run BM25 in parallel with embedding search, then merge and re-rank results",
+      "C": "Lower the cosine similarity threshold from 0.8 to 0.5 to surface lower-scored glossary matches",
+      "D": "Switch from cosine similarity to dot product similarity, which better captures term-frequency signals in sparse documents"
+    },
+    "correct": "B",
+    "correct_explanation": "BM25 is term-frequency-based sparse retrieval that excels at exact and near-exact keyword matching — it reliably surfaces the 'Net Revenue Retention' glossary entry even when embedding similarity is low. Hybrid search combines BM25's lexical precision with embedding-based semantic recall, typically merged via Reciprocal Rank Fusion before re-ranking. This is the canonical fix for the 'semantically near but keyword-missing' failure mode: embedding retrieval captures what the query means; BM25 captures what it says.",
+    "distractor_explanations": {
+      "A": "Higher embedding dimensionality enriches semantic representation but does not add lexical matching capability. A specific financial term like 'Net Revenue Retention' may still be underrepresented in the model's training distribution regardless of dimension count.",
+      "C": "Lowering the threshold retrieves more candidates but floods the context window with low-quality chunks. The glossary entry is not missed because the threshold is too strict — it is missed because the semantic vector of the query has low cosine similarity to a definitional entry. More noise does not fix a structural retrieval gap.",
+      "D": "Dot product differs from cosine similarity in that it is sensitive to vector magnitude rather than direction. Neither is a term-frequency method — switching between them adds no lexical retrieval capability and may actually harm retrieval quality if embedding norms vary across documents."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      1
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A classifier trained with cross-entropy loss and one trained with MSE both reach 92% validation accuracy. Which statement best explains why cross-entropy is the preferred loss for classification?",
+    "format": "mcq",
+    "options": {
+      "A": "Cross-entropy produces sparser gradients than MSE, enabling more efficient parameter updates.",
+      "B": "Cross-entropy penalizes confident wrong predictions with a log term: if the model assigns probability 0.01 to the correct class, the loss is −log(0.01) ≈ 4.6. MSE for the same prediction is (1 − 0.01)² ≈ 0.98 — a weak signal that barely corrects the parameter update.",
+      "C": "MSE is undefined for probability distributions, so it is mathematically invalid for classification tasks.",
+      "D": "Cross-entropy minimizes KL divergence from the true distribution, which inherently yields better-calibrated probabilities than any squared-error objective."
+    },
+    "correct": "B",
+    "correct_explanation": "The geometric difference is what matters in practice. Cross-entropy applies a log penalty to the predicted probability of the correct class, so confident wrong predictions — near-zero probability on the correct class — produce very large losses and correspondingly sharp gradient signals. MSE treats probability outputs as regression targets in [0,1], compressing the penalty into a squared difference that saturates near the extremes. The gradient at p=0.01 under MSE is tiny: 2·(1−0.01)·(−1)≈−1.98, vs. −log(0.01)/p = −1/0.01 = −100 under cross-entropy. The model receives a correction signal that is ~50× stronger exactly when it needs it most.",
+    "distractor_explanations": {
+      "A": "Gradient sparsity is not a property of cross-entropy vs. MSE. Sparsity is more relevant to L1 regularization or sparse activation functions like ReLU. Cross-entropy gradients are dense.",
+      "C": "MSE can be applied to probability outputs in [0,1] as real-valued regression targets — it is not undefined. It is poorly motivated geometrically for discrete class distributions, but the mathematical invalidity claim is incorrect.",
+      "D": "While minimizing cross-entropy is equivalent to minimizing KL divergence from the true distribution (a valid theoretical property), this is not the primary operational reason practitioners prefer cross-entropy. The practical reason is the gradient magnitude difference described in option B."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_6",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      27,
+      26
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "You are building an agentic pipeline for Maestro.io where Claude autonomously generates a financial health report: Step 1 retrieves benchmark data, Step 2 calls a calculation tool, Step 3 drafts the summary. During a live run, the calculation tool fails with a transient HTTP 503. Which agentic loop design correctly handles this without corrupting report state or wasting prior step results?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "Retry the calculation tool up to 3 times immediately with no delay; if all attempts fail, terminate the loop and return an empty report.",
+      "B": "Persist each step's completion as a checkpoint; on tool failure, transition the session to a retry state with exponential backoff, preserving Step 1's output so the loop resumes from Step 2 without re-executing completed steps.",
+      "C": "Inject the error message into the next prompt and let the LLM decide whether to retry — the model's reasoning is sufficient to handle tool failures without explicit state management.",
+      "D": "On any tool failure, abandon the current session and spawn a new agent with the full task from scratch to avoid partial-state corruption."
+    },
+    "correct": "B",
+    "correct_explanation": "Idempotent step checkpointing is the canonical pattern for resilient agentic loops. Each step's completion is persisted before proceeding — if Step 2 fails, only Step 2 is retried; Step 1's retrieval result is preserved and not re-executed. Exponential backoff prevents retry storms on transient errors like HTTP 503. This is the same design as a state machine pipeline: steps transition through pending → processing → completed/failed, and only failed steps re-enter the queue. The principle: completed side effects should never be repeated; state must be persisted at step boundaries.",
+    "distractor_explanations": {
+      "A": "Immediate retry with no backoff can trigger a retry storm if the 503 reflects a briefly overloaded service. Returning an empty report discards Step 1's successful retrieval — wasted compute and degraded UX. No persistence means a process crash loses everything.",
+      "C": "Delegating error handling to the LLM's reasoning is fragile. The model may hallucinate a successful calculation, loop indefinitely, or misjudge retryability without access to the error's HTTP status code. Tool error handling should be deterministic in the orchestration layer, not probabilistic in the prompt.",
+      "D": "Restarting from scratch re-executes all completed steps, wastes tokens on re-retrieval, and violates idempotency. If Step 1 has observable side effects (logging, billing), you have now triggered them twice."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.55,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_7",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      14,
+      17
+    ],
+    "bloom_level": 4,
+    "bloom_label": "Analyze",
+    "question": "You are advising a client whose RAG pipeline consistently retrieves chunks that are semantically close to the query but miss the actual answer, which appears a few paragraphs away from the retrieved chunk. They are using 512-token fixed-size chunks with zero overlap. Diagnose the root cause, propose a complete remediation strategy, and explain the tradeoff of each option you consider. Structure your response as you would in a client-facing mentoring session — not as a code walkthrough.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.65,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 300,
+    "requires_explanation": true
+  },
+  {
+    "id": "q_8",
+    "generation_id": "7ad86126-69c7-40b1-807e-ba12dd21df13",
+    "concept_indexes": [
+      0,
+      4
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A Maestro.io client trains a churn classifier on a dataset with 95% non-churn and 5% churn labels. The model achieves 95.5% accuracy on the held-out test set. Why is accuracy a misleading evaluation metric here, and which metric better reflects the model's real-world utility for a customer retention program?",
+    "format": "mcq",
+    "options": {
+      "A": "The test set is too small to produce a reliable accuracy estimate; collecting more churn examples and retraining would resolve the evaluation problem.",
+      "B": "A classifier that predicts 'no churn' for every customer achieves 95% accuracy — making the trained model only 0.5% better than a trivial baseline. Accuracy on imbalanced datasets reflects the majority class distribution, not predictive value on the minority class. Recall on the churn class — the fraction of actual churners correctly flagged — is the critical metric for a retention intervention program.",
+      "C": "Accuracy includes true negatives, which are irrelevant to churn prediction. AUC-ROC is always the correct metric for any imbalanced classification problem.",
+      "D": "95.5% accuracy corresponds to only 4.5% misclassification — this is a strong result. The evaluation is sound; the next step is deployment and live monitoring."
+    },
+    "correct": "B",
+    "correct_explanation": "On a dataset with 95% non-churn, a trivial classifier that always outputs 'no churn' achieves 95% accuracy with zero predictive value. The trained model at 95.5% is barely better than this degenerate baseline. The correct diagnostic is to decompose performance by class: if the model identifies only 20% of actual churners (recall = 0.20), the intervention team has no actionable signal despite the high headline accuracy. For a retention program, the cost of a missed churner vastly exceeds the cost of a false alarm — recall on the positive class is the primary signal, with precision-recall tradeoff and F1 as secondary tools for tuning the operating threshold.",
+    "distractor_explanations": {
+      "A": "Dataset size affects estimate variance but does not change the fundamental imbalance problem. Even with a very large test set, accuracy would still be dominated by the majority class distribution. The evaluation metric choice is independent of dataset size.",
+      "C": "AUC-ROC is a useful metric for imbalanced problems but is not universally 'always correct.' For severely imbalanced datasets, AUC-ROC can remain high even when the model is nearly useless at the operating threshold — Precision-Recall AUC is often more diagnostic for rare-event detection. The blanket claim overgeneralizes.",
+      "D": "This conflates overall error rate with class-specific utility. A 4.5% global error rate concentrated almost entirely on the minority (churn) class means the model may miss most churners. High accuracy on an imbalanced problem is not evidence of a strong model — it is the first red flag to investigate."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.35,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  }
+]
