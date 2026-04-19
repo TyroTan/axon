@@ -1,0 +1,66 @@
+[
+  {
+    "question_id": "q_1",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "Add a mid process to do chunking the big chunk further by semantic meaning instead, this way the compact meaning/reasoning is preserved, noise can even be lessen this way but that's a different concern. As opposed to fixed size chunking which dilutes the compact and hides the individual semantic meaning by \"averaging\", as each big chunk can contain 1 or more sub topics which deserves their own chunk, this explains the loss of more relevant and specific guideline synthesis.",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_2",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "A query matching a chunk by semantic similarity doesn't mean it matched something relevant. The result with even as high as 0.92 score could just be a synonym of the very query, which in this case, nothing is insightful or actionable.",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_3",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "C",
+    "confidence": 3,
+    "explanation": "BM25 scoring isn't normalized to work with semantic search scoring or the other way around. Thus, the ranking logic needs to be updated to correctly highlight the closest one by meaning, if not the most relevant ones.",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_4",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "D",
+    "confidence": 3,
+    "explanation": "The idea in D is best for me, the part about \"caching\", I disagree with the elimination of re-ranking though. But if caching is so good, there's no need for all the steps in the pipeline and one can remove cross-enconder re-ranking as it's the one causing more of the latency issue. But there's clear trade off here, and this would almost only work if the past data is rich enough to be able to easily even improve this better by introducing pre-processing or indexing, such that the pre-generation process is now only more on semantic search against, common answers, if the query is close enough to \"mapped\" or anticipated common FAQs. If the query is genuinely new though, I think we could reduce the re-ranking part from 20 to 5 for starters.",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_5",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "A",
+    "confidence": 3,
+    "explanation": "with state of the art model today, with an overall context token of only 8k per query, is very well within the \"completely\" perfectly consumable range by an llm with high fidelity and battle-tested.",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_6",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "D",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_7",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "1. For health related software like this involving an AI assistant or suggestion about supplements and diets, enforce a HITL in the process for extra layer of correctness. Regenerate or restructure the RAG system corpora into the form of Q \u0026 A, then have it reviewed by an expert so the ground truth is set and actually enforced. Then from there, we can proceed with testing.\n2. Suppose the Q\u0026A pairs are now expert vetted as ground truth, the quality assurance would be done by an actual human, who is given access to an interface who can monitor semantic search actual examples and results, and check whether the synthesis works or not, this way it's more reliable and related by an actual human or end-user.\n3. I'd introduce a 3 extra process runtime or post-process.\nFirstly, add guard-rails to fine tune the synthesis to enforce the mentioned safety rules\nSecondly, indicate in the SLA that the system is \"recommendations\" only and not a substitute to an experts actual advice or suggestions.\nThirdly, if processing/cost is not an issue, introduce a post process, or a checker running in the background which would alert the developer/company if a ambiguous or malicious query + answer is detected.\n4. Falls in the the similar case about post or background process, quality engineering. But add another case, this time to anticipate anomalous responses, given the common FAQs or query cache is rich",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_8",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "selected_answer": "introduce multi-step of conditional context management per step for as long as it wouldn't go against the total latency requirement, so value relevant top-k retrieved the must, conditionally do a multi-hop to summarize a chunk when necessary, as well as the history if it starts growing in tokens, but not in substance. Effectively truncating both sides, the top-k retrieved chunks by score threshold, or the conversation history as it begins to balloon. As with the latency SLA enforcements of only \u003c 2.5, incorporate with a caching logic, data analysis, which distribution or queries or topics by semantic meaning is most common, then focus all the effort in that area, like the indexing, pre/post processing to restructure or index the corpora. This way the search engine would be just more of a semantic search rather than a complete synthesis pipeline. On top of that, this caching wouldn't only help the latency concern but also ground truth as the human ground truth vet against the Q\u0026A index is most likely going to be enforced. All this will be possible with a human in the loop, it doesn't have to happen in the runtime pipeline",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  }
+]

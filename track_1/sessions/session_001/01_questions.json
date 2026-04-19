@@ -1,0 +1,225 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      0
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A model achieves 99% accuracy on its training set but only 61% on a held-out test set. Which concept most precisely explains this outcome?",
+    "format": "mcq",
+    "options": {
+      "A": "Underfitting — the model failed to capture the underlying patterns in the training data",
+      "B": "Overfitting — the model memorized training examples rather than learning generalizable patterns",
+      "C": "Data leakage — training and test distributions are too similar, inflating test accuracy expectations",
+      "D": "Label noise — corrupted training labels caused artificially high training accuracy"
+    },
+    "correct": "B",
+    "correct_explanation": "Overfitting occurs when a model learns the specific noise and details of training examples rather than the underlying distribution. The large gap between training accuracy (99%) and test accuracy (61%) is the canonical signature: the model memorized rather than generalized.",
+    "distractor_explanations": {
+      "A": "Underfitting would produce *low* training accuracy, not the near-perfect 99% described here.",
+      "C": "Data leakage typically inflates test accuracy (making it look better than it is), not worse — the opposite of what is observed.",
+      "D": "Label noise degrades training accuracy by making the signal inconsistent; it does not cause training accuracy to appear artificially high."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.25,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 50,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      0,
+      4
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A binary classifier for rare disease detection (1% prevalence) achieves 99% accuracy by predicting 'healthy' for every patient. Which metric most directly exposes this failure, and why?",
+    "format": "mcq",
+    "options": {
+      "A": "Accuracy — it measures the overall fraction of correct predictions across all classes",
+      "B": "Precision — it measures how often a positive prediction is actually positive",
+      "C": "Recall — it measures what fraction of true positives the model correctly identifies",
+      "D": "F1 score — it balances precision and recall into a single metric"
+    },
+    "correct": "C",
+    "correct_explanation": "Recall (true positive rate) equals 0 for this classifier because it never predicts the positive class, catching zero actual disease cases. Accuracy is misleading here because the class imbalance (99% negative) means a trivial all-negative predictor achieves 99% accuracy. Recall immediately shows the model is useless for its intended purpose.",
+    "distractor_explanations": {
+      "A": "Accuracy is precisely the metric that *hides* the failure — it reports 99% even though the model has zero diagnostic utility.",
+      "B": "Precision is undefined (0/0) when the model never predicts positive, so it cannot expose the failure on its own.",
+      "D": "F1 score would also be 0 here (since recall is 0), but F1 is a composite — recall alone is the direct and simpler diagnostic."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.35,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 65,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      2
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A neural network is trained using gradient descent with a very large learning rate. Which outcome best describes the likely training behavior?",
+    "format": "mcq",
+    "options": {
+      "A": "Faster convergence to the global minimum, because larger steps cover more loss landscape per update",
+      "B": "Parameter updates overshoot the minimum, causing loss to oscillate or diverge rather than decrease steadily",
+      "C": "Gradients are proportionally scaled down by the optimizer, so learning proceeds normally but slower",
+      "D": "The model underfits because fewer update steps are taken before the learning rate schedule decays"
+    },
+    "correct": "B",
+    "correct_explanation": "The parameter update rule subtracts the gradient scaled by the learning rate: θ ← θ − η∇L. If η is too large, the update step overshoots the local minimum — the parameters 'jump over' it to a region of higher loss on the other side. Repeating this causes the loss to bounce or explode rather than converge.",
+    "distractor_explanations": {
+      "A": "A very large learning rate does not reliably find the global minimum — it most often causes divergence. Faster convergence requires a *well-tuned* rate, not an arbitrarily large one.",
+      "C": "Standard gradient descent has no built-in mechanism to scale down gradients in response to a large learning rate; that is the job of adaptive optimizers like Adam, which is a separate concept.",
+      "D": "Underfitting is caused by insufficient model capacity or too few training steps, not directly by a large learning rate. A large rate typically causes instability, not simply fewer effective updates."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.3,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 55,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      2,
+      8
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A 20-layer deep neural network is trained via backpropagation. Each layer uses sigmoid activations whose derivatives are consistently around 0.2. What training problem is most likely to emerge as gradients propagate backward through all 20 layers?",
+    "format": "mcq",
+    "options": {
+      "A": "Exploding gradients — repeated multiplication of values greater than 1 causes gradients to grow exponentially",
+      "B": "Vanishing gradients — repeated multiplication of values less than 1 causes gradients to shrink toward zero, making early-layer weights untrainable",
+      "C": "Overfitting — deeper networks have more parameters and therefore memorize training data more readily",
+      "D": "Slow forward pass — the 20-layer computational graph requires too much memory to evaluate efficiently"
+    },
+    "correct": "B",
+    "correct_explanation": "The chain rule multiplies gradients layer by layer during backpropagation. With 20 layers each contributing a factor of ~0.2, the gradient reaching the first layer is approximately 0.2^20 ≈ 1e-14 — effectively zero. Early layers receive no meaningful gradient signal and their weights stagnate. This is the vanishing gradient problem.",
+    "distractor_explanations": {
+      "A": "Exploding gradients occur when layer derivatives are consistently *greater than 1*, causing exponential growth backward. Values of 0.2 per layer cause the opposite: exponential shrinkage.",
+      "C": "While deeper networks can overfit, overfitting is a function of model capacity relative to data size — it is not caused by the gradient propagation dynamics described here.",
+      "D": "Forward pass complexity is unrelated to the magnitude of backward gradients; memory constraints are a separate concern from gradient vanishing."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 70,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In the Transformer's self-attention mechanism, what is the functional role of the Query, Key, and Value vectors for each token?",
+    "format": "mcq",
+    "options": {
+      "A": "Query encodes the token's position in the sequence; Key encodes its syntactic role; Value encodes its semantic embedding magnitude",
+      "B": "Query represents what the current token is 'looking for'; Key represents what each token 'advertises' as matchable content; Value carries the information that is actually retrieved when a match score is high",
+      "C": "Query and Key form a residual connection that preserves the input embedding, while Value passes through a feed-forward sublayer unchanged",
+      "D": "Query selects the next token to generate; Key indexes into the vocabulary embedding matrix; Value stores frequency statistics from pretraining"
+    },
+    "correct": "B",
+    "correct_explanation": "Self-attention computes dot products between a token's Query and every other token's Key to produce attention weights (after softmax scaling). These weights are used to compute a weighted sum of Value vectors. Intuitively: the Query asks a question, Keys signal relevance, and Values deliver the answer. This framing explains why attention can route information selectively across positions.",
+    "distractor_explanations": {
+      "A": "Positional information is handled by positional encoding added to embeddings before attention, not by the Key vector itself. Q/K/V roles are about information routing, not position encoding.",
+      "C": "Residual connections are a separate architectural component added *around* the attention sublayer, not constructed from Q and K. Values are not passed unchanged — they are weighted and summed.",
+      "D": "Q/K/V are computed per token at each layer via learned linear projections from the hidden state; they have no direct relationship to token generation order or vocabulary frequency statistics."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.35,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 65,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_6",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      7,
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In an RNN processing a 500-token document, information from token 1 must pass through 499 sequential hidden-state transitions to influence the prediction at token 500. How does the Transformer's attention mechanism fundamentally eliminate this bottleneck?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "It processes tokens in parallel using convolutional filters that span the full sequence, avoiding recurrence entirely",
+      "B": "It applies positional encoding to compress the full sequence into a single fixed-length context vector before any attention is computed",
+      "C": "It computes direct pairwise compatibility scores between every pair of token positions in a single operation, so any token can attend to any other regardless of distance",
+      "D": "It segments the sequence into fixed windows and applies local recurrence within each window, reducing the maximum path length from 500 to the window size"
+    },
+    "correct": "C",
+    "correct_explanation": "Attention computes QK^T to produce an N×N score matrix where entry (i,j) measures how much token i should attend to token j — regardless of how far apart i and j are. Token 1 and token 500 interact directly in a single matrix operation with no intermediate states. The 'path length' between any two positions is O(1) in attention versus O(N) in an RNN.",
+    "distractor_explanations": {
+      "A": "While Transformers do process tokens in parallel, convolutions are not the mechanism — and standard convolutions have a limited receptive field that grows only with depth, they do not inherently provide full-sequence attention.",
+      "B": "Positional encoding adds position information to token embeddings before attention; it does not compress the sequence into a single vector. That describes a different architecture (sequence-to-sequence encoder with a bottleneck).",
+      "D": "This describes sliding-window or local attention variants (e.g., Longformer), not the standard Transformer. Vanilla attention attends to all positions globally."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_7",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "You are building a RAG system over a legal contract corpus. Individual clauses are 3–8 sentences long and frequently reference other clauses by number (e.g., 'as defined in §4.2'). You must choose between: (A) fixed-size chunking at 512 tokens with no overlap, or (B) semantic chunking that splits at clause boundaries. Which strategy should you apply, and what is the primary failure mode of the rejected strategy?",
+    "format": "mcq",
+    "options": {
+      "A": "Fixed-size chunking — uniform size ensures consistent embedding quality; the failure mode of semantic chunking is unpredictable chunk sizes that degrade retrieval latency",
+      "B": "Semantic chunking at clause boundaries — clauses are the natural retrieval unit; fixed-size chunking risks splitting a clause mid-sentence, severing cross-references and making retrieved chunks legally incomplete",
+      "C": "Fixed-size chunking with 50-token overlap — overlap recovers any split clauses, making boundary-awareness unnecessary",
+      "D": "Either strategy is equivalent — the embedding model normalizes semantic content regardless of where splits occur"
+    },
+    "correct": "B",
+    "correct_explanation": "Legal clauses are the minimal coherent unit of meaning in a contract. Splitting mid-clause with fixed-size chunking severs the clause from its context (definitions, conditions, cross-references to §4.2) — the retrieved chunk is legally ambiguous or incomplete. Semantic chunking preserves clause integrity so each retrieved chunk can stand alone as a meaningful contractual unit. The failure mode of fixed-size chunking here is broken semantic atomicity.",
+    "distractor_explanations": {
+      "A": "Retrieval latency is not determined by chunk size uniformity in any meaningful way for most embedding pipelines. More critically, this answer incorrectly frames the tradeoff — the real issue is semantic completeness, not latency.",
+      "C": "Overlap reduces the probability of critical splits but does not eliminate them — a 50-token overlap cannot guarantee that an 8-sentence clause is never split across two chunks. It also doubles storage and retrieval cost without solving the root problem.",
+      "D": "Embedding models represent the content they receive; they cannot reconstruct a clause's meaning if half the clause is in a different chunk. Chunk boundaries directly determine what semantic unit the embedding represents."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_8",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      27
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In a plan-execute agentic loop where an agent performs multi-step tasks (file edits, database writes, API calls), explain why idempotency is a critical design requirement for individual step operations. Describe at least two failure scenarios that idempotency protects against, and state what property a step must have to be considered idempotent.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 150,
+    "requires_explanation": true
+  }
+]

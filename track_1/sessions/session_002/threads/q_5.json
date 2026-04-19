@@ -1,0 +1,18 @@
+{
+  "question_id": "q_5",
+  "claude_session_id": "d5d69375-a2e6-4279-9ab6-0ea9f4c86394",
+  "accumulated_input_tokens": 3,
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Your intuition about Key-Value as a dictionary was genuinely on the right track — that analogy captures the K/V relationship well. But you picked answer A, which misassigns Key as storing positional encoding, and that framing is the core mistake. Positional encoding is injected into the token embeddings *before* the attention projections; Key, Query, and Value are separate linear transformations on top of that.\n\nThe key insight you missed: **Query is the \"searcher.\"** It represents what the current token is looking for, and the Q·K dot product scores how compatible each (query, key) pair is — like a learned relevance signal. Once those scores become attention weights (via softmax), they're applied to the **Values**, which carry the actual content to aggregate. Crucially, separating Q·K matching from V retrieval means the model can learn *what to attend to* completely independently of *what it pulls back* — that decoupling is the whole design point of answer B.\n\nWhat part would you like to dig into — why the Q·K separation matters, or why positional encoding lives outside of this mechanism?",
+      "ts": "2026-04-16T21:39:34.460028+08:00",
+      "meta": {
+        "call_mode": "seeded",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 10,
+        "claude_session_id": "d5d69375-a2e6-4279-9ab6-0ea9f4c86394"
+      }
+    }
+  ]
+}

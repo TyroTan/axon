@@ -1,0 +1,189 @@
+[
+  {
+    "question_id": "q_1",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      0
+    ],
+    "correctness": 1,
+    "explanation_score": 0.7,
+    "explanation_subscores": {
+      "mechanism_accuracy": 4,
+      "terminology_precision": 3,
+      "edge_case_awareness": 3,
+      "generalization_quality": 3
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner correctly identifies the train/test accuracy gap as the canonical overfitting signature. Raises legitimate intellectual uncertainty about label noise as an alternative explanation — shows good epistemic calibration. Mentions L1/L2 regularization as remediation, which is accurate. The question about visualization and diagnostic methods is intellectually honest and relevant.",
+    "feedback_for_learner": "Correct identification and solid reasoning. For diagnosing overfitting visually, plot training vs. validation loss curves over epochs — the divergence point is your diagnostic. Label noise is a real alternative hypothesis, but it would typically inflate train accuracy only slightly and wouldn't produce a 38-point gap alone; the magnitude here strongly implicates overfitting. L1/L2 regularization, dropout, and early stopping are all valid next steps."
+  },
+  {
+    "question_id": "q_2",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      0,
+      4
+    ],
+    "correctness": 1,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "Correct answer selected with no explanation provided. Cannot assess depth of understanding beyond recall of the correct option.",
+    "feedback_for_learner": "Correct. To solidify this concept, practice articulating it mechanically: recall = TP / (TP + FN), and an all-negative predictor has TP=0 so recall=0 regardless of class distribution. Being able to derive this from the formula, not just recognize the answer, will serve you on novel imbalanced-class problems."
+  },
+  {
+    "question_id": "q_3",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      2
+    ],
+    "correctness": 1,
+    "explanation_score": 0.15,
+    "explanation_subscores": {
+      "mechanism_accuracy": 1,
+      "terminology_precision": 1,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": "Keyword matching substituting for mechanistic understanding — learner explicitly states they identified the answer by locating the terms 'overshoot' and 'oscillate' rather than reasoning through the update rule. This strategy will fail on paraphrased or novel formulations.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "Answer is correct but the learner's own explanation reveals a surface-level pattern-matching strategy rather than causal understanding. The explanation offers no mechanistic content and actively discloses the shortcut used.",
+    "feedback_for_learner": "The answer is right, but keyword-spotting won't generalize to harder variants of this question. Work through the update rule directly: θ ← θ − η∇L. If η=10 and your gradient points toward a minimum at distance 1, the update lands you at distance 9 on the other side — that's the overshoot. Understanding the geometry makes the outcome obvious without needing to pattern-match on answer wording."
+  },
+  {
+    "question_id": "q_4",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      2,
+      8
+    ],
+    "correctness": 1,
+    "explanation_score": 0.5,
+    "explanation_subscores": {
+      "mechanism_accuracy": 3,
+      "terminology_precision": 2,
+      "edge_case_awareness": 2,
+      "generalization_quality": 2
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner grasps the core mechanism (repeated small-factor multiplication causing signal decay) and notes that 0.2 is not intuitively 'small' — showing good quantitative intuition. However, the explanation conflates vanishing gradients with a general notion of 'not exploring features,' and the learner acknowledges uncertainty about upstream architectural causes. The answer does not mention the actual exponential math (0.2^20 ≈ 1e-14).",
+    "feedback_for_learner": "Solid intuition. Pin it with the calculation: 0.2^20 ≈ 1×10⁻¹⁴ — even a value that feels moderate compounds to near-zero over 20 layers. The standard architectural fixes are ReLU activations (whose derivative is 1 for positive inputs, not \u003c1) and residual/skip connections (which add a gradient highway that bypasses the multiplication chain)."
+  },
+  {
+    "question_id": "q_5",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      32
+    ],
+    "correctness": 1,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "Correct answer, no explanation provided. Cannot assess understanding of the Q/K/V mechanism.",
+    "feedback_for_learner": "Correct. To internalize this, trace one concrete example: given a token 'bank' in 'river bank,' its Query vector encodes 'what context am I looking for?', the Key of 'river' scores high relevance, and its Value carries the geographic/physical sense that gets retrieved and mixed into the output representation. This concrete tracing is what L3 application of this concept looks like."
+  },
+  {
+    "question_id": "q_6",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      7,
+      32
+    ],
+    "correctness": 0,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "overconfident",
+    "error_taxonomy": "misconception",
+    "misconception_identified": "Learner conflates positional encoding with a sequence compression operation. Positional encoding adds position information to individual token embeddings; it does not compress the full sequence into a fixed-length context vector. That description maps to the encoder bottleneck in pre-Transformer seq2seq models — the very bottleneck Transformers were designed to eliminate.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "Answer B was selected, which incorrectly attributes the bottleneck elimination to positional encoding performing sequence compression. This is a fundamental misconception about what positional encoding does. The correct answer (C) describes the QKᵀ pairwise score matrix that gives every token O(1) direct access to every other token. No explanation was provided to assess reasoning.",
+    "feedback_for_learner": "Positional encoding only injects position signals into each token's embedding — it does not compress or summarize the sequence. The actual bottleneck elimination comes from the attention matrix: QKᵀ produces an N×N grid where every pair of positions interacts directly in one matrix operation, so token 1 and token 500 are exactly one step apart regardless of sequence length. The RNN bottleneck arises because information must flow through 499 sequential state transitions; attention collapses that path length to O(1)."
+  },
+  {
+    "question_id": "q_7",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      14
+    ],
+    "correctness": 1,
+    "explanation_score": 0.85,
+    "explanation_subscores": {
+      "mechanism_accuracy": 4,
+      "terminology_precision": 4,
+      "edge_case_awareness": 5,
+      "generalization_quality": 4
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 3,
+    "evaluator_notes": "Learner correctly identifies semantic atomicity as the failure mode of fixed-size chunking and articulates the specific legal domain risk (cross-clause references severed). Explanation goes beyond the question to propose production-relevant extensions: dynamic top-k clause aggregation with deduplication logic, noise/benefit tradeoff analysis for high-stakes domains, hybrid graph retrieval, and a reference-unpacking tool via MCP. These are advanced architectural decisions, not rote recall.",
+    "feedback_for_learner": "Excellent applied reasoning. The dynamic top-k aggregation and reference-unpacking tool idea are exactly the kind of system-level thinking legal RAG demands — cross-reference resolution is the hardest part of contract retrieval. One refinement: when doing dynamic top-k expansion, consider tracking clause provenance and using a deduplication key (clause ID) to avoid re-fetching content from the same clause multiple times as k grows."
+  },
+  {
+    "question_id": "q_8",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "concept_indexes": [
+      27
+    ],
+    "correctness": 0.6,
+    "explanation_score": 0.55,
+    "explanation_subscores": {
+      "mechanism_accuracy": 3,
+      "terminology_precision": 2,
+      "edge_case_awareness": 3,
+      "generalization_quality": 3
+    },
+    "brier_contribution": 0.009999999999999995,
+    "calibration_flag": null,
+    "error_taxonomy": "recall_gap",
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner correctly identifies the motivation for idempotency (non-atomic async multi-step loops), lists valid failure scenarios (double transactions, broken state, unnecessary reprocessing, race conditions), and connects it to resumability and debuggability. However, the formal property definition — the core of what the question asked — is never stated: a step is idempotent if executing it multiple times produces the same result as executing it once (f(f(x)) = f(x)). Without this, the answer explains why idempotency matters but not what it is. The question explicitly asked for this property.",
+    "feedback_for_learner": "Good coverage of failure modes and motivations. The missing piece is the formal definition: a step is idempotent if applying it N times yields the same outcome as applying it once. Concretely: a database write using INSERT OR REPLACE (upsert) is idempotent — running it twice leaves one record. A plain INSERT is not — running it twice creates a duplicate. In agentic loops, designing every step to be an upsert/overwrite rather than an append means any crashed step can be safely retried without auditing prior state."
+  }
+]

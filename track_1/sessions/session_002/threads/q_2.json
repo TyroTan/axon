@@ -1,0 +1,18 @@
+{
+  "question_id": "q_2",
+  "claude_session_id": "76f18fd3-bcc6-421e-a156-0905bdcd1a83",
+  "accumulated_input_tokens": 3,
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Good news: you got this one right. The answer is C, and your instinct to select it was correct.\n\nThat said, your explanation went sideways — you wrote \"the go-to process is mini-batch\" and said the behavior maps to A or B, which directly contradicts C. So the answer was right, but the reasoning that got you there wasn't. That's worth untangling, because on a harder question the same fuzzy thinking would lead to a wrong answer.\n\nThe key insight you're missing: **SGD uses exactly one training example per update.** That single-sample gradient is extremely noisy — it points in roughly the right direction on average, but each individual step reflects one random data point rather than the true loss surface. That's where the oscillation comes from. Mini-batch averaging smooths this out by computing the gradient over a small batch, reducing variance. The fix for SGD instability is either switching to mini-batches or turning down the learning rate to dampen the amplitude of those noisy steps.\n\nWhat's your current mental model of the difference between SGD and mini-batch? Happy to work through it if it's still blurry.",
+      "ts": "2026-04-16T18:16:17.599397+08:00",
+      "meta": {
+        "call_mode": "seeded",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 10,
+        "claude_session_id": "76f18fd3-bcc6-421e-a156-0905bdcd1a83"
+      }
+    }
+  ]
+}

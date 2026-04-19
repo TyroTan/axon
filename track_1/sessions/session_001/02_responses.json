@@ -1,0 +1,66 @@
+[
+  {
+    "question_id": "q_1",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "The test set is unseen to the model, so since it's failing hard compared to its training accuracy, it has to be a overfitting issue. But I'm not sure what are the chances there are incorrect labeling in the input data. Is it always necessary to visualize the actual issue to prove the actual overfitting happening? What are the best methods to do that then? In this case, it's most likely I will do a trial and error-ish method with, manual (unhealthy tedious check) to each input labeling, hyperparameter tuning with L1 or L2 regularization, or what am I missing?",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_2",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "C",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_3",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "It has to be B, in these type of questions about large learning rate, I just find the keyword/terms \"overshoot\" and \"oscillate\"",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_4",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "0.2 value is a bit far from 0.0 but this is considered the \"vanishing gradients\" case to me. And since this is too consistent, I don't know but this is suspicious and sounds like the model isn't really able to explore any \"features\", thus, not learning. To be honest, I can't tell which of the upstream (from raw input and model, layer design or decisions) elements is causing this looking like a new behavior to me",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_5",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_6",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_7",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "Semantic chunking is critical here, but I would still graph-retrieve the whole clause if it doesn't overlap to each other of the top-k (or top 3 result -\u003e would be dynamic as if top 3 belongs to the same clause, then could go to top 4, top 5, and so on). I know that we are essentially introducing noise eventually here, but since this is about \"legal\" or critical process, the \"cost\" is outweighed by the benefit here. A, or the fixed-size chunking is a little too naive here and each chunk would be diluted as it could contain multiple meaning, thus, chunkable into a few more items with distant semantic meaning, in fact, one chunk can contain the \"reference\" so from here it doesn't carry the true meaning/text. Which tells me there has to be a hybrid or graph based approach. Or it could be an overkill but I could introduce a MCP tool that would search the corpora given a reference (and a smart orchestrator can use this whenever it thinks it needs to find/unpack a given reference)",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_8",
+    "generation_id": "b56237bc-5191-421c-a49b-fb22f979d64a",
+    "selected_answer": "The process described involves many non-deterministic or async steps the main system or loop itself can not ensure to resolve in an atomic way. Idempotency helps here to support robust workflow execution, resumeability, trackability and debuggability, \"retrieability\", and to maintain or ensure data/process integrity. Without idempotency support, we are risking issues like double transactions, broken states or data, unnecessary reprocessing of \"already done\" steps, race conditions and etc.",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  }
+]

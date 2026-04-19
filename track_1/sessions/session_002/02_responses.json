@@ -1,0 +1,66 @@
+[
+  {
+    "question_id": "q_1",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "This sounds to me like we are testing selectively from our whole data, to help detect \"inference generalization\" behavior, then after this is maybe where we fine tune hyperparameters like dropout, not sure what else to nudge though",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_2",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "C",
+    "confidence": 3,
+    "explanation": "I think the go to process in this case is the mini-batch gradient descent, probably what's used here is A or B",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_3",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "C",
+    "confidence": 3,
+    "explanation": "Cross-entropy is best for cases where the data/binary source is significantly unbalanced",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_4",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "C",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_5",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "A",
+    "confidence": 3,
+    "explanation": "My kindergarten knowledge in the old but gold transformers is that key is to a term, as value is to a concept, thus, referring to the key alone wouldn't be accurate as it might be pointing to a different \"value\" depending on the context.",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_6",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "A",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_7",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "the chain rule is integral so both forward and backward pass works. It is the process used where a random bias plus input parameter has to pass to, so the model learns by computing the error, with gradient descent helping finding the local min, know how to nudge the parameters to minimize it. Without the chain rule, this highly optimized process wouldn't be easy to achieve, because it almost perfectly works against the nature of the input (matrices product), the flow for both direction, and extracting useful information nature to it's characteristics (like chain effect) working well with random-ish data, especially getting the answer to questions like \"how to minimize the error\". One thing to be careful about is the fine-tuning of hyper parameters and even the selection of the kind of gradient descent, to work against overfitting, or underfitting, or bad learning rate value, resulting to the process failing to minimize efficiently, or find the local minima reliably",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  },
+  {
+    "question_id": "q_8",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "selected_answer": "B",
+    "confidence": 3,
+    "explanation": "",
+    "time_seconds": 0
+  }
+]

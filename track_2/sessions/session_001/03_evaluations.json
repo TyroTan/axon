@@ -1,0 +1,188 @@
+[
+  {
+    "question_id": "q_1",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      14
+    ],
+    "correctness": 1,
+    "explanation_score": 0.7,
+    "explanation_subscores": {
+      "mechanism_accuracy": 4,
+      "terminology_precision": 3,
+      "edge_case_awareness": 2,
+      "generalization_quality": 3
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 3,
+    "evaluator_notes": "Learner correctly identifies embedding averaging as the root cause and proposes semantic sub-chunking as the fix. The 'averaging' metaphor is accurate. Loses points for not connecting chunk size reduction with overlap strategy, and for informal phrasing like 'compact meaning/reasoning' where 'semantic coherence' or 'topical focus' would be precise.",
+    "feedback_for_learner": "You correctly identified the core mechanism: large chunks embed multiple subtopics into one vector, diluting the retrieval signal for any single concept. To sharpen your explanation, connect this to the fix quantitatively — smaller chunks (e.g., 256–512 tokens) make each embedding represent a single coherent idea, so retrieval precision improves because the embedding direction aligns more closely with a specific clinical question rather than a broad topic average."
+  },
+  {
+    "question_id": "q_2",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      13,
+      15
+    ],
+    "correctness": 1,
+    "explanation_score": 0.52,
+    "explanation_subscores": {
+      "mechanism_accuracy": 3,
+      "terminology_precision": 2,
+      "edge_case_awareness": 2,
+      "generalization_quality": 3
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner grasps the topical-proximity-does-not-imply-answer-relevance insight, which is the core of option B. However, framing the failure as 'just a synonym' mischaracterizes the mechanism — a synonym of the query would still be unhelpful, but the real issue is topical overlap without answer containment (e.g., a PCOS chunk on mechanism shares embedding direction with a PCOS chunk on diet). No embedding space terminology used.",
+    "feedback_for_learner": "You have the right intuition — high similarity does not guarantee the chunk contains the answer. To articulate this more precisely: cosine similarity measures the angle between vectors in embedding space, capturing whether two texts discuss the same general topic (PCOS insulin resistance vs. PCOS diet are neighbors in that space). The failure mode is that topical proximity and answer containment are different properties — a chunk can score 0.92 by being on-topic while the specific answer to the user's question is simply not present in it."
+  },
+  {
+    "question_id": "q_3",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      16
+    ],
+    "correctness": 1,
+    "explanation_score": 0.48,
+    "explanation_subscores": {
+      "mechanism_accuracy": 3,
+      "terminology_precision": 2,
+      "edge_case_awareness": 2,
+      "generalization_quality": 3
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner correctly identifies normalization as the core problem. The explanation stays at the correct conceptual level but does not articulate why normalization matters mechanistically — BM25 is unbounded (e.g., scores of 0.3 to 12.4 are both valid) while cosine is bounded in [-1,1], so naive combination lets BM25 magnitude dominate. No mention of RRF or min-max normalization as solutions.",
+    "feedback_for_learner": "You identified the normalization gap correctly. To make this precise: BM25 produces corpus-dependent, unbounded scores — a single high-IDF term match can push a score to 10+ — while cosine similarity is bounded in [-1, 1]. Summing or averaging them directly means BM25 scale dominates regardless of semantic quality. The standard fix is Reciprocal Rank Fusion (RRF), which combines ranked lists rather than raw scores, or per-query min-max normalization before combining."
+  },
+  {
+    "question_id": "q_4",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      17
+    ],
+    "correctness": 0,
+    "explanation_score": 0.55,
+    "explanation_subscores": {
+      "mechanism_accuracy": 3,
+      "terminology_precision": 2,
+      "edge_case_awareness": 3,
+      "generalization_quality": 3
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "overconfident",
+    "error_taxonomy": "reasoning_error",
+    "misconception_identified": "Learner recognized caching's conditional benefit and its dependency on query distribution richness, and independently arrived at 'reduce re-ranking from 20 to 5' in their own reasoning — but still committed to D rather than following their own correct conclusion.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 3,
+    "evaluator_notes": "Notably, the learner's own explanation contains the correct answer (reduce top-k from 20 to 5) but they selected D. The reasoning error is selecting a solution that only works probabilistically (caching only helps repeat queries) over one that deterministically meets SLA for every query. The reasoning about caching trade-offs and data richness dependency shows genuine analytical thinking.",
+    "feedback_for_learner": "You actually reasoned your way to the correct answer in your own explanation — reducing re-ranking candidates from 20 to 5 — but selected D instead. The key distinction: caching only eliminates latency for queries that have been seen before, meaning novel queries still breach SLA. Reducing the candidate pool cuts cross-encoder inference by ~75% (linear scaling) for every query deterministically, bringing total latency to ~2,550ms. In a health domain with high query diversity, the deterministic fix is always preferable to a probabilistic one."
+  },
+  {
+    "question_id": "q_5",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      21
+    ],
+    "correctness": 1,
+    "explanation_score": 0.38,
+    "explanation_subscores": {
+      "mechanism_accuracy": 2,
+      "terminology_precision": 2,
+      "edge_case_awareness": 1,
+      "generalization_quality": 2
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner correctly identifies that 8k tokens fits in context, which is the necessary condition. However, the explanation doesn't complete the argument: fitting in context is only a reason to prefer direct injection if you also articulate what RAG costs — chunking pipeline, vector index maintenance, retrieval failure modes (recall@k ceiling, precision errors). 'Battle-tested' is not a technical argument.",
+    "feedback_for_learner": "You correctly identified that 8,000 tokens fits within a modern LLM's context window. To complete the reasoning: when a corpus fits in-context, RAG adds complexity and failure modes without quality benefit. Specifically, RAG introduces a recall ceiling (you can only retrieve top-k chunks, not all relevant content), retrieval precision errors, and pipeline maintenance overhead. Direct injection sends the entire corpus every time — simpler, more reliable, and zero retrieval failure modes for a small static document."
+  },
+  {
+    "question_id": "q_6",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      13,
+      14
+    ],
+    "correctness": 0,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "overconfident",
+    "error_taxonomy": "misconception",
+    "misconception_identified": "Learner appears to believe BM25 exact character matching can substitute for multilingual semantic representation, treating the Hindi problem as a keyword-matching problem rather than an embedding coverage problem.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "No explanation provided. Selection of D reveals a misconception: BM25 can match Hindi character sequences but cannot understand what they mean or bridge them to semantically related English chunks in a shared embedding space. The vendor's claim is about embedding dimension; the correct refutation requires understanding that training data coverage — not capacity — determines embedding quality.",
+    "feedback_for_learner": "BM25 can find exact character matches for Hindi terms, but it cannot understand what they mean or relate them to English clinical content — it would return chunks containing the literal string 'metformin' in Hindi script but has no semantic model. The correct reasoning is that embedding quality depends on training data coverage: a 1,536-dim English-only model has never seen Hindi clinical text, so Hindi queries land in meaningless regions of its embedding space regardless of dimension count. A smaller multilingual model trained on clinical text in both languages will outperform it because its embedding space actually represents Hindi vocabulary."
+  },
+  {
+    "question_id": "q_7",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      20
+    ],
+    "correctness": 0.42,
+    "explanation_score": 0.42,
+    "explanation_subscores": {
+      "mechanism_accuracy": 2,
+      "terminology_precision": 1,
+      "edge_case_awareness": 2,
+      "generalization_quality": 2
+    },
+    "brier_contribution": 0.006400000000000003,
+    "calibration_flag": null,
+    "error_taxonomy": "recall_gap",
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 3,
+    "evaluator_notes": "Part 1 (test set): Learner correctly identifies synthetic Q\u0026A + expert vetting but doesn't mention LLM-assisted synthetic query generation or coverage sampling across the corpus. Part 2 (metrics): Describes human review but doesn't name any automated metric — no faithfulness, answer relevance, context recall, RAGAS-style evaluation, or hallucination rate. Part 3 (safety): Three practical control points (guardrails, disclaimer, async checker) are reasonable, but the contraindication problem requires structured output validation against a known contraindication list, not just guardrails tuning. Part 4 (regression): 'Background process' and cache anomaly detection don't constitute a regression test suite — missing golden dataset, CI gate, and metric threshold alerting.",
+    "feedback_for_learner": "Your safety controls and HITL instincts are sound, but the framework needs automated metrics to scale. For test set construction, use the LLM itself to generate synthetic questions over every chunk, then have a clinician validate a sample — this gives coverage without bottlenecking on full expert review. For metrics, track faithfulness (does the answer only claim what the retrieved chunks support?), answer relevance (does it address the question?), and context recall (did retrieval surface the right chunks?) using a tool like RAGAS. For regression testing, maintain a golden evaluation set with expected quality thresholds and run it as a CI gate — if any prompt or retrieval change degrades faithfulness below the threshold, the deployment is blocked automatically."
+  },
+  {
+    "question_id": "q_8",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      18
+    ],
+    "correctness": 0.35,
+    "explanation_score": 0.35,
+    "explanation_subscores": {
+      "mechanism_accuracy": 2,
+      "terminology_precision": 1,
+      "edge_case_awareness": 2,
+      "generalization_quality": 2
+    },
+    "brier_contribution": 0.022500000000000006,
+    "calibration_flag": null,
+    "error_taxonomy": "recall_gap",
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Learner gestures at the right directions (truncate chunks by score threshold, compress history) but does not engage with the specific numbers given in the prompt, does not argue which component to truncate first with justification, and pivots to caching as the latency SLA response rather than addressing the forced chunk reduction constraint directly. The question asks for explicit allocation reasoning; the response stays at a high conceptual level throughout.",
+    "feedback_for_learner": "You identified the two correct truncation targets — retrieved chunks and conversation history — but the question asks you to reason about priority and mechanism. Conversation history should be compressed first (via summarization of earlier turns) because it grows unboundedly and summarization preserves substance; chunk quality is more directly tied to answer accuracy and should be reduced only after history compression is exhausted. Under a \u003c2.5s SLA that forces fewer chunks, reduce top-k from 5 to 3 and compensate by tightening the score threshold so only high-confidence chunks are included — accepting lower recall in exchange for staying within latency budget, since the health domain makes a hallucinated answer from a marginal chunk worse than a hedged non-answer."
+  }
+]

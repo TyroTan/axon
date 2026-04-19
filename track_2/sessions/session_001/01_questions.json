@@ -1,0 +1,212 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "You are auditing a RAGFlow deployment for a clinical guidelines corpus (40 PDFs, ~20 pages each). The team used fixed-size chunking with 1,024-token chunks and zero overlap. Users report receiving generic answers that ignore specific guideline sections relevant to their query. What is the most likely retrieval failure caused by this chunking configuration?",
+    "format": "mcq",
+    "options": {
+      "A": "The chunks are too small, causing the model to lack sufficient context to synthesize accurate answers.",
+      "B": "The large chunks dilute the relevance signal — each chunk spans many topics, so the embedding averages across them and dense retrieval returns partially matching chunks rather than precise ones.",
+      "C": "Fixed-size chunking is fundamentally incompatible with clinical PDFs; only semantic chunking can correctly segment medical guidelines.",
+      "D": "Zero overlap causes retrieval to miss concepts split across chunk boundaries, and this boundary effect is the primary source of generic answers."
+    },
+    "correct": "B",
+    "correct_explanation": "Large chunks (1,024 tokens) embed multiple clinical concepts into a single vector. The chunk's embedding represents the averaged semantic direction of all those concepts, reducing the signal for any single topic. Retrieval returns the chunk because it topically overlaps the query, but the specific relevant section is buried in surrounding content. Reducing chunk size (e.g., 256–512 tokens with overlap) makes each chunk more semantically focused, improving retrieval precision.",
+    "distractor_explanations": {
+      "A": "Larger chunks do not improve context quality — this is a common misconception. Bigger chunks dilute the retrieval signal and hurt precision even though they contain more text.",
+      "C": "Fixed-size chunking can work well for clinical text when chunk size and overlap are properly tuned. Semantic chunking is often better for heterogeneous PDFs, but it is not a hard requirement.",
+      "D": "Overlap does improve recall at chunk boundaries, but the dominant failure mode here — generic answers despite a relevant corpus — is precision loss from oversized chunks, not boundary misses."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      13,
+      15
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A PCOS health app retrieves a chunk with cosine similarity 0.92 to the user's query, but the LLM's answer is still irrelevant to the user's actual question. Which statement best explains how this can happen?",
+    "format": "mcq",
+    "options": {
+      "A": "A score of 0.92 is actually low for clinical text — well-calibrated models produce scores above 0.97 for truly relevant chunks.",
+      "B": "Cosine similarity measures directional alignment between embedding vectors, capturing topical proximity — a chunk can share topical space with a query without containing the answer to the specific question asked.",
+      "C": "The embedding model is underperforming; a properly trained model would not return high similarity scores for chunks that do not answer the query.",
+      "D": "Cosine similarity is unreliable for chunks longer than 256 tokens because long embeddings average away the specific concept being queried."
+    },
+    "correct": "B",
+    "correct_explanation": "Cosine similarity measures the angle between two vectors in embedding space — it captures whether query and chunk discuss the same general topic. A chunk about 'PCOS and insulin resistance mechanisms' shares embedding direction with a query about 'PCOS dietary recommendations' even if it does not directly answer the dietary question. This is the semantic similarity ≠ answer relevance failure mode: high similarity reflects topical proximity in the embedding manifold, not question-answering alignment.",
+    "distractor_explanations": {
+      "A": "Cosine similarity scores are not calibrated to a universal threshold. 0.92 is genuinely high and indicates strong topical overlap. The problem is not score magnitude but what cosine similarity is designed to measure.",
+      "C": "Blaming the embedding model treats a structural property of the metric as a defect. This failure mode occurs even with state-of-the-art models on well-matched domains — cosine similarity was not designed to measure answer relevance.",
+      "D": "Chunk length affects embedding quality, but the described failure — high similarity with an irrelevant answer — is about the nature of cosine similarity as a metric, not a length-threshold artifact."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.35,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 70,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      16
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "You add BM25 keyword retrieval alongside semantic search for a health AI system where users frequently query with specific medical terms like 'metformin dosage PCOS' and 'insulin sensitizer protocol.' What is the primary risk of naively combining BM25 and cosine similarity scores without additional processing?",
+    "format": "mcq",
+    "options": {
+      "A": "BM25 increases retrieval latency proportionally to corpus size, which will likely violate a \u003c2.5 second SLA.",
+      "B": "Semantic retrieval already handles exact keyword matching internally, so BM25 introduces duplicate results that inflate the candidate set unnecessarily.",
+      "C": "BM25 scores are TF-IDF derived and unbounded while cosine similarity is bounded in [-1, 1] — naive combination can cause keyword-matching chunks to arbitrarily outrank semantically superior ones.",
+      "D": "BM25 requires stop-word removal that strips clinical terminology, degrading its performance specifically on medical queries."
+    },
+    "correct": "C",
+    "correct_explanation": "BM25 produces corpus-dependent, unbounded scores (e.g., 0.3 vs. 12.4 depending on term rarity and document frequency). Cosine similarity is bounded in [-1, 1]. Averaging or summing these directly creates a combination dominated by BM25's raw scale. Proper hybrid retrieval requires score normalization (e.g., min-max scaling per query) or rank-based fusion like Reciprocal Rank Fusion (RRF) to combine signals on a common footing.",
+    "distractor_explanations": {
+      "A": "BM25 operates on a prebuilt inverted index — lookups are computationally cheap and add negligible latency compared to embedding inference or LLM generation. It is not a meaningful SLA risk.",
+      "B": "Dense embeddings map terms to continuous space where exact term identity can be lost. BM25 and semantic search are genuinely complementary — semantic search does not subsume keyword matching. They are not redundant.",
+      "D": "Modern BM25 implementations preserve domain terms by default. Clinical terminology is typically excluded from stop-word sets. This is a tuning concern, not the primary structural risk of naive score combination."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      17
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A health AI pipeline for WhatsApp has a \u003c2.5 second end-to-end latency SLA. Current profile: embedding inference (800ms) + vector search top-20 (200ms) + cross-encoder re-ranking of 20 chunks (1,400ms) + LLM generation (1,200ms) = 3,600ms total. The cross-encoder demonstrably improves chunk ordering compared to vector search alone. Which adjustment best preserves retrieval quality while meeting the SLA?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "Replace the cross-encoder with a bi-encoder re-ranker — bi-encoders are nearly as accurate as cross-encoders for re-ranking while running significantly faster.",
+      "B": "Reduce the re-ranking candidate pool from top-20 to top-5, cutting cross-encoder inference to approximately 350ms and bringing total latency to roughly 2,550ms.",
+      "C": "Eliminate re-ranking entirely — no latency optimization justifies quality degradation in a health domain where inaccurate recommendations carry liability risk.",
+      "D": "Cache re-ranked results for common queries — this eliminates re-ranking latency for repeat questions, bringing average latency under SLA without changing the pipeline."
+    },
+    "correct": "B",
+    "correct_explanation": "Cross-encoder inference cost scales approximately linearly with candidate count. Reducing from 20 to 5 candidates cuts re-ranking time by ~75% to ~350ms, bringing total latency to ~2,550ms — just under SLA. This preserves the cross-encoder mechanism the team specifically validated while eliminating the least informative portion of the candidate list: marginal quality gain from re-ranking positions 6–20 is low, while the latency savings are substantial.",
+    "distractor_explanations": {
+      "A": "Bi-encoders encode query and passage independently and cannot match cross-encoder quality at re-ranking. Cross-encoders are expensive precisely because they process the query-chunk pair jointly, enabling fine-grained pairwise relevance comparison. Switching encoder type sacrifices the quality the team measured.",
+      "C": "Eliminating re-ranking is the wrong response when a targeted tuning option — reducing the candidate pool — can preserve quality while meeting the SLA. The health domain constraint argues for preserving the quality mechanism, not removing it wholesale.",
+      "D": "Caching is unreliable as a primary latency strategy for personalized health AI where queries incorporate individual symptoms, history, and test results. Cache hit rates on personalized queries are too low to provide structural latency relief."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      21
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A team is building an internal HR policy Q\u0026A system. The policy corpus is 12 pages (~8,000 tokens) and is updated quarterly. Leadership wants to use RAG 'because it's the modern approach.' Which factor most strongly argues against RAG as the primary architecture for this use case?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "The entire corpus fits comfortably within a modern LLM's context window — direct context injection is simpler, has no retrieval failure modes, and is more reliable for a small static corpus.",
+      "B": "Quarterly updates are too frequent for an embedding pipeline to maintain without producing stale retrieval results during the re-ingestion window.",
+      "C": "RAG is inappropriate for policy documents because cross-encoder re-ranking cannot correctly order structured text like numbered clauses and policy tables.",
+      "D": "HR content is sensitive and should not be embedded in a vector database, as embedding pipelines inherently expose data to third-party APIs."
+    },
+    "correct": "A",
+    "correct_explanation": "RAG is designed for corpora too large to fit in a context window. At ~8,000 tokens, this corpus fits entirely within many modern LLMs' context windows. Direct injection is simpler (no chunking pipeline, no vector index), more reliable (no recall@k ceiling, no retrieval precision errors), and avoids all RAG failure modes. When a document corpus fits in-context, RAG adds complexity and latency without quality benefit — this is the primary 'when not to use RAG' case.",
+    "distractor_explanations": {
+      "B": "Quarterly updates are trivially handled by scheduled re-ingestion. Re-embedding 12 pages takes seconds. Update frequency is not a meaningful architectural argument against RAG.",
+      "C": "Cross-encoders and retrieval systems handle structured text including numbered lists and policy clauses without fundamental difficulty. Document structure is a chunking concern, not a retrieval mechanism limitation.",
+      "D": "Data sensitivity is an operational constraint, not an architectural argument against RAG. Privacy-constrained deployments use self-hosted embedding models and vector databases (e.g., RAGFlow with local models). Sensitivity shapes deployment model, not the choice between RAG and direct injection."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.35,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_6",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      13,
+      14
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A health AI team is selecting an embedding model for a multilingual clinical corpus (English and Hindi PDFs, chunked at 256 tokens). A vendor recommends switching to a 1,536-dimensional general-purpose English embedding model, claiming 'higher dimensions always capture more semantic nuance.' How should you evaluate this claim?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "The vendor is correct — 1,536 dimensions provide a richer embedding space that improves retrieval quality across both languages regardless of training corpus.",
+      "B": "The claim conflates capacity with quality. A smaller multilingual model fine-tuned on clinical text will outperform a high-dimension English-only model on Hindi medical queries, because the English model has no representation of Hindi clinical vocabulary regardless of dimension.",
+      "C": "The claim is partially correct — higher dimensions improve English retrieval, but a separate lower-dimension model should handle Hindi queries, using language detection to route at query time.",
+      "D": "Embedding dimension is only relevant for dense retrieval. The correct fix for Hindi queries is to add BM25 keyword search, which handles non-English terms through exact character matching without embedding."
+    },
+    "correct": "B",
+    "correct_explanation": "Embedding dimension determines the capacity of the latent space, but retrieval relevance depends on training data coverage. A 1,536-dim English-only model has never been trained on Hindi clinical text — Hindi queries land in low-quality, poorly-calibrated regions of the embedding manifold regardless of dimension. Domain fit (clinical) and language coverage (multilingual) are the primary selection criteria. This also interacts with chunking: even well-tuned 256-token chunks cannot compensate for poor embedding coverage of the query language.",
+    "distractor_explanations": {
+      "A": "This is the 'higher dimension = always better' misconception. Dimension is a capacity parameter; it does not substitute for training data coverage. A 1,536-dim English model has no learned representation of Hindi clinical concepts.",
+      "C": "Separate per-language models add operational complexity and fail on code-switched queries — Hindi-English mixed medical discourse is common in Indian clinical contexts. A multilingual model handles this natively.",
+      "D": "BM25 requires the exact Hindi clinical terms to appear in the indexed knowledge base for a match. If the knowledge base is in English, BM25 provides no cross-language retrieval. Switching retrieval paradigm does not solve the representation gap in the knowledge base itself."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_7",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      20
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "You are designing an evaluation framework for a PCOS health RAG system before it reaches 10,000 active users. The system delivers personalized recommendations (supplements, diet, lifestyle). There is no labeled ground-truth dataset. Describe: (1) how you would construct a test set without ground truth; (2) which retrieval and generation metrics you would track and what each fails to capture; (3) how you would handle the safety dimension — the system must never recommend contraindicated supplements; and (4) how you would set up automated regression testing so future prompt or retrieval changes don't silently degrade quality.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 240,
+    "requires_explanation": true
+  },
+  {
+    "id": "q_8",
+    "generation_id": "fef3a6c2-5581-40ec-ba36-87032ccd5c8a",
+    "concept_indexes": [
+      18
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A RAG pipeline for a PCOS health assistant uses an LLM with an 8,192-token context window. Fixed costs: system prompt (800 tokens). Variable components: top-5 retrieved chunks averaging 400 tokens each (2,000 tokens), user conversation history (1,500 tokens), target response length (600 tokens). Total: 4,900 tokens — leaving 3,292 tokens of slack. Describe how you would allocate the context budget across these components, which component you would truncate or compress first if a longer conversation exhausts the slack, and how your allocation strategy would change when operating under a strict \u003c2.5 second latency SLA that forces you to reduce the number of retrieved chunks.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 210,
+    "requires_explanation": true
+  }
+]

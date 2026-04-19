@@ -1,7 +1,3 @@
-# Track data — local only (raw responses, session data, context snapshots)
-track_*/sessions/
-track_*/context/*.snapshot.md
-
 # Build artifacts
 axon
 *.out
@@ -11,8 +7,7 @@ web/dist/
 ui/node_modules/
 ui/.vite/
 
-# Runtime data — local only
-conversations/
+# Operational telemetry — append-only log, no value in VCS
 metrics.jsonl
 
 # Environment

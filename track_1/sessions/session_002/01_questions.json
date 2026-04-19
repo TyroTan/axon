@@ -1,0 +1,225 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      0
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "Which of the following best describes why a train/validation/test split is essential in supervised learning?",
+    "format": "mcq",
+    "options": {
+      "A": "To increase the total amount of training data available to the model",
+      "B": "To estimate how well the model generalizes to unseen data without contaminating the final evaluation",
+      "C": "To ensure that all data points contribute to gradient updates during training",
+      "D": "To reduce computational cost by parallelizing training across the three splits"
+    },
+    "correct": "B",
+    "correct_explanation": "The validation set is used for hyperparameter tuning and model selection; the test set provides an unbiased estimate of generalization performance. Without this discipline, you risk implicitly optimizing for the test set and overestimating real-world performance — a form of data leakage that violates the generalization vs. memorization distinction central to supervised learning.",
+    "distractor_explanations": {
+      "A": "Larger training splits do mean more training data, but the purpose of splitting is reliable evaluation, not maximizing training data size.",
+      "C": "Only training data drives gradient updates; the validation and test sets are held out specifically to prevent this.",
+      "D": "The split does not reduce computation — it is designed for evaluation integrity, not parallelization."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.3,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 60,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      2
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A model's training loss decreases slowly and oscillates significantly throughout training. Which gradient descent variant is MOST likely being used, and what change would address the instability?",
+    "format": "mcq",
+    "options": {
+      "A": "Full-batch gradient descent; switching to SGD would reduce oscillations",
+      "B": "Mini-batch gradient descent; increasing the learning rate would stabilize convergence",
+      "C": "Stochastic gradient descent (SGD); switching to mini-batch or reducing the learning rate would reduce noise",
+      "D": "Mini-batch with a warm-up scheduler; removing the scheduler would fix the instability"
+    },
+    "correct": "C",
+    "correct_explanation": "SGD uses a single sample per update, introducing high variance in gradient estimates — each update reflects one noisy sample rather than the true gradient direction, causing oscillations. Mini-batch averaging reduces this variance by smoothing across multiple samples. Alternatively, reducing the learning rate dampens the oscillation amplitude directly.",
+    "distractor_explanations": {
+      "A": "Full-batch gradient descent uses all training data per update, producing smooth, low-variance loss curves; significant oscillation is a symptom of high-variance single-sample estimates, not full-batch behavior.",
+      "B": "Increasing the learning rate amplifies oscillations rather than reducing them — it causes larger, more erratic parameter updates.",
+      "D": "Warm-up schedulers are designed to prevent early instability by starting with a low learning rate; removing them would worsen instability, not resolve it."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      1
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "You are training a binary classifier on a dataset that is 95% negative and 5% positive. Which property of cross-entropy loss makes it preferable to mean squared error (MSE) for this task?",
+    "format": "mcq",
+    "options": {
+      "A": "MSE penalizes large errors more than small ones, making it better suited to imbalanced class distributions",
+      "B": "Cross-entropy is bounded between 0 and 1, preventing gradient explosion on skewed data",
+      "C": "Cross-entropy penalizes confident wrong predictions exponentially via the log term, producing stronger corrective gradients when the model is confidently incorrect",
+      "D": "MSE requires continuous labels and cannot be applied to binary (0/1) targets"
+    },
+    "correct": "C",
+    "correct_explanation": "Cross-entropy's −log(p) term diverges to infinity as p→0 for a positive-class example, creating a very large loss — and a strong gradient signal — when the model confidently predicts the wrong class. MSE's squared error is geometrically bounded and produces weaker signals for saturated sigmoid outputs, leading to slow learning on hard or rare examples.",
+    "distractor_explanations": {
+      "A": "MSE's quadratic penalty applies uniformly to regression residuals; it doesn't provide special handling for class imbalance and is generally inferior for classification tasks.",
+      "B": "Cross-entropy is not bounded between 0 and 1; −log(p) ranges from 0 to infinity, which is precisely what provides the strong gradient signal needed for hard negatives.",
+      "D": "MSE can be applied to binary (0/1) targets mathematically — it is suboptimal for classification due to weak gradients from saturated activations, not because of a hard label-type constraint."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "Which of the following best explains why very large chunk sizes can degrade RAG retrieval quality, even when relevant information is present somewhere in the corpus?",
+    "format": "mcq",
+    "options": {
+      "A": "Larger chunks take longer to embed, introducing latency that causes retrieval timeouts in production systems",
+      "B": "Vector databases impose a hard token limit on chunks that causes indexing failures for large inputs",
+      "C": "Larger chunks dilute the semantic signal — a single embedding must represent more mixed content, reducing cosine similarity alignment with narrow queries",
+      "D": "Larger chunks always exceed the LLM's context window, making them impossible to include as retrieved context"
+    },
+    "correct": "C",
+    "correct_explanation": "An embedding is a fixed-size dense vector that must compress the entire chunk's meaning. A large chunk covering multiple topics produces an averaged representation that may not align closely with a narrow, specific query embedding. The result is lower cosine similarity scores for relevant chunks and reduced retrieval precision — the relevant signal is present but diluted.",
+    "distractor_explanations": {
+      "A": "Embedding latency scales primarily with corpus size and batch throughput, not individual chunk size; latency is a system performance concern, not a retrieval quality mechanism.",
+      "B": "Most vector databases do not impose hard token limits on individual chunks; the degradation is a representation quality issue rather than a hard system constraint.",
+      "D": "Large chunks may strain context budgets during assembly, but this is a downstream concern; the retrieval quality problem occurs at the similarity-scoring stage before any chunk is selected."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 70,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In the Transformer self-attention mechanism, what is the role of the Query, Key, and Value vectors, and why must all three be distinct learned projections?",
+    "format": "mcq",
+    "options": {
+      "A": "Query selects tokens to attend to; Key stores the token's positional encoding; Value stores the raw embedding — three separate projections prevent overfitting by regularizing attention weights",
+      "B": "Query represents what a token is searching for; Key represents what each token offers for matching; Value carries the content to aggregate — separating matching (Q·K) from content retrieval (V) enables flexible, semantics-independent routing",
+      "C": "Query and Key are identical projections used to measure self-similarity; Value is a learned scalar bias added after the softmax to scale the attention output",
+      "D": "Query encodes the current sequence position; Key encodes token type; Value encodes the pre-attention embedding — together they reconstruct the original input after the attention operation"
+    },
+    "correct": "B",
+    "correct_explanation": "The Q·K dot product scores relevance between positions without constraining what content is retrieved. The V projection carries the actual content to aggregate. Decoupling matching (Q·K) from retrieval (V) lets the model decide what to attend to independently of what it aggregates — enabling learned, asymmetric routing over arbitrary content across all positions.",
+    "distractor_explanations": {
+      "A": "Positional information is injected into input embeddings via positional encoding before the Q/K/V projections; Keys are not positional encodings and serve a different function entirely.",
+      "C": "Q and K are distinct learned projections; if they were identical, the model could not learn asymmetric attention patterns (where position A attends to B differently than B attends to A), severely limiting expressivity.",
+      "D": "Positional encoding is added to token embeddings before the Transformer layers begin; the Q/K/V decomposition is about learned attention routing, not positional or type information."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_6",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      0,
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A Transformer-based supervised classifier achieves 99% training accuracy but only 72% validation accuracy after training on a moderately sized labeled dataset. Which combination of supervised learning principle and Transformer-specific property BEST explains this gap?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "The model is underfitting because the Transformer's positional encodings are misconfigured, preventing the encoder from learning sequence order",
+      "B": "The model is overfitting: multi-head self-attention gives the Transformer very high capacity, enabling it to memorize input-label patterns rather than learning generalizable features",
+      "C": "The validation set is too small to produce reliable accuracy estimates, and the gap would close with more validation data",
+      "D": "The learning rate is too high for the attention weights specifically, causing training loss to drop cleanly while validation accuracy remains low"
+    },
+    "correct": "B",
+    "correct_explanation": "A large train/validation accuracy gap is the hallmark of overfitting in supervised learning: the model has memorized training input-label pairs rather than learned generalizable patterns. Transformers are high-capacity models — multi-head attention over all token pairs provides enormous representational expressivity, making memorization easy when training data is limited or regularization (dropout, weight decay) is absent.",
+    "distractor_explanations": {
+      "A": "Positional encoding issues would uniformly impair the model's ability to learn sequence structure, lowering both training and validation accuracy rather than creating a large gap between them.",
+      "C": "A 27-percentage-point gap is far too large to attribute to validation set sampling noise; it reflects a true generalization failure consistent with overfitting.",
+      "D": "An excessively high learning rate typically causes training instability — oscillating or diverging loss — not a clean high-training/low-validation accuracy split characteristic of overfitting."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_7",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      2,
+      8
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "Explain how the chain rule enables gradient descent to update parameters in a deep neural network. Your answer should address: (1) what quantity the chain rule computes and why it is necessary for parameter updates, (2) how gradients flow backward through a computational graph during backpropagation, and (3) one specific failure condition — arising from repeated chain rule multiplication across many layers — that can prevent gradient descent from working correctly in deep networks.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 150,
+    "requires_explanation": true
+  },
+  {
+    "id": "q_8",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      14,
+      22
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A RAG system retrieves the top-20 chunks at 512 tokens each. The LLM has an 8,192-token context window, with 1,000 tokens reserved for the system prompt and 500 tokens reserved for the model's response. Approximately how many retrieved chunks can fit in context, and what does this reveal about how chunking strategy should be designed?",
+    "format": "mcq",
+    "options": {
+      "A": "All 20 chunks fit; the context budget is not a binding constraint and chunking strategy is irrelevant to context assembly",
+      "B": "Roughly 13 chunks fit; the remaining 7 are wasted retrieval — chunk size, top-K retrieval count, and context budget must be co-designed as a system",
+      "C": "No chunks fit because the system prompt and response reservation consume the entire context window",
+      "D": "Exactly 16 chunks fit; chunking strategy only affects retrieval quality, not how many results can be assembled into context"
+    },
+    "correct": "B",
+    "correct_explanation": "Available context tokens: 8,192 − 1,000 − 500 = 6,692. Chunks that fit: ⌊6,692 ÷ 512⌋ = 13. The 7 extra retrieved chunks cannot be used — that retrieval work is wasted. This reveals that chunk size, top-K count, and context budget are tightly coupled: larger chunks mean fewer fit in context; smaller chunks may improve fit count but risk fragmenting context within each piece. Treating these as independent decisions leads to systematic waste.",
+    "distractor_explanations": {
+      "A": "20 × 512 = 10,240 tokens, which exceeds the available 6,692 tokens — not all retrieved chunks fit, making context budget a real binding constraint.",
+      "C": "1,000 + 500 = 1,500 tokens reserved, leaving 6,692 tokens available — substantial space remains for retrieved chunks.",
+      "D": "16 × 512 = 8,192, which incorrectly uses the full context window size without accounting for the system prompt and response reservations."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.4,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  }
+]

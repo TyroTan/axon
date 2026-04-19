@@ -1,0 +1,18 @@
+{
+  "question_id": "q_1",
+  "claude_session_id": "d5676fa2-cdbd-49f8-8f63-3b303841ab68",
+  "accumulated_input_tokens": 3,
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "You got it right — answer B is correct. Your core intuition is solid: the splits exist to separate concerns so that generalization to unseen data can be measured honestly.\n\nThe one thing to sharpen: you had the order slightly reversed. **Validation comes first** — it's used *during* training to tune hyperparameters (dropout, learning rate, architecture choices, etc.). The **test set is held out until the very end** and touched exactly once to report a final, unbiased accuracy. The reason this discipline is strict is **data leakage** — if you peek at test performance and adjust anything, you're implicitly optimizing for it, and your reported accuracy will be inflated relative to real-world performance.\n\nWhat would you like to dig into — how data leakage actually happens in practice, or what kinds of hyperparameters the validation set is typically used to tune?",
+      "ts": "2026-04-16T17:49:44.402745+08:00",
+      "meta": {
+        "call_mode": "seeded",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 10,
+        "claude_session_id": "d5676fa2-cdbd-49f8-8f63-3b303841ab68"
+      }
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+[
+  {
+    "question_id": "q_1",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      0
+    ],
+    "correctness": 1,
+    "explanation_score": 0.42,
+    "explanation_subscores": {
+      "mechanism_accuracy": 2,
+      "terminology_precision": 2,
+      "edge_case_awareness": 1,
+      "generalization_quality": 2
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": "Reverses the temporal order: implies the test set is used first for detection, then hyperparameters are tuned afterward — when in fact validation drives tuning and the test set is held out until the very end.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Correct selection with a genuine attempt to explain, but the explanation inverts the validation-before-test ordering and introduces non-standard phrasing ('inference generalization behavior'). Dropout is cited as the only hyperparameter, suggesting narrow familiarity. Data leakage — the core risk the split prevents — is not mentioned.",
+    "feedback_for_learner": "You identified the right answer and have the right intuition that validation and test sets serve different purposes. Sharpen the sequence: validation comes first (used during training for hyperparameter tuning and model selection), and the test set is only touched once at the very end to report an unbiased generalization estimate. The critical risk this discipline prevents is data leakage — implicitly optimizing for test-set performance inflates reported accuracy and hides real-world degradation."
+  },
+  {
+    "question_id": "q_2",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      2
+    ],
+    "correctness": 1,
+    "explanation_score": 0.12,
+    "explanation_subscores": {
+      "mechanism_accuracy": 1,
+      "terminology_precision": 2,
+      "edge_case_awareness": 1,
+      "generalization_quality": 1
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": "Explanation directly contradicts the selected answer: learner says 'the go-to process is mini-batch' then states the described behavior corresponds to options A or B — implying they believe A or B is at play, not C.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "The correct option was selected but the explanation undermines confidence in understanding. Saying 'probably what's used here is A or B' after choosing C suggests either a guess or a copy-paste confusion. No mechanistic explanation of why single-sample SGD produces high-variance, oscillating gradients is offered.",
+    "feedback_for_learner": "You picked the right answer, but your explanation points toward A or B — that inconsistency suggests the reasoning isn't fully locked in yet. The key mechanism: SGD updates parameters using a single randomly sampled example each step, so the gradient estimate is very noisy and the loss path oscillates. Mini-batch averaging smooths this by computing gradients over a small batch, reducing variance. Reducing the learning rate is a second lever that dampens the oscillation amplitude without changing batch size."
+  },
+  {
+    "question_id": "q_3",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      1
+    ],
+    "correctness": 1,
+    "explanation_score": 0.18,
+    "explanation_subscores": {
+      "mechanism_accuracy": 1,
+      "terminology_precision": 2,
+      "edge_case_awareness": 1,
+      "generalization_quality": 1
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": "Treats class imbalance as the primary reason cross-entropy is preferred, missing the actual mechanistic property asked about: the −log(p) gradient signal strength for confident wrong predictions.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "Correct selection but the explanation is a heuristic rule ('cross-entropy is best for imbalanced data') with no engagement with the log term, gradient magnitudes, or sigmoid saturation. The answer C specifically asks about the mechanism, and the explanation bypasses it entirely.",
+    "feedback_for_learner": "You chose correctly, but the 'why' is the important part here. The key property is the −log(p) term: as the model confidently predicts the wrong class (p → 0 for a positive example), the loss and its gradient grow without bound, producing a strong corrective signal. MSE's squared error is geometrically bounded and produces very weak gradients when the sigmoid output is saturated near 0 or 1 — exactly the regime where the rare positive class lives in an imbalanced dataset. Understanding this mechanism tells you when cross-entropy will and won't help."
+  },
+  {
+    "question_id": "q_4",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      14
+    ],
+    "correctness": 1,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Correct selection with no explanation provided. Cannot assess depth of understanding beyond the correct choice.",
+    "feedback_for_learner": "Correct. To solidify this: a chunk embedding is a fixed-size vector that must compress all content in the chunk. A large, topic-spanning chunk produces an averaged representation — when a narrow query arrives, cosine similarity with that averaged vector is lower than it would be with a tightly scoped chunk. The relevant signal is present in the chunk but geometrically diluted in embedding space."
+  },
+  {
+    "question_id": "q_5",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      32
+    ],
+    "correctness": 0,
+    "explanation_score": 0.22,
+    "explanation_subscores": {
+      "mechanism_accuracy": 1,
+      "terminology_precision": 1,
+      "edge_case_awareness": 1,
+      "generalization_quality": 2
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "overconfident",
+    "error_taxonomy": "misconception",
+    "misconception_identified": "Holds a partially correct dictionary analogy for K/V but misassigns Key as storing positional encoding (answer A's framing). The role of the Query — representing what the current token is searching for — is absent from the mental model.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "The learner's explanation reveals a dictionary/lookup intuition (key→term, value→concept) which captures the K/V relationship at a surface level, but they selected A which incorrectly assigns positional encoding to the Key. The actual Q role — encoding what a token is looking for — is missing entirely, and the explanation doesn't engage with the Q·K dot product or why separating matching from content retrieval matters.",
+    "feedback_for_learner": "Your dictionary analogy for Key and Value is on the right track, but incomplete. In self-attention, the Query represents what the current token is 'searching for' — it's projected from the current position's embedding. The Key represents what each token 'offers for matching,' and the Q·K dot product scores compatibility between all (query, key) pairs. The Value then carries the actual content to aggregate once attention weights are assigned. Crucially, separating the matching function (Q·K) from the content retrieval (V) lets the model learn what to attend to independently of what it aggregates — that decoupling is the design insight answer A's positional-encoding framing misses entirely."
+  },
+  {
+    "question_id": "q_6",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      0,
+      32
+    ],
+    "correctness": 0,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "overconfident",
+    "error_taxonomy": "misconception",
+    "misconception_identified": "Diagnosed overfitting (high train, low validation accuracy) as underfitting or a configuration error — a fundamental inversion of the overfitting/underfitting distinction.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "99% training / 72% validation is a textbook overfitting pattern. Selecting answer A (underfitting due to misconfigured positional encodings) indicates either a confusion between overfitting and underfitting definitions, or a misread of the scenario. No explanation was provided to disambiguate.",
+    "feedback_for_learner": "The pattern here — near-perfect training accuracy alongside much lower validation accuracy — is the defining signature of overfitting, not underfitting. Underfitting would show poor accuracy on both splits. Transformers are high-capacity models: multi-head attention over all token pairs gives enormous representational power, making it easy to memorize training patterns when the dataset is small or regularization is absent. The fix is not to correct positional encodings but to constrain capacity: add dropout, weight decay, or more training data."
+  },
+  {
+    "question_id": "q_7",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      2,
+      8
+    ],
+    "correctness": 0.14,
+    "explanation_score": 0.14,
+    "explanation_subscores": {
+      "mechanism_accuracy": 1,
+      "terminology_precision": 1,
+      "edge_case_awareness": 1,
+      "generalization_quality": 1
+    },
+    "brier_contribution": 0.1296,
+    "calibration_flag": "overconfident",
+    "error_taxonomy": "recall_gap",
+    "misconception_identified": "Conflates the chain rule with a general description of forward/backward pass mechanics. For the required failure condition, cites hyperparameter sensitivity and learning rate issues rather than vanishing/exploding gradients — the specific consequence of repeated chain rule multiplication across many layers.",
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 1,
+    "evaluator_notes": "The response touches on the right conceptual neighborhood (gradient descent, error minimization, forward/backward passes) but does not address any of the three required sub-questions with precision. (1) The quantity the chain rule computes — ∂L/∂w_i via intermediate partial derivatives — is not stated. (2) The backward flow through a computational graph is described in metaphor only, with no mention of how ∂L/∂w_i = ∂L/∂a · ∂a/∂w_i is applied layer by layer. (3) The failure condition (vanishing or exploding gradients from repeated multiplication of values \u003c1 or \u003e1 across layers) is entirely absent; hyperparameter tuning issues are a different problem class.",
+    "feedback_for_learner": "The chain rule's specific job is to compute ∂L/∂w for every parameter w in the network by decomposing the gradient through intermediate activations: ∂L/∂w = ∂L/∂a · ∂a/∂w, applied recursively from the output layer back to the input. During backpropagation, these partial derivatives are multiplied together across every layer on the path from loss to the target parameter. The critical failure condition this repeated multiplication creates is vanishing gradients: if any factor is consistently less than 1 (common with sigmoid/tanh activations), the product shrinks exponentially with depth, and parameters in early layers receive near-zero gradient updates and stop learning. The inverse — exploding gradients — occurs when factors exceed 1 and the product grows uncontrolled."
+  },
+  {
+    "question_id": "q_8",
+    "generation_id": "1934fe72-9469-4dfd-a25e-48dd754fdbb8",
+    "concept_indexes": [
+      14,
+      22
+    ],
+    "correctness": 1,
+    "explanation_score": 0,
+    "explanation_subscores": {
+      "mechanism_accuracy": 0,
+      "terminology_precision": 0,
+      "edge_case_awareness": 0,
+      "generalization_quality": 0
+    },
+    "brier_contribution": 0.25,
+    "calibration_flag": "underconfident",
+    "error_taxonomy": null,
+    "misconception_identified": null,
+    "time_signal": "unknown",
+    "bloom_level_demonstrated": 2,
+    "evaluator_notes": "Correct selection with no explanation. The question requires applying arithmetic and systems reasoning (context budget calculation plus design implication), so a correct answer with no explanation still evidences basic L2 comprehension of the concept.",
+    "feedback_for_learner": "Correct — 8192 − 1000 − 500 = 6692 available tokens, and ⌊6692 ÷ 512⌋ = 13 chunks fit, leaving 7 retrieved chunks unused. The deeper point is the co-design implication: chunk size, top-K, and context budget are not independent knobs. Increasing chunk size to 768 tokens would drop capacity to 8 chunks; decreasing to 256 would allow 26 but may fragment reasoning chains within each chunk. In production, these three parameters need to be tuned jointly against retrieval quality and context assembly efficiency."
+  }
+]

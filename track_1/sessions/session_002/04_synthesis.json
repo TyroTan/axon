@@ -1,0 +1,79 @@
+{
+  "session_number": 2,
+  "session_date": "2026-04-16",
+  "generation_id": "2efa62cc-9bfa-46ba-8641-bc089471c2cd",
+  "concept_map_updates": [
+    {
+      "concept_index": 22,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 0,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 2,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 1,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-23T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 14,
+      "bloom_current_before": 1,
+      "bloom_current_after": 2,
+      "spaced_repetition": {
+        "next_review": "2026-04-30T00:00:00Z",
+        "interval_days": 14,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 32,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-19T00:00:00Z",
+        "interval_days": 3,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 8,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-19T00:00:00Z",
+        "interval_days": 3,
+        "consecutive_correct": 0
+      }
+    }
+  ],
+  "learner_summary": "The learner demonstrated mastery of chunking strategies, correctly handling two questions to earn a bloom advancement, and showed solid recognition on context windows and loss functions with single-question exposures. Transformer architecture and chain rule/backpropagation were clear weak points — both showed near-zero correctness alongside confirmed misconceptions, flagging them for accelerated review in three days. Supervised learning and gradient descent held at mid-range correctness (0.50–0.57) with misconceptions present, indicating the learner can recognize correct answers but has not yet internalized the underlying reasoning. Priority next steps are resolving the Q·K·V attention decoupling misconception and the vanishing-gradient chain-rule mechanism before progressing to higher bloom targets on those concepts.",
+  "applied": true
+}

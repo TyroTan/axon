@@ -1,0 +1,34 @@
+{
+  "question_id": "q_3",
+  "claude_session_id": "762c7c14-29f8-4d13-a340-adf5c385f5d8",
+  "accumulated_input_tokens": 6,
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Your answer pointed to chunking or missing corpus content, but the question actually ruled both out — the chunks score above 0.87 and all cover PCOS and supplements, so the corpus and chunking are working fine. The real failure is subtler: **high cosine similarity doesn't guarantee a specific constraint (pregnancy) survived the embedding process.** Dominant semantic features like \"PCOS\" and \"supplements\" pull the vector direction so strongly that a lower-frequency concept like \"pregnancy\" gets diluted or lost in the aggregate.\n\nThe key insight you missed: cosine similarity is a single number summarizing the *direction* of two vectors across all 768 dimensions. It has no mechanism to say \"this constraint must be present\" — it just measures overall directional alignment, and that alignment was already high enough to pass threshold without pregnancy content.\n\nWhat aspect of this would you like to dig into — how embeddings aggregate semantics, why this matters practically for health RAG systems, or how you'd actually fix this failure mode in a real pipeline?",
+      "ts": "2026-04-19T16:14:12.108967+08:00",
+      "meta": {
+        "call_mode": "seeded",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 3,
+        "claude_session_id": "762c7c14-29f8-4d13-a340-adf5c385f5d8"
+      }
+    },
+    {
+      "role": "user",
+      "content": "how do you know \"pregnancy\" is a low frequency constraint, or less valued feature. Is there a formula or basis a human can internalize?",
+      "ts": "2026-04-19T16:15:39.351319+08:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Good challenge — \"low frequency\" here is an intuition borrowed from how embedding models are trained, not a formula you can compute at query time. Here's a basis you can internalize:\n\n**The center-of-mass intuition**\nA sentence embedding (e.g. from mean-pooling) is roughly the *average* of its token representations. \"PCOS\" and \"supplements\" each appear as rich, well-trained concepts — many training examples reinforce their direction in the vector space. \"Pregnancy\" is one additional token. The final vector is pulled heavily toward the dominant cluster, with pregnancy contributing a smaller share of the directional mass.\n\n**The IDF analogy helps**\nIn classical TF-IDF, *rare* terms get *higher* weight precisely because they're more discriminative. Dense embeddings don't do this automatically — they don't upweight rare constraints. That's the gap. If your retrieval were BM25, \"pregnancy\" would actually score higher because it's a rare, specific term. Cosine on dense vectors has no equivalent mechanism.\n\n**A rough heuristic to internalize:**\n\u003e The more tokens in the query share semantic space with the corpus, the more the embedding \"drifts\" toward that shared space — and specific constraints that have fewer co-occurring training examples get underrepresented.\n\n**Why you can't compute it exactly:** you'd need to know the pretraining token distribution and the model's pooling strategy, which are opaque for most embedding models.\n\nThe practical takeaway: treat any single-constraint query in a dense retrieval system with suspicion — and consider hybrid retrieval (BM25 for the constraint term + dense for semantics) as the fix.",
+      "ts": "2026-04-19T16:16:00.025045+08:00",
+      "meta": {
+        "call_mode": "resumed",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 0,
+        "claude_session_id": "762c7c14-29f8-4d13-a340-adf5c385f5d8"
+      }
+    }
+  ]
+}

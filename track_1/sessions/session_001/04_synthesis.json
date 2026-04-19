@@ -1,0 +1,89 @@
+{
+  "session_number": 1,
+  "session_date": "2026-04-19",
+  "generation_id": "b14ad5cb-90ad-493e-a86d-79899bbef36f",
+  "concept_map_updates": [
+    {
+      "concept_index": 0,
+      "bloom_current_before": 1,
+      "bloom_current_after": 2,
+      "spaced_repetition": {
+        "next_review": "2026-05-03T00:00:00Z",
+        "interval_days": 14,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 2,
+      "bloom_current_before": 1,
+      "bloom_current_after": 2,
+      "spaced_repetition": {
+        "next_review": "2026-05-03T00:00:00Z",
+        "interval_days": 14,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 4,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 7,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-22T00:00:00Z",
+        "interval_days": 3,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 8,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 14,
+      "bloom_current_before": 2,
+      "bloom_current_after": 2,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 2
+      }
+    },
+    {
+      "concept_index": 27,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 32,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    }
+  ],
+  "learner_summary": "Strong session overall: supervised learning and gradient descent both advanced a Bloom level after consistent correct responses across two questions each, indicating solid foundational recall and comprehension. Attention mechanism intuition is a critical gap — a zero-correctness result with a confirmed misconception flags it for priority review in three days. Transformer architecture and agentic loop design sit at partial understanding (0.50 and 0.60 correctness respectively with single-question samples), so more data is needed before adjusting their levels; the next session should probe these with at least two questions each to determine trajectory.",
+  "applied": false
+}
