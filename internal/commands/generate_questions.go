@@ -58,8 +58,8 @@ func (h *GenerateQuestionsHandler) Stream(ctx context.Context, cmd GenerateQuest
 }
 
 func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestionsCommand, out chan<- llm.Chunk) error {
-	// Load concept map.
-	cm, err := h.store.GetConceptMap(ctx, cmd.TrackID)
+	// Load concept map with ancestor bloom floor applied (F2 — live concept map inheritance).
+	cm, err := h.store.GetEffectiveConceptMap(ctx, cmd.TrackID)
 	if err != nil {
 		return fmt.Errorf("generate questions: concept map: %w", err)
 	}

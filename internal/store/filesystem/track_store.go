@@ -113,6 +113,43 @@ func (s *TrackStore) GetConceptMap(_ context.Context, trackID string) (domain.Co
 	return cm, nil
 }
 
+// GetEffectiveConceptMap returns the concept map for trackID with bloom_current raised
+// to the ancestor floor. For each concept index, the effective bloom_current is
+// max(own, ancestor). This is read-only — no ancestor file is ever mutated.
+// Mirrors the same ancestor-chain walk used by LoadInheritedContext for context files.
+func (s *TrackStore) GetEffectiveConceptMap(ctx context.Context, trackID string) (domain.ConceptMap, error) {
+	own, err := s.GetConceptMap(ctx, trackID)
+	if err != nil {
+		return domain.ConceptMap{}, err
+	}
+
+	// Build index → position map so ancestor lookups are O(1).
+	pos := make(map[int]int, len(own.Concepts))
+	for i, c := range own.Concepts {
+		pos[c.Index] = i
+	}
+
+	// Walk ancestors from nearest to root, taking max bloom_current per concept.
+	ancestorID := parentID(trackID)
+	for ancestorID != "" {
+		anc, err := s.GetConceptMap(ctx, ancestorID)
+		if err != nil {
+			// Missing or malformed ancestor concept map — stop walking, not fatal.
+			break
+		}
+		for _, ac := range anc.Concepts {
+			if i, ok := pos[ac.Index]; ok {
+				if ac.BloomCurrent > own.Concepts[i].BloomCurrent {
+					own.Concepts[i].BloomCurrent = ac.BloomCurrent
+				}
+			}
+		}
+		ancestorID = parentID(ancestorID)
+	}
+
+	return own, nil
+}
+
 // WriteConceptMap persists an updated concept_map.json.
 func (s *TrackStore) WriteConceptMap(_ context.Context, trackID string, cm domain.ConceptMap) error {
 	path := filepath.Join(s.experimentsDir, trackID, "concept_map.json")
