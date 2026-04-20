@@ -127,6 +127,7 @@ export interface GetTrackResult {
   track: Track
   concept_map: ConceptMap
   sessions: Session[]
+  has_distill_snapshot: boolean
 }
 
 export interface GetTrackContextResult {

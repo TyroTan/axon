@@ -13,9 +13,10 @@ type GetTrackQuery struct {
 }
 
 type GetTrackResult struct {
-	Track      domain.Track      `json:"track"`
-	ConceptMap domain.ConceptMap `json:"concept_map"`
-	Sessions   []domain.Session  `json:"sessions"`
+	Track              domain.Track      `json:"track"`
+	ConceptMap         domain.ConceptMap `json:"concept_map"`
+	Sessions           []domain.Session  `json:"sessions"`
+	HasDistillSnapshot bool              `json:"has_distill_snapshot"` // session_insights.snapshot.md exists in own context
 }
 
 type GetTrackHandler struct {
@@ -39,5 +40,7 @@ func (h *GetTrackHandler) Handle(ctx context.Context, q GetTrackQuery) (GetTrack
 	if err != nil {
 		return GetTrackResult{}, err
 	}
-	return GetTrackResult{Track: track, ConceptMap: cm, Sessions: sessions}, nil
+	ownFiles, _ := h.store.ReadContextFiles(ctx, q.TrackID)
+	_, hasSnapshot := ownFiles["session_insights.snapshot.md"]
+	return GetTrackResult{Track: track, ConceptMap: cm, Sessions: sessions, HasDistillSnapshot: hasSnapshot}, nil
 }

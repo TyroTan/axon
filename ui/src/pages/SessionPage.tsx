@@ -1178,7 +1178,7 @@ export function SessionPage() {
                   : `${answeredCount} / ${questions.length} answered`}
             </p>
             <div className='flex gap-2'>
-              {genPhase !== "streaming" && evalPhase !== "streaming" && (
+              {genPhase !== "streaming" && evalPhase !== "streaming" && !(evaluations && evaluations.length > 0) && (
                 <button
                   onClick={generateQuestions}
                   className={cn(

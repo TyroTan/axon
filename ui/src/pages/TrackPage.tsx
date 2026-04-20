@@ -371,8 +371,9 @@ export function TrackPage() {
                 setDuplicating(false)
               }
             }}
-            disabled={duplicating}
-            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), duplicating && 'opacity-60 cursor-not-allowed')}
+            disabled={duplicating || data?.has_distill_snapshot === true}
+            title={data?.has_distill_snapshot ? 'Already snapshotted — add new sessions before forking again' : undefined}
+            className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), (duplicating || data?.has_distill_snapshot) && 'opacity-60 cursor-not-allowed')}
           >
             {duplicating ? 'Forking…' : 'Fork'}
           </button>
