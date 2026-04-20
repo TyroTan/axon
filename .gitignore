@@ -1,6 +1,6 @@
 # Build artifacts
-axon
-axon-mcp
+/axon
+/axon-mcp
 *.out
 web/dist/
 

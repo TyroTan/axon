@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "axon-rag": {
+      "command": "/Users/tyrohunt/Moonshot Work/repos/specs-ai-dist-processor/axon/axon-mcp",
+      "env": {
+        "AXON_ROOT": "/Users/tyrohunt/Moonshot Work/repos/specs-ai-dist-processor/axon"
+      }
+    }
+  }
+}
