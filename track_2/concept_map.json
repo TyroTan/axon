@@ -288,10 +288,12 @@
         18
       ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
         "consecutive_correct": 0
-      }
+      },
+      "exploration_unlocked": true,
+      "aspiration_count": 2
     },
     {
       "index": 14,
@@ -308,10 +310,11 @@
         17
       ],
       "spaced_repetition": {
-        "next_review": "2026-04-30T00:00:00Z",
-        "interval_days": 14,
-        "consecutive_correct": 1
-      }
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      },
+      "aspiration_count": 1
     },
     {
       "index": 15,
@@ -329,10 +332,11 @@
         16
       ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
-        "consecutive_correct": 0
-      }
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      },
+      "aspiration_count": 1
     },
     {
       "index": 16,
@@ -350,10 +354,11 @@
         17
       ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
-        "consecutive_correct": 0
-      }
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      },
+      "aspiration_count": 1
     },
     {
       "index": 17,
@@ -370,10 +375,11 @@
         18
       ],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-22T00:00:00Z",
+        "interval_days": 3,
         "consecutive_correct": 0
-      }
+      },
+      "aspiration_count": 1
     },
     {
       "index": 18,
@@ -388,10 +394,11 @@
       ],
       "unlocks_indexes": [],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
         "consecutive_correct": 0
-      }
+      },
+      "aspiration_count": 1
     },
     {
       "index": 19,
@@ -425,10 +432,11 @@
       ],
       "unlocks_indexes": [],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
         "consecutive_correct": 0
-      }
+      },
+      "aspiration_count": 1
     },
     {
       "index": 21,
@@ -445,10 +453,11 @@
       ],
       "unlocks_indexes": [],
       "spaced_repetition": {
-        "next_review": null,
-        "interval_days": 0,
-        "consecutive_correct": 0
-      }
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      },
+      "aspiration_count": 1
     },
     {
       "index": 22,

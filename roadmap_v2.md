@@ -511,6 +511,43 @@ AC:
 
 ---
 
+---
+
+## Infrastructure
+
+### F1 — Smart Fork (freeze-and-branch) ✅ Done
+
+**F1.1 — Auto-distill threads on fork**
+> As a system, I want fork to automatically run Distill Threads before branching
+> if no session_insights.snapshot.md exists, so the child inherits the full session
+> wisdom without requiring a manual step.
+
+- Idempotent: skipped if snapshot already exists (re-fork is instant)
+- Non-fatal: if no threads exist, fork proceeds without snapshot
+- Size: **S** · Priority: **Must** · Done
+
+AC:
+- [x] `DistillThreadsHandler.RunSilent` — non-streaming, idempotent
+- [x] `DuplicateTrackHandler` calls `RunSilent` before branching
+
+---
+
+**F1.2 — Auto-snapshot conversation indexes on fork**
+> As a system, I want fork to aggregate all ConversationIndex objects referencing
+> the source track into conversations.snapshot.md so the child inherits conversation
+> context without an LLM call.
+
+- Idempotent: skipped if snapshot already exists
+- No LLM call — pure aggregation of existing ConversationIndex files
+- Conversations without an index are listed as stubs (run Index to enrich)
+- Size: **S** · Priority: **Must** · Done
+
+AC:
+- [x] `snapshotConversations` in `DuplicateTrackHandler` — filters by track_id, merges indexes
+- [x] Writes `context/conversations.snapshot.md` with summary, topics, key decisions, open questions per conversation
+
+---
+
 ## Won't Have — This Iteration
 
 | Item | Reason |

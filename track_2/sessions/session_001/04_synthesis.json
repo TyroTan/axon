@@ -85,5 +85,5 @@
     }
   ],
   "learner_summary": "The learner showed accurate recall on single-question concepts — similarity failure modes, dense/sparse retrieval, and RAG meta-cognition — but could not demonstrate sufficient depth across multi-question concepts: chunking strategies and embedding geometry both produced partial-credit answers with confirmed misconceptions. Re-ranking and context assembly was the session's weakest area, scoring zero with a misconception flagged, and is scheduled for accelerated review in 3 days. No concepts advanced this session due to either insufficient question coverage (n=1) or sub-75% correctness; priority next steps are resolving the re-ranking misconception and raising correctness on chunking and embedding concepts above the 0.75 threshold across at least two questions.",
-  "applied": false
+  "applied": true
 }

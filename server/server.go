@@ -96,9 +96,6 @@ func New(cfg Config) *fiber.App {
 	cmdBus := cqrs.NewCommandBus()
 	createTrackHandler := commands.NewCreateTrackHandler(trackStore)
 
-	cqrs.Register[commands.DuplicateTrackCommand](
-		cmdBus, commands.NewDuplicateTrackHandler(trackStore),
-	)
 	cqrs.Register[commands.UpdateContextCommand](
 		cmdBus, commands.NewUpdateContextHandler(trackStore),
 	)
@@ -124,6 +121,9 @@ func New(cfg Config) *fiber.App {
 	applyMetaSynthesisHandler := commands.NewApplyMetaSynthesisHandler(trackStore)
 	compactFileHandler := commands.NewCompactFileHandler(trackStore, llmClient, rec)
 	distillThreadsHandler := commands.NewDistillThreadsHandler(trackStore, llmClient)
+	cqrs.Register[commands.DuplicateTrackCommand](
+		cmdBus, commands.NewDuplicateTrackHandler(trackStore, distillThreadsHandler),
+	)
 	analyzeJobHandler := commands.NewAnalyzeJobHandler(trackStore, llmClient)
 	threadTurnHandler := commands.NewThreadTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 	detectStateHandler := commands.NewDetectLearnerStateHandler(trackStore, llmClient)

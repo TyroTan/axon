@@ -45,6 +45,26 @@ func NewDistillThreadsHandler(store *filesystem.TrackStore, client llm.Client) *
 	return &DistillThreadsHandler{store: store, client: client}
 }
 
+// RunSilent runs distillation without streaming. Skips (returns false, nil) if
+// context/session_insights.snapshot.md already exists — idempotent for fork pre-step.
+func (h *DistillThreadsHandler) RunSilent(ctx context.Context, cmd DistillThreadsCommand) (ran bool, err error) {
+	files, _ := h.store.ReadContextFiles(ctx, cmd.TrackID)
+	if _, ok := files["session_insights.snapshot.md"]; ok {
+		return false, nil
+	}
+	sink := make(chan llm.Chunk, 512)
+	drained := make(chan struct{})
+	go func() {
+		for range sink {
+		}
+		close(drained)
+	}()
+	err = h.run(ctx, cmd, sink)
+	close(sink)
+	<-drained
+	return err == nil, err
+}
+
 // Stream returns a channel of llm.Chunk. When Done=true, the snapshot file
 // has been written to the track's context/ directory.
 func (h *DistillThreadsHandler) Stream(ctx context.Context, cmd DistillThreadsCommand) <-chan llm.Chunk {
