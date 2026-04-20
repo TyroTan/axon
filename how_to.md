@@ -1,7 +1,7 @@
 # How to Use This Learning System
 
-> This file is local only — `.experiments/` is fully gitignored.
-> It is the entry point for this assessment and growth system. All session data stays local.
+> Entry point for the Axon adaptive learning system.
+> All track data, sessions, and context snapshots are VCS-tracked in this repo.
 
 ---
 
@@ -23,17 +23,24 @@ no subscription, no lock-in. You run it by pasting prompts into Claude (or any c
 ## Folder structure
 
 ```
-.experiments/
-  how_to.md                ← this file (force-tracked)
-  concept_taxonomy.md      ← framework design: how concept maps work (force-tracked)
-  experiments_log.md       ← session-level log across all tracks (force-tracked)
+axon/                      ← this repo (was .experiments/ — now a standalone project)
+  how_to.md                ← this file
+  concept_taxonomy.md      ← framework design: how concept maps work
+  experiments_log.md       ← session-level log across all tracks
+  plan.md                  ← system architecture and roadmap
 
-  track_1/                 ← gitignored, local only
+  prompts/                 ← generic/framework prompts (D1-D6 notation, domain-agnostic)
+    01_profile_from_docs.md
+    02_question_generator.md
+    03_response_evaluator.md
+    04_session_synthesizer.md
+
+  track_1/                 ← ML Fundamentals + Math Theory + RAG + LLM Systems
     README.md              ← what this track covers, which external sources it snapshots
     concept_map.json       ← concept legend: index → { name, branch, bloom_current, is_bottleneck }
     context/               ← snapshots of external .md files this track depends on
       _sources.md          ← list of what was snapshotted, at which commit/date
-    prompts/               ← self-contained copies of all prompts for this track
+    prompts/               ← track-specific copies of all prompts
       00_concept_map_generator.md
       01_profile_from_docs.md
       02_question_generator.md
@@ -47,12 +54,12 @@ no subscription, no lock-in. You run it by pasting prompts into Claude (or any c
         03_evaluations.json
         04_synthesis.json
 
-  track_1_2/               ← second iteration of track 1 (gitignored, self-contained)
-    context/               ← snapshot of track_1 context + session_001 synthesis
+  track_1_2/               ← second iteration of track 1 (example; use fork button)
+    context/               ← snapshot of track_1 context + session syntheses
     concept_map.json       ← extended from track_1's map (new concepts may be added)
     ...
 
-  track_2/                 ← new topic combination (gitignored, self-contained)
+  track_2/                 ← new topic combination (example; use clone or blank)
     ...
 ```
 
@@ -151,7 +158,7 @@ Use `04_synthesis.json` as input to Step 5 of the next session (replaces the pro
 When a track has completed 3+ sessions and the synthesis consistently shows the same
 weak dimensions, it is time to start a fresh iteration:
 
-1. Create `track_1_2/`
+1. Use the Fork button on track_1 (creates `track_1_2`)
 2. Copy `track_1/concept_map.json` to `track_1_2/context/track_1_concept_map.json`
 3. Copy `track_1/sessions/*/04_synthesis.json` files to `track_1_2/context/`
 4. Generate a new profile from `context/` contents using prompt 01

@@ -1,7 +1,7 @@
 # Knowledge Assessment & Growth System — Architecture Plan
 
-> **Scope:** This folder is gitignored. Only `experiments_log.md` is force-tracked.
-> Raw session data, responses, and personal performance data stay local.
+> **Scope:** Axon is a standalone VCS-tracked project (was `.experiments/` — promoted to its own repo).
+> All track data, sessions, context snapshots, and conversations are committed to VCS.
 
 ---
 
@@ -146,14 +146,14 @@ D3 ≈ concepts 23–25 (tokenization, system prompt, latent space), D4 ≈ conc
 (ML Fundamentals), D5 ≈ distributed systems patterns within the agentic loop concepts,
 D6 ≈ cross-branch L5–L6 questions. The concept map provides finer granularity.
 
-For the authoritative current structure, see `.experiments/how_to.md`.
+For the authoritative current structure, see `how_to.md`.
 
 ```
-.experiments/
+axon/                               ← this repo (was .experiments/ — now a standalone project)
   plan.md                           ← this file (baseline design; how_to.md is current)
   how_to.md                         ← CURRENT: step-by-step guide, track naming, folder layout
   concept_taxonomy.md               ← CURRENT: concept map schema, bottleneck detection, bloom updates
-  experiments_log.md                ← force-tracked; session-level summary only
+  experiments_log.md                ← session-level log across all tracks
 
   prompts/                          ← generic/framework prompts (D1-D6 notation)
     01_profile_from_docs.md         ← generic profile assessment (any domain)
@@ -166,7 +166,7 @@ For the authoritative current structure, see `.experiments/how_to.md`.
     concept_map.json                ← 32-concept map with bloom_current, bottlenecks
     context/
       _sources.md                   ← which external .md files to snapshot before session 1
-      *.snapshot.md                 ← snapshots of external .md files (local only)
+      *.snapshot.md                 ← snapshots of external .md files
     prompts/                        ← track-specific prompts (concept_index notation)
       00_concept_map_generator.md   ← generates concept_map.json from major branch names
       01_profile_from_docs.md       ← concept-level profile from corpus
@@ -181,10 +181,11 @@ For the authoritative current structure, see `.experiments/how_to.md`.
         03_evaluations.json         ← evaluator output per question
         04_synthesis.json           ← bloom_current updates + next session plan
 
-  track_1_2/                        ← second iteration; inherits from track_1
+  track_2/                        ← second iteration; Upwork RAG interview-prep focus
     context/
-      track_1_concept_map.json      ← snapshot of track_1's final concept_map
-      session_00N_synthesis.json    ← snapshots of track_1 session syntheses
+      upwork_rag_jobs.snapshot.md   ← interview corpora for two production RAG roles
+      _sources.md                   ← lineage + diff-from-track_1 table
+    concept_map.json                ← copied from track_1 with bloom_current preserved
     ...
 ```
 
@@ -221,7 +222,7 @@ For the authoritative current structure, see `.experiments/how_to.md`.
 └─────────────────────────────────────────────────────────┘
               ↓ after 3+ sessions with same weak cluster
 ┌─────────────────────────────────────────────────────────┐
-│  track_1_2                                              │
+│  track_2                                              │
 │  New iteration inheriting track_1 concept map           │
 │  All context self-contained — no external dependencies  │
 └─────────────────────────────────────────────────────────┘

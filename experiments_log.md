@@ -1,8 +1,8 @@
 # Experiments Log
 
-> This file is local only — `.experiments/` is fully gitignored.
-> It contains session-level summaries only — no raw responses or personal performance data.
-> Raw session data lives in `.experiments/track_N/sessions/` (local only).
+> Session-level log for the Axon adaptive learning system.
+> All track data, sessions, and context snapshots are VCS-tracked in this repo.
+> Raw session data lives in `track_N/sessions/`.
 
 ---
 
@@ -25,6 +25,7 @@ analytics layer design (still valid — concept indexes are the track-specific r
 | Track | Branches | Concepts | Status | Started |
 |---|---|---|---|---|
 | `track_1` | ML Fundamentals · ML Math Theory · RAG Architecture · LLM Systems | 32 | active | 2026-04-12 |
+| `track_2` | ML Fundamentals · ML Math Theory · RAG Architecture · LLM Systems | 32 | active (interview prep — Upwork RAG roles) | 2026-04-19 |
 
 ---
 
