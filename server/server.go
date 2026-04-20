@@ -126,6 +126,7 @@ func New(cfg Config) *fiber.App {
 	distillThreadsHandler := commands.NewDistillThreadsHandler(trackStore, llmClient)
 	analyzeJobHandler := commands.NewAnalyzeJobHandler(trackStore, llmClient)
 	threadTurnHandler := commands.NewThreadTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
+	detectStateHandler := commands.NewDetectLearnerStateHandler(trackStore, llmClient)
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -592,6 +593,22 @@ func New(cfg Config) *fiber.App {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 		return c.SendStatus(fiber.StatusNoContent)
+	})
+
+	// POST /api/tracks/:id/sessions/:num/detect-state — infer composite learner state,
+	// patch synthesis with composite_state + nudge_suggestion. Returns updated synthesis.
+	api.Post("/tracks/:id/sessions/:num/detect-state", func(c *fiber.Ctx) error {
+		num, err := strconv.Atoi(c.Params("num"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid session number")
+		}
+		synthesis, err := detectStateHandler.Handle(c.Context(), commands.DetectLearnerStateCommand{
+			TrackID: c.Params("id"), SessionNumber: num,
+		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(synthesis)
 	})
 
 	// GET /api/tracks/:id/meta-synthesis — returns meta_synthesis.json or null.

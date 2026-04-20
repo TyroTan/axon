@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
-import type { GetTrackResult, Concept, Session, SplitPlan, MetaSynthesis, Track } from '@/api/types'
+import type { GetTrackResult, Concept, Session, SplitPlan, MetaSynthesis, Track, Synthesis } from '@/api/types'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -99,6 +99,8 @@ export function TrackPage() {
   const [distilling, setDistilling] = useState(false)
   const [distillStream, setDistillStream] = useState('')
   const [distillDone, setDistillDone] = useState(false)
+  const [lastSynthesis, setLastSynthesis] = useState<Synthesis | null>(null)
+  const [detectingState, setDetectingState] = useState(false)
 
   async function startSession(shardId?: string) {
     if (!trackId || startingSession) return
@@ -137,6 +139,12 @@ export function TrackPage() {
         setMetaSynth(msData.meta_synthesis)
         setMetaReady(readiness.ready)
         setMetaMissing(readiness.missing_shards ?? [])
+        const lastSess = trackData.sessions[trackData.sessions.length - 1]
+        if (lastSess?.has_synthesis) {
+          api.getSynthesis(trackId, lastSess.number)
+            .then(r => setLastSynthesis(r.synthesis))
+            .catch(() => {})
+        }
       })
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false))
@@ -488,6 +496,28 @@ export function TrackPage() {
         </Card>
       )}
 
+      {/* Pre-session nudge banner */}
+      {lastSynthesis?.nudge_suggestion && !lastSynthesis.nudge_override && (
+        <div className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">
+                Pre-session nudge
+                {lastSynthesis.composite_state && ` · ${lastSynthesis.composite_state}`}
+                {lastSynthesis.state_confidence != null && ` (${Math.round(lastSynthesis.state_confidence * 100)}%)`}
+              </p>
+              <p className="text-foreground">{lastSynthesis.nudge_suggestion}</p>
+            </div>
+            <button
+              onClick={() => setLastSynthesis(prev => prev ? { ...prev, nudge_override: true } : null)}
+              className="text-muted-foreground hover:text-foreground text-xs shrink-0 mt-0.5"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Body */}
       <div className="grid grid-cols-[1fr_300px] gap-5 items-start">
 
@@ -546,17 +576,36 @@ export function TrackPage() {
               <p className="text-sm text-muted-foreground">No sessions yet.</p>
             ) : (
               sessions.map(s => (
-                <Link
-                  key={s.number}
-                  to={`/tracks/${s.track_id}/sessions/${s.number}`}
-                  className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm no-underline"
-                >
-                  <span className="font-mono text-xs text-muted-foreground w-6">#{s.number}</span>
-                  <SessionSteps s={s} />
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}
-                  </span>
-                </Link>
+                <div key={s.number} className="flex items-center gap-1">
+                  <Link
+                    to={`/tracks/${s.track_id}/sessions/${s.number}`}
+                    className="flex-1 flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm no-underline"
+                  >
+                    <span className="font-mono text-xs text-muted-foreground w-6">#{s.number}</span>
+                    <SessionSteps s={s} />
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {s.created_at ? new Date(s.created_at).toLocaleDateString() : '—'}
+                    </span>
+                  </Link>
+                  {s.has_synthesis && (
+                    <button
+                      title="Detect learner state"
+                      disabled={detectingState}
+                      onClick={async () => {
+                        if (!trackId || detectingState) return
+                        setDetectingState(true)
+                        try {
+                          const syn = await api.detectState(trackId, s.number)
+                          setLastSynthesis(syn)
+                        } catch (e) { setError(String(e)) }
+                        finally { setDetectingState(false) }
+                      }}
+                      className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 text-base leading-none"
+                    >
+                      {detectingState ? '…' : '◎'}
+                    </button>
+                  )}
+                </div>
               ))
             )}
             <button

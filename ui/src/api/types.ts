@@ -258,6 +258,12 @@ export interface Synthesis {
   concept_map_updates: ConceptMapUpdate[]
   learner_summary: string
   applied: boolean
+  // v2 composite state — written by detect-state
+  composite_state?: string
+  state_confidence?: number
+  perceived_trust_proxy?: number
+  nudge_suggestion?: string
+  nudge_override?: boolean
 }
 
 export interface GetSynthesisResult {

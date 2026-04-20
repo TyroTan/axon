@@ -18,6 +18,8 @@
 | **Faith-Based Unlocking** | E5 | Reach questions, provisional unlock, aspiration gap | 7 |
 | **Regression Intelligence** | E6 | Delta classifier, frustration turn, situation log | 8 |
 | **Generative Formats** | E7 | Teach-back, teach-forward, contradiction, unknown-edge | 9–10 |
+| **Self-Reflection Loop** | E8 | Post-session reflection, concept self-discovery, mode evolution | 11 |
+| **Inquiry Quality** | E9 | Measure how well learner asks questions, not just answers them | 12 |
 
 ---
 
@@ -38,9 +40,12 @@ E2 (Dual State Architecture)
 E5 requires E2 + E4
 E6 requires E3
 E7 requires E1 + E4
+E8 requires E1 + E2 (reads all accumulated session data)
+E9 requires E1 (extends distill-threads; feeds E8 reflection input)
 ```
 
 **Critical path:** `E1 → E3 → E4 → E2 → E5`
+**Self-evolution path:** `E1 → E9 → E8` (parallel to main critical path, mergeable at E4)
 
 ---
 
@@ -365,6 +370,147 @@ AC:
 
 ---
 
+---
+
+## Could Have (continued)
+
+### E8 — Self-Reflection Loop
+
+**C2.1 — ReflectCommand: post-session track-level reflection**
+> As a system, I want to trigger a reflection pass after every synthesis is applied,
+> so that accumulated session data is meta-analyzed and the system can surface candidate
+> concepts, mode recommendations, and emerging criteria it wasn't originally designed to track.
+
+- Trigger: end of `ApplySynthesisCommand.Handle()` (or manual `POST /tracks/:id/reflect`)
+- Reads: all distill-threads snapshots + all syntheses + current concept map
+- Writes: `_reflection.json` at track root (track-level artifact, not session-scoped)
+- Size: **M**
+- Priority: **Could**
+- Sprint: **11**
+- Blocked by: E1 complete, E2 complete
+
+Output schema:
+```json
+{
+  "candidate_concepts": [{ "name", "branch", "description", "justification", "sessions_referenced" }],
+  "recommended_mode": { "direction", "rationale" },
+  "emerging_criteria": [{ "pattern", "occurrence_count", "observable_proxy" }],
+  "inquiry_patterns": { "best_questions", "missed_pivots" }
+}
+```
+
+AC:
+- [ ] `ReflectCommand` and handler in `internal/commands/`
+- [ ] Reads all `session_insights.snapshot.md` files for the track
+- [ ] Writes `_reflection.json` to track root (prefixed `_` so question generator skips it)
+- [ ] `POST /tracks/:id/reflect` endpoint wired in server
+- [ ] UI: "Reflect" button on TrackPage, output readable in context editor
+
+---
+
+**C2.2 — Concept auto-promotion from reflection**
+> As a system, I want candidate concepts that recur across 3+ consecutive reflections
+> to be auto-promoted to the concept map (with user confirmation), so that the ontology
+> evolves with the learner's actual engagement rather than being fixed at track creation.
+
+- Threshold: configurable (default: 3 consecutive reflections)
+- Approval flow: `POST /tracks/:id/reflect/apply` presents candidates, user confirms
+- Auto-approve path: concepts meeting threshold written directly via `WriteConceptMap`
+- Size: **S**
+- Priority: **Could**
+- Sprint: **11**
+- Blocked by: C2.1
+
+AC:
+- [ ] Recurrence tracking across `_reflection.json` history
+- [ ] Candidate concept added to concept map with new index, branch, bloom_current=1
+- [ ] `plan_v2.md` updated: concept map is now a living ontology, not fixed at creation
+
+---
+
+**C2.3 — Reflection feeds forward into next session**
+> As a system, I want the question generator to read `_reflection.json` at session start
+> and apply the recommended mode and emerging criteria to that session's question distribution,
+> so that self-reflection has a measurable downstream effect.
+
+- Same pattern as reading `BOTTLENECK` / `EXPLORATION_UNLOCKED` flags — one additional read
+- Mode recommendation maps to `SteerIntent` direction enum (existing)
+- Size: **S**
+- Priority: **Could**
+- Sprint: **11**
+- Blocked by: C2.1, M4.1
+
+AC:
+- [ ] Question generator reads `_reflection.json` if present
+- [ ] `recommended_mode` applied as soft weight (not overriding user dial config)
+- [ ] Reflection-sourced mode logged in session metadata for auditability
+
+---
+
+### E9 — Inquiry Quality Measurement
+
+**C3.1 — Inquiry Patterns section in distill-threads**
+> As a system, I want distill-threads to extract the quality of questions the learner
+> asked in tutoring threads, not just the quality of their answers, so that inquiry
+> precision becomes a tracked cognitive signal.
+
+- New section in `session_insights.snapshot.md`: **Inquiry Patterns**
+- Dimensions: Bloom level of learner's questions, constraint inclusion, specificity,
+  error localization accuracy, thread arc (narrowing vs scattering)
+- Size: **S**
+- Priority: **Could**
+- Sprint: **12**
+- Blocked by: M1.1
+
+AC:
+- [ ] `buildDistillSystem()` includes Inquiry Patterns section
+- [ ] Section outputs: high-precision questions verbatim, low-precision questions with
+  suggested sharper version, missed pivots (the question one step away from the insight)
+- [ ] Question generator ingests Inquiry Patterns (same pattern as Curiosity Clusters)
+
+---
+
+**C3.2 — Counterfactual question scaffold in thread feedback**
+> As a learner, I want thread feedback to include "had you asked X about Y, you would
+> have arrived at the actual insight" when my question missed the mechanism, so that
+> inquiry quality is something I'm explicitly trained on, not just rewarded for.
+
+- New field on thread evaluator output: `counterfactual_question` (nullable string)
+- Only populated when learner's question targeted symptom rather than mechanism
+- Structural parallel to `distractor_explanations` on MCQ — same pattern, applied to questions
+- Size: **S**
+- Priority: **Could**
+- Sprint: **12**
+- Blocked by: C3.1
+
+AC:
+- [ ] Thread evaluator LLM detects symptom-vs-mechanism targeting in learner questions
+- [ ] `counterfactual_question` field surfaced in thread response (UI: shown below answer)
+- [ ] High counterfactual rate per concept → concept flagged in Inquiry Patterns snapshot
+
+---
+
+**C3.3 — Inquiry quality as tracked concept-level signal**
+> As a system, I want `inquiry_precision` tracked per concept alongside `bloom_current`,
+> so that a learner who answers well but questions poorly is distinguishable from one
+> who does both.
+
+- New concept field: `inquiry_precision` (float 0.0–1.0, session-averaged)
+- Computed from Inquiry Patterns section across sessions
+- Feeds into composite state detection (a high-answer/low-inquiry learner is a distinct state)
+- Size: **M**
+- Priority: **Could**
+- Sprint: **12**
+- Blocked by: C3.1, C3.2
+
+AC:
+- [ ] `inquiry_precision` added to Concept struct (omitempty, default 0)
+- [ ] ApplySynthesis reads Inquiry Patterns section and updates per concept
+- [ ] Composite state detector reads `inquiry_precision` as additional input signal
+- [ ] `concept_taxonomy.md` updated with field definition
+
+---
+
 ## Won't Have — This Iteration
 
 | Item | Reason |
@@ -374,6 +520,7 @@ AC:
 | Full interleaving engine | Needs S2.1 + multiple sessions of clean data first |
 | Biometric arousal signal | No input source available |
 | Automated audience framing personalization | Requires richer conversation corpus than available |
+| Prerequisite graph auto-correction | Implicit signal via aspiration_count exists (E2); explicit validity scoring deferred — needs multi-track baseline |
 
 ---
 
@@ -391,6 +538,8 @@ AC:
 | 8 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied, situation log live |
 | 9 | Generative formats | C1.1, C1.2 | Teach-back and teach-forward evaluated and scored |
 | 10 | Edge formats | C1.3, C1.4 | Contradiction and unknown-edge probe live |
+| 11 | Self-Reflection Loop | C2.1, C2.2, C2.3 | ReflectCommand live, concept auto-promotion working, feeds next session |
+| 12 | Inquiry Quality | C3.1, C3.2, C3.3 | Inquiry Patterns in snapshot, counterfactual scaffold in threads, inquiry_precision tracked |
 
 ---
 

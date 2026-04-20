@@ -160,6 +160,13 @@ type Synthesis struct {
 	ConceptMapUpdates []ConceptMapUpdate `json:"concept_map_updates"`
 	LearnerSummary   string             `json:"learner_summary"`
 	Applied          bool               `json:"applied"` // true after ApplySynthesisCommand
+
+	// v2 composite learner state — written by DetectLearnerStateCommand.
+	CompositeState      string  `json:"composite_state,omitempty"`       // e.g. "Flow", "Plateau"
+	StateConfidence     float64 `json:"state_confidence,omitempty"`      // 0.0–1.0
+	PerceivedTrustProxy float64 `json:"perceived_trust_proxy,omitempty"` // 0.0–1.0
+	NudgeSuggestion     string  `json:"nudge_suggestion,omitempty"`      // pre-session one-liner
+	NudgeOverride       bool    `json:"nudge_override,omitempty"`        // true if learner dismissed
 }
 
 // ─── Session Metadata ─────────────────────────────────────────────────────────

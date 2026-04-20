@@ -464,6 +464,43 @@ func (s *TrackStore) ListSessionsWithMeta(ctx context.Context, trackID string) (
 	return out, nil
 }
 
+// ListPriorSyntheses returns up to limit synthesis objects from sessions before
+// beforeSession, in reverse chronological order (most recent first).
+// Silently skips sessions with missing or unparseable synthesis files.
+func (s *TrackStore) ListPriorSyntheses(ctx context.Context, trackID string, beforeSession, limit int) []domain.Synthesis {
+	sessDir := filepath.Join(s.experimentsDir, trackID, "sessions")
+	entries, err := os.ReadDir(sessDir)
+	if err != nil {
+		return nil
+	}
+	var nums []int
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		var n int
+		if cnt, _ := fmt.Sscanf(e.Name(), "session_%d", &n); cnt == 1 && n < beforeSession {
+			nums = append(nums, n)
+		}
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(nums)))
+	var out []domain.Synthesis
+	for _, n := range nums {
+		if len(out) >= limit {
+			break
+		}
+		b, err := s.ReadSessionFile(ctx, trackID, n, "04_synthesis.json")
+		if err != nil || b == nil {
+			continue
+		}
+		var syn domain.Synthesis
+		if json.Unmarshal(b, &syn) == nil {
+			out = append(out, syn)
+		}
+	}
+	return out
+}
+
 // ReadTrackFile reads meta_synthesis.json or any track-level file.
 func (s *TrackStore) ReadTrackFile(_ context.Context, trackID, filename string) ([]byte, error) {
 	path := filepath.Join(s.experimentsDir, trackID, filename)
