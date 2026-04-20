@@ -120,6 +120,27 @@ export function ContextEditorPage() {
     }
   }
 
+  async function excludeInherited(name: string) {
+    if (!trackId) return
+    const sentinel = '<!-- axon:exclude inherited -->'
+    try {
+      await api.updateContextFile(trackId, name, sentinel)
+      setData(prev => {
+        if (!prev) return prev
+        const inherited = { ...prev.inherited_files }
+        const inheritedFrom = { ...prev.inherited_from }
+        delete inherited[name]
+        delete inheritedFrom[name]
+        return { ...prev, files: { ...prev.files, [name]: sentinel }, inherited_files: inherited, inherited_from: inheritedFrom }
+      })
+      setSelectedFile(name)
+      setDraft(sentinel)
+      setSaveStatus('idle')
+    } catch (e) {
+      setSaveError(String(e))
+    }
+  }
+
   async function importJob() {
     if (!trackId || importingJob || !jobText.trim()) return
     setImportingJob(true)
@@ -296,17 +317,24 @@ export function ContextEditorPage() {
               </div>
               <ul>
                 {inheritedList.map(name => (
-                  <li key={name}>
+                  <li key={name} className="group flex items-center">
                     <button
                       onClick={() => selectFile(name)}
                       className={cn(
-                        'w-full text-left px-3 py-2 text-xs truncate transition-colors',
+                        'flex-1 text-left px-3 py-2 text-xs truncate transition-colors',
                         selectedFile === name
                           ? 'bg-accent text-accent-foreground font-medium'
                           : 'hover:bg-muted/50 text-muted-foreground/60'
                       )}
                     >
                       <span className="truncate">{name}</span>
+                    </button>
+                    <button
+                      onClick={() => excludeInherited(name)}
+                      title="Exclude from this track — creates an empty override file that shadows the ancestor"
+                      className="opacity-0 group-hover:opacity-100 pr-2 text-[10px] text-muted-foreground/50 hover:text-destructive transition-all shrink-0"
+                    >
+                      ✕
                     </button>
                   </li>
                 ))}

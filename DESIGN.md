@@ -75,6 +75,13 @@ Plain `.md` files in `track_N/context/`. They are:
 > track_2_2_2, and all other descendants immediately on their next session. To isolate
 > a descendant, add a file with the same name to the descendant's own context/ — the
 > child file wins on collision and the ancestor version is ignored for that track.
+>
+> **Excluding a specific inherited file (intentional override pattern):** In the Context
+> Editor, click **Exclude** on any inherited file. This creates a same-named file in the
+> descendant's own context with the sentinel content `<!-- axon:exclude inherited -->`.
+> The file is intentionally empty — its only purpose is to shadow the ancestor file so
+> it is not injected into sessions for this track. This is a supported, documented
+> pattern and not a workaround.
 
 For conversations and thread tutoring, context files are **chunked** by markdown headings
 and ranked by keyword overlap (`rag/naive.go`). Chunks scoring below `MinScore = 0.30`
