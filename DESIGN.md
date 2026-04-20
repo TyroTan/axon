@@ -70,6 +70,12 @@ Plain `.md` files in `track_N/context/`. They are:
 - Excluded from injection if filename starts with `_` (`_sources.md`, `_split_plan.md`)
 - Subject to the token budget (`AXON_CONTEXT_LIMIT` default 50k)
 
+> **⚠ Live inheritance warning:** Ancestor context files are read at question-generation
+> time, not copied at fork time. Editing a file in track_2/context/ affects track_2_2,
+> track_2_2_2, and all other descendants immediately on their next session. To isolate
+> a descendant, add a file with the same name to the descendant's own context/ — the
+> child file wins on collision and the ancestor version is ignored for that track.
+
 For conversations and thread tutoring, context files are **chunked** by markdown headings
 and ranked by keyword overlap (`rag/naive.go`). Chunks scoring below `MinScore = 0.30`
 are discarded before injection.

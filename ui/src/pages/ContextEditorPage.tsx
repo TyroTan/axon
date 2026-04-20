@@ -290,8 +290,9 @@ export function ContextEditorPage() {
 
           {inheritedList.length > 0 && (
             <>
-              <div className="px-3 py-1.5 border-t bg-muted/20 flex items-center gap-1">
+              <div className="px-3 py-1.5 border-t bg-muted/20 flex items-center gap-1" title="Live inheritance — changes to ancestor files apply immediately to all descendants on next session">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Inherited</span>
+                <span className="text-[10px] text-amber-400/80" title="Editing these files in the ancestor track will affect all descendants immediately">⚠</span>
               </div>
               <ul>
                 {inheritedList.map(name => (
