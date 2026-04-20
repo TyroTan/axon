@@ -1,0 +1,34 @@
+{
+  "question_id": "q_6",
+  "claude_session_id": "1f733d47-9c61-4416-9f27-9a3e2c33dc01",
+  "accumulated_input_tokens": 6,
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Your answer (D) reflects a reasonable instinct — BM25 does handle non-English text without embeddings — but it misidentifies the core problem. The real issue isn't that Hindi terms lack keyword matches; it's that Hindi queries have no meaningful place in an English-only embedding space, so semantic retrieval breaks entirely regardless of what you layer on top. BM25 can find the literal string \"मेटफॉर्मिन\" in a chunk, but it can't relate that to English clinical content or understand query intent.\n\nThe key insight you missed: **embedding quality is determined by training data coverage, not dimension count.** A 1,536-dim model trained only on English text has simply never seen Hindi clinical vocabulary — Hindi queries land in poorly-calibrated regions of the manifold where retrieved results are essentially noise.\n\nWhat would you like to dig into — why BM25 specifically can't bridge this gap, or how you'd actually evaluate and choose a multilingual embedding model for this use case?",
+      "ts": "2026-04-19T22:52:24.31938+08:00",
+      "meta": {
+        "call_mode": "seeded",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 2,
+        "claude_session_id": "1f733d47-9c61-4416-9f27-9a3e2c33dc01"
+      }
+    },
+    {
+      "role": "user",
+      "content": "in choice B, can we explain in mechanical terms how the fine-tuning of the multilingual model on clinical text is done, or there are many sufficient options?",
+      "ts": "2026-04-19T22:53:22.105346+08:00"
+    },
+    {
+      "role": "assistant",
+      "content": "There are several sufficient approaches, but they share a common mechanical backbone: **contrastive learning on (query, positive passage, negative passage) triplets.**\n\nThe training signal is: pull the query embedding closer to the relevant passage embedding, push it away from irrelevant ones. The loss function (triplet loss, InfoNCE, Multiple Negatives Ranking Loss) enforces this in the vector space. Applied to clinical Hindi+English pairs, this *reshapes* the embedding manifold so Hindi clinical queries land near semantically relevant chunks — in either language.\n\nConcretely, for your clinical corpus you'd need training data like:\n\n```\nquery: \"मेटफॉर्मिन की खुराक PCOS में?\"   (Hindi)\npositive: chunk about metformin dosing in PCOS\nnegative: chunk about an unrelated condition\n```\n\n**Why multiple options are sufficient:**\n- **Starting model**: mBERT, XLM-R, multilingual-E5 — all already encode Hindi tokens from pretraining, so fine-tuning reshapes rather than teaches from scratch.\n- **Data sourcing**: real annotated pairs, LLM-generated synthetic pairs from your PDFs, or translated English QA datasets — all work to varying degrees.\n- **Loss function**: MNRL with in-batch negatives is common and efficient; hard negative mining improves it further.\n\nThe critical constraint isn't *which* fine-tuning recipe — it's **having clinical (query, passage) pairs in Hindi at all**. Without that signal, no fine-tuning approach can teach the model what Hindi clinical vocabulary means in retrieval context.",
+      "ts": "2026-04-19T22:53:41.931371+08:00",
+      "meta": {
+        "call_mode": "resumed",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 0,
+        "claude_session_id": "1f733d47-9c61-4416-9f27-9a3e2c33dc01"
+      }
+    }
+  ]
+}

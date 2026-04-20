@@ -1,0 +1,23 @@
+{
+  "question_id": "q_8",
+  "claude_session_id": "0cb5aed5-7114-4215-860e-2c4b5c2d0f4b",
+  "accumulated_input_tokens": 3,
+  "messages": [
+    {
+      "role": "user",
+      "content": "I hear you use the term \"recall\" from time to time, is this literally the recall which mechanically means: TP divided by TP + false negative?",
+      "ts": "2026-04-19T23:34:08.45873+08:00"
+    },
+    {
+      "role": "assistant",
+      "content": "Yes, exactly — same formula, same mechanics. In retrieval contexts, the population is *relevant chunks that exist in your index*, so:\n\n- **TP** = relevant chunks that were retrieved\n- **FN** = relevant chunks that existed but weren't retrieved\n\nWhen the evaluation says \"accepting lower recall,\" it means: by tightening the score threshold and reducing top-k from 5 → 3, you're deliberately increasing FN — you'll miss some marginally relevant chunks to stay within the latency budget.\n\nThe health-domain point in the feedback is why this tradeoff matters: a missed chunk (FN) causes a hedged or incomplete answer, which is recoverable. A retrieved *low-quality* chunk (a marginal chunk that passes a loose threshold) can anchor the LLM toward a wrong or hallucinated answer — which in a PCOS health context is the worse failure mode. So you're trading recall for precision, deliberately.\n\nDoes that connect to how you were thinking about the score threshold in your answer?",
+      "ts": "2026-04-19T23:34:20.917923+08:00",
+      "meta": {
+        "call_mode": "seeded",
+        "input_tokens_sent": 3,
+        "context_chunks_used": 2,
+        "claude_session_id": "0cb5aed5-7114-4215-860e-2c4b5c2d0f4b"
+      }
+    }
+  ]
+}

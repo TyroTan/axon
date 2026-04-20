@@ -1,0 +1,89 @@
+{
+  "session_number": 1,
+  "session_date": "2026-04-19",
+  "generation_id": "f96ff900-5693-4cfe-90ee-6058cb215a48",
+  "concept_map_updates": [
+    {
+      "concept_index": 18,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 14,
+      "bloom_current_before": 2,
+      "bloom_current_after": 2,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 13,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 15,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 16,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 17,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-22T00:00:00Z",
+        "interval_days": 3,
+        "consecutive_correct": 0
+      }
+    },
+    {
+      "concept_index": 21,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 1
+      }
+    },
+    {
+      "concept_index": 20,
+      "bloom_current_before": 1,
+      "bloom_current_after": 1,
+      "spaced_repetition": {
+        "next_review": "2026-04-26T00:00:00Z",
+        "interval_days": 7,
+        "consecutive_correct": 0
+      }
+    }
+  ],
+  "learner_summary": "The learner showed accurate recall on single-question concepts — similarity failure modes, dense/sparse retrieval, and RAG meta-cognition — but could not demonstrate sufficient depth across multi-question concepts: chunking strategies and embedding geometry both produced partial-credit answers with confirmed misconceptions. Re-ranking and context assembly was the session's weakest area, scoring zero with a misconception flagged, and is scheduled for accelerated review in 3 days. No concepts advanced this session due to either insufficient question coverage (n=1) or sub-75% correctness; priority next steps are resolving the re-ranking misconception and raising correctness on chunking and embedding concepts above the 0.75 threshold across at least two questions.",
+  "applied": false
+}
