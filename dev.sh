@@ -14,6 +14,7 @@
 #   AXON_SOFT_LIMIT       Token count that triggers a split plan (default: 250000)
 #   AXON_HARD_LIMIT       Token count that aborts generation entirely (default: 300000)
 #   ANTHROPIC_API_KEY     If set, uses Anthropic HTTP API instead of claude CLI
+AXON_LEVEL_OVERRIDE="medium"
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -25,4 +26,4 @@ npm run build
 
 echo "→ starting server on :$PORT"
 cd "$SCRIPT_DIR"
-AXON_DIR="$SCRIPT_DIR" PORT="$PORT" go run .
+AXON_LEVEL_OVERRIDE="$AXON_LEVEL_OVERRIDE" AXON_DIR="$SCRIPT_DIR" PORT="$PORT" go run .

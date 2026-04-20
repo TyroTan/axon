@@ -4,10 +4,11 @@
     "ML Fundamentals",
     "ML Math Theory",
     "RAG Architecture",
-    "LLM Systems"
+    "LLM Systems",
+    "Pedagogy & Communication"
   ],
   "generated_at": "2026-04-20",
-  "note": "Seed map \u2014 reset to clean slate 2026-04-20. bloom_current starts at 1 for all concepts.",
+  "note": "Seed map \u2014 reset to clean slate 2026-04-20. Added Pedagogy & Communication branch 2026-04-21.",
   "concepts": [
     {
       "index": 0,
@@ -752,6 +753,117 @@
       "prerequisite_indexes": [],
       "unlocks_indexes": [
         31
+      ],
+      "spaced_repetition": {
+        "next_review": null,
+        "interval_days": 1,
+        "consecutive_correct": 0
+      },
+      "exploration_unlocked": false,
+      "aspiration_count": 0,
+      "inquiry_precision": 0.0
+    },
+    {
+      "index": 33,
+      "name": "abstraction level traversal",
+      "branch": "Pedagogy & Communication",
+      "description": "Deliberately shifting between implementation detail, mechanism, and mental model layers. Knowing which layer the listener occupies and translating a concept to meet them there without losing fidelity.",
+      "bloom_current": 1,
+      "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [
+        34,
+        35,
+        36,
+        37
+      ],
+      "spaced_repetition": {
+        "next_review": null,
+        "interval_days": 1,
+        "consecutive_correct": 0
+      },
+      "exploration_unlocked": false,
+      "aspiration_count": 0,
+      "inquiry_precision": 0.0
+    },
+    {
+      "index": 34,
+      "name": "analogical structural mapping",
+      "branch": "Pedagogy & Communication",
+      "description": "Finding a structural isomorphism between an unfamiliar domain and a familiar one \u2014 and identifying precisely where the analogy breaks. Most failed explanations use analogies that transfer surface features but not structure.",
+      "bloom_current": 1,
+      "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [
+        33
+      ],
+      "unlocks_indexes": [],
+      "spaced_repetition": {
+        "next_review": null,
+        "interval_days": 1,
+        "consecutive_correct": 0
+      },
+      "exploration_unlocked": false,
+      "aspiration_count": 0,
+      "inquiry_precision": 0.0
+    },
+    {
+      "index": 35,
+      "name": "minimal sufficient model",
+      "branch": "Pedagogy & Communication",
+      "description": "Identifying the smallest representation that preserves the essential behavior of a complex system. The toy model skill \u2014 stripping away detail until you find the irreducible mechanism the listener needs.",
+      "bloom_current": 1,
+      "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [
+        33
+      ],
+      "unlocks_indexes": [],
+      "spaced_repetition": {
+        "next_review": null,
+        "interval_days": 1,
+        "consecutive_correct": 0
+      },
+      "exploration_unlocked": false,
+      "aspiration_count": 0,
+      "inquiry_precision": 0.0
+    },
+    {
+      "index": 36,
+      "name": "prerequisite gap detection",
+      "branch": "Pedagogy & Communication",
+      "description": "Real-time sensing of what background knowledge a listener is missing before a concept can land. Tracing the dependency chain on the fly and inserting just-in-time scaffolding without losing the thread.",
+      "bloom_current": 1,
+      "bloom_target": 4,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [
+        33
+      ],
+      "unlocks_indexes": [],
+      "spaced_repetition": {
+        "next_review": null,
+        "interval_days": 1,
+        "consecutive_correct": 0
+      },
+      "exploration_unlocked": false,
+      "aspiration_count": 0,
+      "inquiry_precision": 0.0
+    },
+    {
+      "index": 37,
+      "name": "curse of knowledge (expertise blindspot)",
+      "branch": "Pedagogy & Communication",
+      "description": "Metacognitive awareness that mastery erodes access to the novice perspective \u2014 automated knowledge becomes invisible. The root bottleneck: the other four skills are unreachable if you cannot see the gap between what you know and what the listener lacks.",
+      "bloom_current": 1,
+      "bloom_target": 5,
+      "is_bottleneck": true,
+      "prerequisite_indexes": [],
+      "unlocks_indexes": [
+        33,
+        34,
+        35,
+        36
       ],
       "spaced_repetition": {
         "next_review": null,
