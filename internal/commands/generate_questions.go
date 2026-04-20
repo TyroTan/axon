@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/tyrohunt/axon/internal/config"
 	"github.com/tyrohunt/axon/internal/domain"
@@ -138,10 +140,38 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		}
 	}
 
-	level := config.ActiveLevel()
+	// Build state snapshot from two-sided spine before any LLM call.
+	configLevel := config.ActiveLevel()
+	learnerSignal := h.store.CurrentLearnerSignal(ctx, cmd.TrackID)
+	effectiveScore := config.EffectiveScore(configLevel.Score, learnerSignal)
+	activeLevel := config.NearestLevel(effectiveScore)
+	snapshot := &domain.StateSnapshot{
+		AxonConfigScore: configLevel.Score,
+		LearnerSignal:   learnerSignal,
+		EffectiveScore:  effectiveScore,
+		LevelName:       activeLevel.Name,
+	}
+
+	// Persist snapshot into session metadata (written once, never mutated).
+	if sessMeta, err2 := h.store.ReadSessionMetadata(ctx, cmd.TrackID, cmd.SessionNumber); err2 == nil {
+		sessMeta.StateSnapshot = snapshot
+		_ = h.store.WriteSessionMetadata(ctx, cmd.TrackID, cmd.SessionNumber, sessMeta)
+	}
+
+	// Append path entry for the generation event.
+	_ = h.store.AppendPathEntry(ctx, domain.PathEntry{
+		TrackID:         cmd.TrackID,
+		SessionNum:      cmd.SessionNumber,
+		Event:           "generated",
+		VisitedAt:       time.Now(),
+		AxonConfigScore: snapshot.AxonConfigScore,
+		LearnerSignal:   snapshot.LearnerSignal,
+		EffectiveScore:  snapshot.EffectiveScore,
+	})
+
 	generationID := uuid.New().String()
-	system := BuildSystemPrompt(level)
-	user := BuildUserPrompt(cmd.TrackID, generationID, cm, contextFiles, level)
+	system := BuildSystemPrompt(activeLevel)
+	user := BuildUserPrompt(cmd.TrackID, generationID, cm, contextFiles, activeLevel)
 
 	chunks := h.client.Stream(ctx, questionModel, system, []llm.Message{
 		{Role: "user", Content: user},

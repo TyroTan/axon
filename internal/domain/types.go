@@ -174,6 +174,39 @@ type Synthesis struct {
 	PerceivedTrustProxy float64 `json:"perceived_trust_proxy,omitempty"` // 0.0–1.0
 	NudgeSuggestion     string  `json:"nudge_suggestion,omitempty"`      // pre-session one-liner
 	NudgeOverride       bool    `json:"nudge_override,omitempty"`        // true if learner dismissed
+
+	// Path-aware scoring — written by ApplySynthesisCommand.
+	// LearnerSignal: signal derived from this session's outcomes (-3..+3).
+	// DeltaMultiplier: ratio of (generation effective score) vs (answer-time effective score).
+	// A session answered harder than it was generated for → multiplier > 1.0 → extra bloom reward.
+	LearnerSignal   int     `json:"learner_signal,omitempty"`
+	DeltaMultiplier float64 `json:"delta_multiplier,omitempty"`
+}
+
+// ─── Path tracking ───────────────────────────────────────────────────────────
+
+// StateSnapshot captures the two-sided difficulty state at a point in time.
+// Written once at question-generation time; never mutated afterward.
+// AxonConfigScore: numeric position of AXON_LEVEL_OVERRIDE on the difficulty spine.
+// LearnerSignal: derived from the most recent synthesis composite_state (-3..+3).
+// EffectiveScore: combined value used for prompt injection and delta computation.
+type StateSnapshot struct {
+	AxonConfigScore int    `json:"axon_config_score"`
+	LearnerSignal   int    `json:"learner_signal"`
+	EffectiveScore  int    `json:"effective_score"`
+	LevelName       string `json:"level_name"` // human label of the resolved level
+}
+
+// PathEntry is one append-only record in learner_path.jsonl.
+// Event: "generated" | "answered" | "evaluated".
+type PathEntry struct {
+	TrackID         string    `json:"track_id"`
+	SessionNum      int       `json:"session_num"`
+	Event           string    `json:"event"`
+	VisitedAt       time.Time `json:"visited_at"`
+	AxonConfigScore int       `json:"axon_config_score"`
+	LearnerSignal   int       `json:"learner_signal"`
+	EffectiveScore  int       `json:"effective_score"`
 }
 
 // ─── Session Metadata ─────────────────────────────────────────────────────────
@@ -183,10 +216,12 @@ type Synthesis struct {
 // ClaudeSessionID is set after the first LLM call when --resume is wired (U2B).
 // AccumulatedInputTokens tracks the running total of tokens sent across all LLM
 // calls in this session (used by prompt-preview to show "tokens consumed so far").
+// StateSnapshot is written at question-generation time and never mutated.
 type SessionMetadata struct {
-	ShardID               string `json:"shard_id"`
-	ClaudeSessionID       string `json:"claude_session_id,omitempty"`
-	AccumulatedInputTokens int   `json:"accumulated_input_tokens,omitempty"`
+	ShardID                string        `json:"shard_id"`
+	ClaudeSessionID        string        `json:"claude_session_id,omitempty"`
+	AccumulatedInputTokens int           `json:"accumulated_input_tokens,omitempty"`
+	StateSnapshot          *StateSnapshot `json:"state_snapshot,omitempty"`
 }
 
 // ─── Thread ───────────────────────────────────────────────────────────────────

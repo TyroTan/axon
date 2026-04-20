@@ -566,6 +566,90 @@ func (s *TrackStore) WriteTrackFile(_ context.Context, trackID, filename string,
 	return os.WriteFile(path, content, 0o644)
 }
 
+// ─── Learner path ─────────────────────────────────────────────────────────────
+
+// AppendPathEntry appends one record to the global learner_path.jsonl log.
+func (s *TrackStore) AppendPathEntry(_ context.Context, entry domain.PathEntry) error {
+	path := filepath.Join(s.experimentsDir, "learner_path.jsonl")
+	b, err := json.Marshal(entry)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = fmt.Fprintf(f, "%s\n", b)
+	return err
+}
+
+// ReadPathEntries reads the full learner_path.jsonl log. Returns empty slice if not found.
+func (s *TrackStore) ReadPathEntries(_ context.Context) ([]domain.PathEntry, error) {
+	path := filepath.Join(s.experimentsDir, "learner_path.jsonl")
+	b, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var entries []domain.PathEntry
+	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+		if line == "" {
+			continue
+		}
+		var e domain.PathEntry
+		if json.Unmarshal([]byte(line), &e) == nil {
+			entries = append(entries, e)
+		}
+	}
+	return entries, nil
+}
+
+// CurrentLearnerSignal derives the learner signal integer from the most recent
+// applied synthesis on the track (or its ancestors). Maps composite_state to
+// the difficulty spine: frustrated=-2, plateauing=-1, progressing=0, flow/accelerating=+1.
+// Falls back to 0 (neutral) if no synthesis exists yet.
+func (s *TrackStore) CurrentLearnerSignal(ctx context.Context, trackID string) int {
+	// Walk own sessions newest-first, then ancestors.
+	ids := []string{trackID}
+	anc := parentID(trackID)
+	for anc != "" {
+		ids = append(ids, anc)
+		anc = parentID(anc)
+	}
+	for _, id := range ids {
+		entries, _ := s.ListSessions(ctx, id)
+		nums := make([]int, 0, len(entries))
+		for _, sess := range entries {
+			nums = append(nums, sess.Number)
+		}
+		sort.Sort(sort.Reverse(sort.IntSlice(nums)))
+		for _, n := range nums {
+			b, _ := s.ReadSessionFile(ctx, id, n, "04_synthesis.json")
+			if b == nil {
+				continue
+			}
+			var syn domain.Synthesis
+			if json.Unmarshal(b, &syn) != nil || !syn.Applied {
+				continue
+			}
+			switch strings.ToLower(syn.CompositeState) {
+			case "frustrated", "overwhelmed":
+				return -2
+			case "plateauing", "plateau", "stuck":
+				return -1
+			case "flow", "accelerating":
+				return 1
+			default:
+				return 0
+			}
+		}
+	}
+	return 0
+}
+
 // ─── Conversations ────────────────────────────────────────────────────────────
 
 // conversationsDir returns the path to the global conversations directory.

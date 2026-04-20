@@ -148,26 +148,42 @@ func New(cfg Config) *fiber.App {
 		})
 	})
 
-	// GET /api/config/levels — full difficulty level matrix + active level.
+	// GET /api/config/levels — full difficulty level matrix + active resolved level.
 	api.Get("/config/levels", func(c *fiber.Ctx) error {
-		active := config.ActiveLevel()
 		ordered := make([]fiber.Map, 0, len(config.LevelOrder))
 		for _, name := range config.LevelOrder {
 			l := config.Levels[name]
 			entry := fiber.Map{
-				"name":               l.Name,
-				"bloom_delta":        l.BloomDelta,
-				"difficulty_floor":   l.DifficultyFloor,
-				"time_multiplier":    l.TimeMultiplier,
-				"format_bias":        l.FormatBias,
-				"active":             l.Name == active.Name,
+				"name":             l.Name,
+				"score":            l.Score,
+				"bloom_delta":      l.BloomDelta,
+				"difficulty_floor": l.DifficultyFloor,
+				"time_multiplier":  l.TimeMultiplier,
+				"format_bias":      l.FormatBias,
 			}
 			if l.CrossBranchWeight != nil {
 				entry["cross_branch_weight"] = *l.CrossBranchWeight
 			}
 			ordered = append(ordered, entry)
 		}
-		return c.JSON(fiber.Map{"levels": ordered, "active": active.Name})
+		configLevel := config.ActiveLevel()
+		return c.JSON(fiber.Map{
+			"levels":            ordered,
+			"axon_config_score": configLevel.Score,
+			"axon_config_name":  configLevel.Name,
+		})
+	})
+
+	// GET /api/learner-path — full append-only traversal log.
+	api.Get("/learner-path", func(c *fiber.Ctx) error {
+		entries, err := trackStore.ReadPathEntries(c.Context())
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		if entries == nil {
+			entries = []domain.PathEntry{}
+		}
+		return c.JSON(fiber.Map{"entries": entries, "count": len(entries)})
 	})
 
 	// GET /api/tracks/:id/difficulty-preview?level=<name>
