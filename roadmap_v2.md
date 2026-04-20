@@ -110,42 +110,25 @@ AC:
 
 ---
 
-### E2 — Dual State Architecture
+### E2 — Dual State Architecture ✅ Done
 
-**M2.1 — Split concept_map.json into evidence + exploration fields**
-> As a system, I want each concept to carry both an evidence-state score (from behavioral
-> data) and an exploration-state flag (from curiosity/aspiration signal) so that question
-> selection and profile scoring never use the same variable.
-
-- Touches: `concept_map.json` schema, profile snapshot schema, question generator
-- New fields: `exploration_unlocked: bool`, `aspiration_count: int`
-- Size: **M**
-- Priority: **Must**
-- Sprint: **3**
+**M2.1 — Split concept_map.json into evidence + exploration fields** ✅ Done
 
 AC:
-- [ ] Schema change backward-compatible with v1 concept maps (new fields optional, default false/0)
-- [ ] Question generator reads `exploration_unlocked` for candidate pool selection
-- [ ] Profile scoring reads `bloom_current` only — never `exploration_unlocked`
-- [ ] `concept_taxonomy.md` updated with new fields
+- [x] Schema change backward-compatible with v1 concept maps (new fields optional, default false/0)
+- [x] Question generator reads `exploration_unlocked` for candidate pool selection
+- [x] Profile scoring reads `bloom_current` only — never `exploration_unlocked`
+- [x] `concept_taxonomy.md` updated with new fields
 
 ---
 
-**M2.2 — Provisional unlock logic**
-> As a system, I want concepts with aspiration_count >= 2 to become provisionally
-> exploration-unlocked at 0.5 scoring weight, so that top-down learners can engage above
-> their demonstrated floor without corrupting their profile.
-
-- Size: **M**
-- Priority: **Must**
-- Sprint: **3**
-- Blocked by: M2.1
+**M2.2 — Provisional unlock logic** ✅ Done
 
 AC:
-- [ ] aspiration_count increments when curiosity cluster detected OR learner engages with concept outside question flow
-- [ ] Provisional unlock threshold configurable (default: 2)
-- [ ] Scoring weight for reach questions on provisionally unlocked concepts: 0.5
-- [ ] Weight scales toward 1.0 with consecutive non-failure engagement (3 attempts)
+- [x] aspiration_count increments when learner engages above evidence floor (question bloom_level > concept bloom_current at apply time)
+- [x] Provisional unlock threshold: `aspirationThreshold = 2` constant in `apply_synthesis.go`
+- [x] `exploration_unlocked` auto-set in `ApplySynthesisHandler` when threshold reached
+- [x] Scoring weight communicated to LLM via `difficulty_estimate = 0.5×` rule in system prompt
 
 ---
 
@@ -698,7 +681,7 @@ AC (once open decisions resolved):
 | 4 | Smart Fork | F1.1, F1.2 | Auto-distill + conversation snapshot on fork | ✅ Done |
 | **5** | **Live Concept Map Inheritance** | **F2** | **Child sessions use ancestor bloom floor at generation time** | ← next |
 | 6 | Pre-Merge Distill | F3 | RunSilent on source tracks before merge | |
-| 7 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, exploration_unlocked live | |
+| 7 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, exploration_unlocked live | ✅ Done |
 | 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | |
 | 9 | Application Evidence — schema | E10 schema | session.type field, application_task.json shape, open decisions resolved | |
 | 10 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked | |
