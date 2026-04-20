@@ -147,6 +147,18 @@ Output: `04_synthesis.json` — updated profile, analytics, next-session plan.
 
 Copy the one-line log entry from `04_synthesis.json` into `experiments_log.md`.
 
+### Step 7b — Distill tutoring threads (after 2+ sessions with thread activity)
+
+On the track page, click **Distill Threads**. This scans all tutoring conversation threads
+across all sessions, extracts learning signal, and writes `context/session_insights.snapshot.md`.
+
+Run this before generating questions for the next session — it feeds directly into question
+framing, distractor selection, and concept weighting. Also run before forking a track.
+
+Output sections: Reasoning Patterns, Misconception Fingerprint, Distractor Affinities,
+Concepts Needing Reinforcement, Calibration Notes, Curiosity Clusters,
+Mental Models That Clicked, Mental Models That Failed.
+
 ### Step 8 — Next session
 
 Use `04_synthesis.json` as input to Step 5 of the next session (replaces the profile snapshot).

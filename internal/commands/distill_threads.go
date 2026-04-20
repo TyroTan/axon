@@ -190,6 +190,15 @@ Concept names or topic areas where the learner needed multiple follow-ups or sho
 ## Calibration Notes
 Patterns in how the learner rates their confidence vs actual correctness. Are they overconfident? Underconfident on topics they actually understand?
 
+## Curiosity Clusters
+Topics or concepts the learner returned to with follow-up questions beyond what the evaluation required. High curiosity + uncertain mastery = strong signal for top-down engagement. Format: concept name, evidence (e.g. "asked 3 follow-ups on hybrid retrieval failure modes"), and whether mastery appeared solid or uncertain.
+
+## Mental Models That Clicked
+Analogies, framings, or explanations that visibly unlocked understanding mid-conversation. Include the framing that worked, not just the concept.
+
+## Mental Models That Failed
+Framings or explanations that required re-explanation or produced more confusion. Include what was tried and what the learner misread about it.
+
 Rules:
 - Be specific — cite the question content, not just "question 3"
 - Do not fabricate signal that isn't in the conversations

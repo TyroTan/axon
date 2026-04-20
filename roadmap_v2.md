@@ -52,60 +52,50 @@ E7 requires E1 + E4
 
 ---
 
-**M1.1 — Prompt 05: Conversation Analyzer**
-> As a system, I want to analyze free-form thread conversations and extract a structured
-> cognitive fingerprint so that question generation can adapt to how the learner reasons,
-> not just what they know.
+**M1.1 — Extend distill_threads output to full v2 schema** ✅ Done — Sprint 1
+> As a system, I want tutoring thread distillation to output all v2 cognitive fingerprint
+> sections so that question generation has the full learner reasoning signal available.
 
-- Input: `conversations/*.json` for a given track
-- Output: `context/conversation_analysis.json`
-- Schema: reasoning_style, misconception_fingerprint[], curiosity_clusters[],
-  mental_models_that_clicked[], distractor_affinities[]
-- Size: **M**
+- Pre-existing: `distill_threads.go` → `context/session_insights.snapshot.md`
+- Pre-existing sections: Reasoning Patterns, Misconception Fingerprint, Distractor Affinities,
+  Concepts Needing Reinforcement, Calibration Notes
+- Added in v2: Curiosity Clusters, Mental Models That Clicked, Mental Models That Failed
+- Size: **S** (pre-existing implementation reduced scope from M)
 - Priority: **Must**
-- Sprint: **1**
 
 AC:
-- [ ] Prompt 05 written and in `prompts/05_conversation_analyzer.md`
-- [ ] Output schema defined and documented in `plan_v2.md`
-- [ ] Sample output generated from track_2 conversation threads
-- [ ] Output file location: `context/conversation_analysis.json`
+- [x] `distill_threads.go:buildDistillSystem()` includes all v2 sections
+- [x] Output file: `context/session_insights.snapshot.md` (existing path)
+- [x] UI: Distill Threads button on TrackPage (pre-existing)
 
 ---
 
-**M1.2 — Question generator ingests conversation_analysis.json**
-> As a question generator, I want to read conversation_analysis.json from context/ and
-> use reasoning_style and misconception_fingerprint to adapt question framing and distractor
-> selection, so that questions target the learner's specific misframings.
+**M1.2 — Question generator ingests full v2 fingerprint** ✅ Done — Sprint 1
+> As a system, I want question generation to use all v2 fingerprint sections to adapt
+> framing, distractors, and concept weighting.
 
-- Touches: `generate_questions.go:BuildSystemPrompt`
-- One-line addition to system prompt instruction
-- Size: **S**
+- Pre-existing: `generate_questions.go` already read Reasoning Patterns, Misconception
+  Fingerprint, Distractor Affinities
+- Added in v2: Curiosity Clusters → concept weight nudge; Mental Models That Clicked →
+  use those framings; Mental Models That Failed → avoid those framings
+- Size: **XS**
 - Priority: **Must**
-- Sprint: **1**
-- Blocked by: M1.1
 
 AC:
-- [ ] System prompt includes instruction for conversation_analysis.json when present
-- [ ] Reasoning style → question framing adaptation documented
-- [ ] Misconception fingerprint → distractor targeting documented
-- [ ] Curiosity clusters → slight concept weight boost documented
+- [x] System prompt instruction updated in `generate_questions.go`
+- [x] All v2 sections referenced in the generator instruction
 
 ---
 
-**M1.3 — Conversation snapshotting workflow**
-> As a learner, I want a documented process for when and how to run the conversation
-> analyzer so that the signal is incorporated at the right cadence without manual overhead.
+**M1.3 — Distill workflow documented in how_to.md** ✅ Done — Sprint 1
+> As a learner, I want a clear step for when to run Distill Threads so the signal is
+> incorporated before generating questions for the next session or fork.
 
-- Size: **S**
+- Size: **XS**
 - Priority: **Must**
-- Sprint: **2**
-- Blocked by: M1.1
 
 AC:
-- [ ] Workflow documented in `how_to.md` (when to run: 2+ sessions of thread dialogue)
-- [ ] Step added to track fork process: run 05 before generating new profile
-- [ ] `context/conversation_analysis.json` added to `.gitignore` alongside other snapshots
+- [x] Step added to `how_to.md` after Step 7 (session synthesis)
 
 ---
 

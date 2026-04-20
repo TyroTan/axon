@@ -118,11 +118,11 @@ are discarded before injection.
 **Status: ✅ fully implemented** (Fork button on TrackPage)
 
 ### US-04: Specialize a track for a specific job or context
-1. Open parent track → **Duplicate** → navigates to child track
+1. Open parent track → **Fork** → navigates to child track
 2. **Edit Context** → create a new `.md` file with job/interview-specific content
 3. Start a session — child context is merged with inherited parent context
 
-**Status: ✅ fully implemented (Duplicate + Edit Context)**
+**Status: ✅ fully implemented (Fork + Edit Context)**
 
 ### US-05: Combine knowledge from two tracks
 1. Open any track → **Merge…** panel
@@ -192,12 +192,15 @@ signal into a context file that future sessions — and forked/cloned tracks —
 
 1. Track page → **Distill Threads** button (visible when at least one session exists)
 2. Backend scans all sessions for threads with at least one learner follow-up turn
-3. LLM generates a structured learning signal document with five sections:
+3. LLM generates a structured learning signal document with eight sections:
    - **Reasoning Patterns** — how the learner approaches problems
    - **Misconception Fingerprint** — specific wrong beliefs surfaced, whether resolved
    - **Distractor Affinities** — MCQ wrong-answer patterns (informs future distractor generation)
    - **Concepts Needing Reinforcement** — persistent confusion areas
    - **Calibration Notes** — confidence vs correctness patterns
+   - **Curiosity Clusters** — concepts learner returned to beyond eval requirements; signals top-down engagement candidates
+   - **Mental Models That Clicked** — framings/analogies that visibly unlocked understanding mid-thread
+   - **Mental Models That Failed** — framings requiring re-explanation; question generator avoids these
 4. Output written to `context/session_insights.snapshot.md`
 5. File propagates automatically: inherited via Fork cascade, physically copied on Clone
 
@@ -372,7 +375,7 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 | GET | `/api/tracks` | List all tracks |
 | POST | `/api/tracks` | Create new root track. Body: `{ branches: string[] }`. Returns `new_track_id` |
 | GET | `/api/tracks/:id` | Track detail + concept map |
-| POST | `/api/tracks/:id/duplicate` | Fork — create child track (`track_N` → `track_N_2`) |
+| POST | `/api/tracks/:id/fork` | Fork — create child track (`track_N` → `track_N_2`) |
 | POST | `/api/tracks/merge` | Create composite track from multiple sources |
 | GET/PUT | `/api/tracks/:id/context/:filename` | Read/write context file |
 | POST | `/api/tracks/:id/context/:filename/compact` | SSE compact |

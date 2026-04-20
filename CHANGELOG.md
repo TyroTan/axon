@@ -9,6 +9,57 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.27.0] — 2026-04-20 — v2 E1: Full cognitive fingerprint + MCP RAG server
+
+### Added
+- **Curiosity Clusters section** in `distill_threads.go:buildDistillSystem()` — captures
+  concepts the learner returned to with follow-up questions beyond evaluation requirements.
+  Format: concept name, evidence quote, mastery signal (solid/uncertain).
+- **Mental Models That Clicked** section — framings or analogies that visibly unlocked
+  understanding mid-thread. Written for future question generator re-use.
+- **Mental Models That Failed** section — framings that required re-explanation or produced
+  more confusion. Question generator instructed to avoid these.
+- **`cmd/axon-mcp/`** — MCP stdio server (`axon-mcp` binary). Exposes `query_axon_docs`
+  tool that RAG-searches all root-level `.md` files within a 5k–20k token budget.
+  Uses existing `internal/rag` package (no new dependencies).
+- **`CLAUDE.md`** — project-scoped session-start index for Claude Code: doc map,
+  guardrails, architecture quick-ref, MCP usage instructions.
+- **`.mcp.json`** — project-scoped MCP server config (does not affect other projects).
+- **`plan_v2.md`** — full v2 conception: mission, dual state model, composite learner
+  states (8 primary + bidirectional matrix), concept registry with research citations,
+  architectural change table, critical path.
+- **`roadmap_v2.md`** — 10-sprint agile PM roadmap: 7 epics (E1–E7), MoSCoW +
+  t-shirt sizing, dependency graph, sprint plan, Definition of Done.
+- **Step 7b** in `how_to.md` — Distill Threads workflow: when to run, what it produces,
+  how it feeds into next-session question generation and fork preparation.
+
+### Updated
+- **`generate_questions.go:BuildSystemPrompt`** — extended conversation analysis instruction
+  to cover all v2 sections: Curiosity Clusters → concept weight nudge; Mental Models That
+  Clicked → mirror those framings; Mental Models That Failed → avoid those framings.
+- **`.gitignore`** — binary ignores scoped to root-level paths (`/axon`, `/axon-mcp`)
+  so `cmd/axon-mcp/` source directory is correctly tracked.
+- **`how_to.md`** — updated `.experiments/` → `axon/`, restored `track_1_2` naming example.
+- **`experiments_log.md`** — added track_2 to track registry.
+- **`plan.md`** — updated scope header, folder tree, added §9 conversation analyzer.
+
+### Fixed
+- **Fork ≠ Clone** — `POST /tracks/:id/fork` route (was `/duplicate`); `forkTrack` client
+  method (was `duplicateTrack`); `ForkTrackResult` type. Fork = child track with parent
+  inheritance; Clone = new root track with physical context copy.
+- **Thread one-shot seed** — removed "Open tutoring conversation" fire button. First
+  `sendMessage()` now combines seed context + user's first question in a single LLM call.
+  User message recorded in thread whenever non-empty (previously skipped on seed turn).
+
+### Testable now
+- Distill Threads button → output includes Curiosity Clusters, Mental Models sections
+- Generate Questions after distill → framing adapts to mental model history
+- `query_axon_docs` MCP tool (after `go build -o axon-mcp ./cmd/axon-mcp/`)
+- Fork button → route is `/tracks/:id/fork`, child track inherits parent
+- Tutoring thread → type first question directly, no fire button required
+
+---
+
 ## [0.26.0] — 2026-04-19 — Import Job Description → interview prep context file
 
 ### Added
