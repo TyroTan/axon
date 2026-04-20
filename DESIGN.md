@@ -7,7 +7,7 @@
 > Complements: ROADMAP.md (what's planned), CHANGELOG.md (what changed when),
 > README.md (quick-start + usage), plan.md (learning system theory).
 
-Last updated: 2026-04-19 (evening)
+Last updated: 2026-04-21
 
 ---
 
@@ -42,6 +42,7 @@ new session types. If a proposed change violates one, the change is wrong — no
 | **`_`-prefixed files are system files** | Files beginning with `_` are never injected into question generation prompts. They are internal scaffolding (`_sources.md`, `_split_plan.md`, `_exclude`). |
 | **Synthesis is applied, not auto-applied** | `Apply Synthesis` is always an explicit user action. Concept map mutations never happen automatically after evaluation. |
 | **LLM calls are never in the hot path of reads** | All API GET endpoints return stored data only. LLM calls happen only on explicit generate/evaluate/synthesize/distill actions. |
+| **Elaboration is post-evaluation, never real-time** | Elaboration triggers are emitted by the evaluator on the final submitted answer — never against a live textarea. This avoids the mutation problem where trigger signals invalidate as the learner edits. |
 
 ---
 
@@ -65,11 +66,12 @@ A single quiz cycle inside a track. Five sequential steps, each writing a file:
 
 | Step | File | Description |
 |---|---|---|
-| 0 | `00_metadata.json` | Session metadata: creation time, shard_id if large corpus |
-| 1 | `01_questions.json` | Generated questions (MCQ, free_text, scenario_mcq, interview_scenario) |
+| 0 | `00_metadata.json` | Session metadata: creation time, shard_id, state_snapshot (difficulty spine) |
+| 1 | `01_questions.json` | Generated questions (MCQ, free_text, scenario_mcq, design) |
 | 2 | `02_responses.json` | User's submitted answers, confidence ratings, explanations |
-| 3 | `03_evaluations.json` | LLM evaluation: correctness, Brier score, bloom_demonstrated, error taxonomy |
-| 4 | `04_synthesis.json` | Per-concept bloom advancement rules, spaced repetition schedule |
+| 3 | `03_evaluations.json` | LLM evaluation: correctness, Brier score, bloom_demonstrated, error taxonomy, elaboration_triggers (E11) |
+| 3b | `03b_elaborations.json` | Learner responses to system-initiated elaboration prompts (E11, optional) |
+| 4 | `04_synthesis.json` | Per-concept bloom advancement rules, spaced repetition schedule, delta_multiplier, learner_signal |
 
 A session is not submitted until the user explicitly clicks Submit. Unanswered drafts
 are held in `localStorage` (`axon:session:{trackId}:{sessionNum}`), auto-saved with

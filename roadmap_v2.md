@@ -21,6 +21,7 @@
 | **Self-Reflection Loop** | E8 | Post-session reflection, concept self-discovery, mode evolution | 11 |
 | **Inquiry Quality** | E9 | Measure how well learner asks questions, not just answers them | 12 |
 | **Application Evidence Sessions** | E10 | New session type: real-work debrief, AI interrogator, transfer function proxy | 13–14 |
+| **System-Initiated Elaboration** | E11 | Evaluator emits elaboration triggers; consolidated elaboration page closes E9 loop | 15 |
 
 ---
 
@@ -44,13 +45,14 @@ E7 requires E1 + E4
 E8 requires E1 + E2 (reads all accumulated session data)
 E9 requires E1 (extends distill-threads; feeds E8 reflection input)
 E10 requires E2 + E9 (needs dual state schema + inquiry quality signal)
+E11 requires E9 full (elaboration_triggers feed inquiry_precision; evaluator must already emit full E9 output)
 
 F2 (Live Concept Map Inheritance) — pre-condition for E10 trigger logic to be meaningful
 F3 (Pre-Merge Idempotent Distill) — consistency fix, no dependencies
 ```
 
 **Critical path:** `F2 → F3 → E2 → E9 → E10 → E8`
-**Self-evolution path:** `E1 → E9 → E8` (parallel to main critical path, mergeable at E4)
+**Self-evolution path:** `E1 → E9 → E8 → E11` (E11 closes the system-initiated inquiry loop)
 **Transfer proxy path:** `F2 → E2 → E9 → E10` (first real-world application signal)
 
 ---
@@ -660,6 +662,100 @@ AC (once open decisions resolved):
 
 
 
+---
+
+### E11 — System-Initiated Elaboration
+
+> As a learner, after submitting answers and receiving evaluation, I want axon to surface
+> targeted follow-up prompts for answers that contain vocabulary gaps, broken analogies,
+> or compound-concept confusions — so that the system forces deeper articulation rather
+> than waiting for me to ask.
+
+**Why this closes the E9 loop:** E9 measures inquiry quality from learner-initiated
+threads. E11 is the system-initiated counterpart — axon identifies exactly where the
+learner's explanation was thin and asks the follow-up question they should have asked
+themselves. Together, E9 + E11 cover both sides of inquiry quality.
+
+**Why post-evaluation, not real-time inline:**
+Real-time triggering (keyword lookup against a live textarea) creates a mutation problem:
+if the learner edits their answer, the trigger signal may no longer apply. The evaluator
+already has the final submitted answer and is already LLM-powered — elaboration triggers
+are a natural extension of the evaluation output, not a second call.
+
+**Mechanism:**
+1. Evaluator prompt extended: for each response, emit an optional `elaboration_triggers`
+   array alongside the existing evaluation fields. Each trigger has `signal`, `term`,
+   and `prompt`.
+2. After evaluation: if any triggers exist, UI offers redirect to consolidated
+   **Elaboration page** (before synthesis step).
+3. Learner answers elaboration prompts as free-text. These are persisted as
+   `03b_elaborations.json` and fed into E9's `inquiry_precision` scoring at synthesis.
+4. Trigger aggressiveness controlled by `AXON_ELABORATION_RATE` (0.0–1.0 float):
+   - `0.0` = never surface (default — opt-in)
+   - `0.5` = bottleneck concepts only + broken analogy signals
+   - `1.0` = all vocabulary + compound-concept + analogy signals
+
+**Three trigger signal types:**
+| Signal | What it detects | Example follow-up |
+|---|---|---|
+| `vocabulary` | Important term used imprecisely or in wrong context | "You used 'gradient' — describe what it represents geometrically, not just operationally" |
+| `analogy_gap` | Learner used an analogy that transfers surface features but not mechanism | "Your analogy works for X but breaks at Y — where exactly does it stop holding?" |
+| `compound_concept` | Answer conflates two concepts from the concept map that are related but distinct | "You described these two things as the same — what's the distinction between them?" |
+
+**Concept map integration:**
+- Trigger threshold lowered for `is_bottleneck=true` concepts
+- `analogical_structural_mapping` concept (index 34, Pedagogy branch) — when `bloom_current < 3`,
+  `analogy_gap` triggers are more aggressive
+- `inquiry_precision` on the concept feeds back: low-precision concepts trigger more readily
+
+**New domain additions:**
+```go
+type ElaborationTrigger struct {
+    Signal  string `json:"signal"`  // "vocabulary" | "analogy_gap" | "compound_concept"
+    Term    string `json:"term"`    // the word/phrase that fired the signal
+    Prompt  string `json:"prompt"`  // the follow-up question to surface
+    ConceptIndex int `json:"concept_index"` // concept the trigger is attributed to
+}
+
+// Added to Evaluation:
+ElaborationTriggers []ElaborationTrigger `json:"elaboration_triggers,omitempty"`
+
+// New session file: 03b_elaborations.json
+type ElaborationResponse struct {
+    QuestionID   string `json:"question_id"`
+    TriggerIndex int    `json:"trigger_index"`
+    Response     string `json:"response"`
+}
+```
+
+**New env var:**
+```
+AXON_ELABORATION_RATE=0.0   # default — never trigger (opt-in)
+AXON_ELABORATION_RATE=0.5   # bottleneck concepts + broken analogies
+AXON_ELABORATION_RATE=1.0   # all signal types
+```
+
+- Size: **M** · Priority: **Should** · Status: **Spec only**
+
+Open decisions:
+- [ ] Does failing to complete elaboration block synthesis, or is it optional?
+- [ ] Should elaboration responses affect bloom_current directly, or only inquiry_precision?
+- [ ] Maximum triggers per session (prevent elaboration fatigue — cap at 3?)
+- [ ] Does AXON_ELABORATION_RATE=0 fully suppress UI redirect, or only suppress aggressive triggers?
+
+AC:
+- [ ] `elaboration_triggers` field in `Evaluation` schema (backward compatible — omitempty)
+- [ ] `AXON_ELABORATION_RATE` env var read at evaluate time; 0.0 = no triggers emitted
+- [ ] Evaluator prompt injects elaboration signal instructions when rate > 0
+- [ ] `03b_elaborations.json` persisted per session when elaborations submitted
+- [ ] UI: post-evaluation redirect to ElaborationPage when triggers exist
+- [ ] ElaborationPage: one card per trigger, free-text response, submit all at once
+- [ ] ElaborationPage: back-link returns to main evaluation view
+- [ ] Synthesis reads `03b_elaborations.json` and factors into `inquiry_precision` update
+- [ ] `GET /api/tracks/:id/sessions/:num/elaborations` — returns triggers + responses
+
+---
+
 | Item | Reason |
 |---|---|
 | Transfer function direct measurement | Requires real-world outcome data axon cannot collect — E10 is the closest proxy |
@@ -691,6 +787,7 @@ AC (once open decisions resolved):
 | 12 | Inquiry Quality full | C3.1, C3.2, C3.3 | Inquiry Patterns in snapshot, inquiry_precision tracked | |
 | 13 | Application Evidence — build | E10 full | Interrogator loop live, evidence extraction, bloom write-back | |
 | 14 | Self-Reflection Loop | C2.1, C2.2, C2.3 | ReflectCommand live, feeds next session with E9+E10 signals | |
+| 15 | System-Initiated Elaboration | E11 | elaboration_triggers in evaluation, ElaborationPage, 03b_elaborations.json, AXON_ELABORATION_RATE | |
 
 ---
 
