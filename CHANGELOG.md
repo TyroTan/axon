@@ -9,6 +9,39 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.28.0] — 2026-04-20 — v2 E2: Dual State Architecture (schema + question generator)
+
+### Added
+- **`exploration_unlocked: bool`** field on `domain.Concept` — exploration state flag.
+  When true, concept is included in question candidate pool even if prerequisites are
+  unmet. Backward-compatible (`omitempty`); existing concept maps read as false.
+- **`aspiration_count: int`** field on `domain.Concept` — increments when learner engages
+  above their evidence floor on a concept. Reaching threshold (default 2) → auto-unlock.
+  Backward-compatible (`omitempty`); existing concept maps read as 0.
+
+### Updated
+- **`generate_questions.go:BuildUserPrompt`** — concept listing now shows
+  `EXPLORATION_UNLOCKED` flag alongside `BOTTLENECK` when set.
+- **`generate_questions.go:BuildSystemPrompt`** — added exploration rule: include
+  `EXPLORATION_UNLOCKED` concepts regardless of prerequisites; set `difficulty_estimate`
+  to 0.5× (provisional scoring weight) to separate exploration from evidence scoring.
+- **`concept_taxonomy.md`** — documented new fields with v2 dual state semantics.
+
+### Design
+- Evidence state (`bloom_current`, `spaced_repetition`) and exploration state
+  (`exploration_unlocked`, `aspiration_count`) are strictly separate fields.
+  `apply_synthesis.go` only ever touches evidence state — exploration state is never
+  written by synthesis, never read by scoring.
+- `exploration_unlocked` can be set manually in `concept_map.json` for immediate
+  testing without waiting for aspiration_count auto-threshold.
+
+### Testable now
+- Set `"exploration_unlocked": true` on any concept in `concept_map.json` (even one
+  with unmet prerequisites) → Generate Questions → concept appears in session with
+  `difficulty_estimate` halved relative to its normal level.
+
+---
+
 ## [0.27.0] — 2026-04-20 — v2 E1: Full cognitive fingerprint + MCP RAG server
 
 ### Added

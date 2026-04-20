@@ -42,6 +42,14 @@ type Concept struct {
 	PrerequisiteIndexes []int           `json:"prerequisite_indexes"`
 	UnlocksIndexes     []int            `json:"unlocks_indexes"`
 	SpacedRepetition   SpacedRepetition `json:"spaced_repetition"`
+
+	// v2 dual state model — exploration state (never used in scoring).
+	// ExplorationUnlocked: concept is accessible for question selection even if
+	// prerequisites are not yet demonstrated (provisional unlock).
+	// AspirationCount: number of times learner has engaged above their evidence
+	// floor on this concept. Reaches threshold (default 2) → auto-unlock.
+	ExplorationUnlocked bool `json:"exploration_unlocked,omitempty"`
+	AspirationCount     int  `json:"aspiration_count,omitempty"`
 }
 
 // ─── Concept Map ─────────────────────────────────────────────────────────────

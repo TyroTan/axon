@@ -215,6 +215,9 @@ Rules:
 - For mcq/scenario_mcq: include all four options A-D, exactly one correct key
 - Target bloom_level = bloom_current + 1 for each concept (don't exceed 6)
 - Bottleneck concepts must appear in at least 2 questions
+- EXPLORATION_UNLOCKED concepts: include in the session even if prerequisites are unmet.
+  Set difficulty_estimate to 0.5× what it would normally be (provisional scoring weight).
+  This is faith-based exposure — the learner is stretching; failure is expected and acceptable.
 - Include at least 3 MCQ and 1 free_text
 - is_cross_branch=true when concept_indexes span multiple branches
 - If a context file is a conversation analysis (contains sections like "Reasoning Patterns",
@@ -244,16 +247,19 @@ func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, context
 		}
 		fmt.Fprintf(&sb, "\nBranch: %s\n", branch)
 		for _, c := range concepts {
-			bottleneck := ""
+			flags := ""
 			if c.IsBottleneck {
-				bottleneck = ", BOTTLENECK"
+				flags += ", BOTTLENECK"
+			}
+			if c.ExplorationUnlocked {
+				flags += ", EXPLORATION_UNLOCKED"
 			}
 			prereqs := ""
 			if len(c.PrerequisiteIndexes) > 0 {
 				prereqs = fmt.Sprintf(", prereqs: %v", c.PrerequisiteIndexes)
 			}
 			fmt.Fprintf(&sb, "  [%d] %s (bloom: %d→%d%s%s)\n",
-				c.Index, c.Name, c.BloomCurrent, c.BloomTarget, bottleneck, prereqs)
+				c.Index, c.Name, c.BloomCurrent, c.BloomTarget, flags, prereqs)
 			if c.Description != "" {
 				fmt.Fprintf(&sb, "      %s\n", c.Description)
 			}

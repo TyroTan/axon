@@ -1,6 +1,6 @@
 # Concept Taxonomy — Framework Design
 
-> This file is local only — `.experiments/` is fully gitignored.
+> Framework design reference for the Axon concept map schema.
 > Framework design document: how concept maps are structured, how bottleneck detection works,
 > and how Bloom's levels apply at the concept level.
 
@@ -67,6 +67,8 @@ Every track has a `concept_map.json`. Structure:
 | `prerequisite_indexes` | int[] | Concepts that should be at `bloom_current >= 2` before this one is introduced. |
 | `unlocks_indexes` | int[] | Concepts that become meaningfully learnable once this one reaches `bloom_current >= 3`. |
 | `spaced_repetition` | object | Managed by session synthesizer. Do not edit manually. |
+| `exploration_unlocked` | bool | **v2 exploration state.** When true, concept is included in question selection even if prerequisites are unmet. Never affects bloom scoring — evidence state only. Set manually or auto-set when `aspiration_count` reaches threshold (default 2). |
+| `aspiration_count` | int | **v2 exploration state.** Increments each time the learner engages above their evidence floor on this concept (curiosity cluster signal, reach question attempt). Threshold → `exploration_unlocked = true`. |
 
 ---
 
