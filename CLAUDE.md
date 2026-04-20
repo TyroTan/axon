@@ -23,17 +23,21 @@ query_axon_docs("gitignore rules sessions")
 
 ## Document Index
 
-| File | What it governs |
-|---|---|
-| `how_to.md` | Step-by-step usage: track creation, session workflow, fork/clone, naming conventions |
-| `plan.md` | v1 architecture: dimensions D1–D6, Bloom's distribution, spaced repetition schedule |
-| `plan_v2.md` | v2 design: dual state model, composite learner states, concept registry, research citations |
-| `roadmap_v2.md` | v2 PM backlog: epics, MoSCoW priority, sprint plan, dependency graph, DoD |
-| `concept_taxonomy.md` | Concept map schema, bottleneck detection, bloom update rules |
-| `experiments_log.md` | Track registry, session log entries across all tracks |
-| `DESIGN.md` | System architecture decisions |
-| `ROADMAP.md` | High-level roadmap (v1) |
-| `CHANGELOG.md` | Release history |
+| File | Layer | What it governs |
+|---|---|---|
+| `DESIGN.md` | **How it's built** | Implemented architecture, invariants, data model, API surface, user stories (implemented + deferred) |
+| `plan_v2.md` | **Why and what** | Mission, product constraints ("axon is NOT"), theoretical frameworks, v2 design, known unknowns |
+| `roadmap_v2.md` | **What and when** | Epics, MoSCoW priority, sprint plan, ACs, dependency graph, open decisions |
+| `plan.md` | v1 theory | v1 dimensions D1–D6, Bloom's distribution, spaced repetition schedule |
+| `how_to.md` | Usage | Step-by-step: track creation, session workflow, fork/clone, naming conventions |
+| `concept_taxonomy.md` | Schema | Concept map schema, bottleneck detection, bloom update rules |
+| `experiments_log.md` | Log | Track registry, session log entries across all tracks |
+| `CHANGELOG.md` | History | Release history |
+
+**Where constraints live:**
+- Product constraints (axon will never be X) → `plan_v2.md` §2
+- Architectural invariants (code must always do X) → `DESIGN.md` §1
+- Operational guardrails (Claude Code must never do X) → this file, below
 
 ---
 
@@ -71,8 +75,9 @@ axon/
 | Track | Topic | Status |
 |---|---|---|
 | `track_1` | ML Fundamentals · RAG · LLM Systems | v1 baseline |
-| `track_2` | Upwork RAG interview prep | active session |
-| `track_3` | (see experiments_log.md) | active |
+| `track_2` | Upwork RAG interview prep | active — has sessions + distill snapshot |
+| `track_2_2` | Fork of track_2 (smart fork test) | active child — inherits track_2 context |
+| `track_3` | ML Fundamentals · ML Math Theory · RAG · LLM Systems | active — session_001 in progress |
 
 ---
 

@@ -20,7 +20,25 @@ by any type of person, not just structured learners.
 
 ---
 
-## 2. What v1 Established
+## 2. What Axon Is Not — Product Constraints
+
+These are decision-forcing constraints. When two implementation paths look equivalent
+locally, these break the tie. An LLM or developer reading this should use them to
+reject designs that technically work but violate the product identity.
+
+| Constraint | What this rules out |
+|---|---|
+| **Not a flashcard app** | No "flip and mark known/unknown" flows. All evidence is behavioral, not self-reported. |
+| **Not a gamified streak tracker** | No points, badges, streaks, or visible score trends shown to the learner during sessions. Progress is shown in synthesis notes, not as reward mechanics. |
+| **Not a self-report system** | Learner-stated confidence is an input signal only — never the output or the score. Brier score calibrates it against behavioral evidence. |
+| **Not a content delivery platform** | Axon does not teach. It assesses and calibrates. Content comes from the learner's own `.md` files. |
+| **Not a cloud service** | Local-first always. No account, no API key required by default, no remote storage of learner data. |
+| **Not a one-size curriculum** | No global concept list, no shared question bank. Every track is specific to one learner's documents and context. |
+| **Not a passive tool** | Axon must be able to push back — suggest harder questions, name a state the learner is in, recommend against a path. It is a calibrated interrogator, not a compliant quiz generator. |
+
+---
+
+## 3. What v1 Established
 
 v1 built the measurement foundation:
 
@@ -39,7 +57,7 @@ they're currently in*, or *how to meet them there*.
 
 ---
 
-## 3. What v2 Adds — The Navigation Layer
+## 4. What v2 Adds — The Navigation Layer
 
 v2 converts measurement into navigation. Four new capabilities:
 
@@ -140,7 +158,7 @@ Secondary modifiers (shift behavior within any composite state, not new states):
 
 ---
 
-## 4. Concept Registry
+## 5. Concept Registry
 
 All named concepts introduced in v2, with research grounding:
 
@@ -165,7 +183,7 @@ All named concepts introduced in v2, with research grounding:
 
 ---
 
-## 5. New Question Formats in v2
+## 6. New Question Formats in v2
 
 | Format | Description | Bloom's Level | Scoring |
 |---|---|---|---|
@@ -178,7 +196,7 @@ All named concepts introduced in v2, with research grounding:
 
 ---
 
-## 6. New Session Signals in v2
+## 7. New Session Signals in v2
 
 | Signal | Source | What It Tells You |
 |---|---|---|
@@ -191,7 +209,7 @@ All named concepts introduced in v2, with research grounding:
 
 ---
 
-## 7. Theoretical Contributors — Coverage Map
+## 8. Theoretical Contributors — Coverage Map
 
 Axon's ultimate goal is learner improvement and real-world success, not just score improvement.
 That goal is served by multiple learning science frameworks. This section names them, estimates
@@ -240,7 +258,7 @@ not just gap-filling.
 
 ---
 
-## 8. The Unknown — Transfer Function
+## 9. The Unknown — Transfer Function
 
 The single unknown that, if resolved, unlocks compounding gains:
 
@@ -265,7 +283,7 @@ is not mediated by question format — it is raw evidence of transfer in progres
 
 ---
 
-## 8. Cyclic Dependencies and Their Resolutions
+## 10. Cyclic Dependencies and Their Resolutions
 
 | Cycle | Why It Blocks | v2 Resolution |
 |---|---|---|
@@ -277,7 +295,7 @@ is not mediated by question format — it is raw evidence of transfer in progres
 
 ---
 
-## 9. Architectural Changes Required for v2
+## 11. Architectural Changes Required for v2
 
 | Component | v1 State | v2 Change |
 |---|---|---|
@@ -296,7 +314,7 @@ is not mediated by question format — it is raw evidence of transfer in progres
 
 ---
 
-## 11. Critical Path to Compounding Gains
+## 12. Critical Path to Compounding Gains
 
 ```
 F2 (Live Concept Map Inheritance)       ← immediate unblock for multi-track learners

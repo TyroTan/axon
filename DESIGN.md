@@ -13,12 +13,35 @@ Last updated: 2026-04-19 (evening)
 
 ## 1. What Axon is
 
-Axon is a **local-first adaptive knowledge assessment system**. It turns your own `.md`
-documents into calibrated quiz sessions driven by Bloom's Taxonomy and a concept
-prerequisite graph. It does not require an account, an API key, or a cloud service.
+Axon is a **local-first adaptive learning system** — a calibrated interrogator that
+builds a precise, behavioral model of how one specific person thinks and knows, then
+uses that model to navigate them toward real-world application of that knowledge.
+
+**v1:** measurement — turns `.md` documents into Bloom-calibrated quiz sessions backed
+by a concept prerequisite graph and spaced repetition.
+
+**v2:** navigation — adds composite learner state detection, pre-session nudge,
+dual-state model (evidence vs exploration), cognitive fingerprinting from conversation
+threads, and Application Evidence Sessions (real-work debrief as transfer proxy).
 
 Stack: Go Fiber backend · React + shadcn/ui frontend · filesystem JSON store ·
 `claude` CLI auth (no API key required by default) · CQRS command/query bus.
+
+### Architectural invariants
+
+These rules are non-negotiable. They must hold across all features, refactors, and
+new session types. If a proposed change violates one, the change is wrong — not the rule.
+
+| Invariant | Rule |
+|---|---|
+| **Evidence and exploration never mix** | `bloom_current` is only updated by behavioral evidence (responses + evaluations). `exploration_unlocked` is only toggled by faith-based/aspiration logic. These two state variables never feed each other. |
+| **Active session data is immutable** | Once a session has evaluations or synthesis, its files are read-only. No mutation, no re-evaluation. Start a new session. |
+| **Track data is VCS-tracked** | Sessions, contexts, conversations, concept maps are all committed to git. Never gitignore them. Only `metrics.jsonl` is excluded. |
+| **Context inheritance is read-time, not copy-time** | Context files are read from the ancestor chain at question-generation time. Forking does not copy context files. Child file wins on collision. |
+| **Concept map is the track's memory** | All session files (questions, responses, evaluations) are ephemeral relative to `concept_map.json`. The concept map is the authoritative learner state. |
+| **`_`-prefixed files are system files** | Files beginning with `_` are never injected into question generation prompts. They are internal scaffolding (`_sources.md`, `_split_plan.md`, `_exclude`). |
+| **Synthesis is applied, not auto-applied** | `Apply Synthesis` is always an explicit user action. Concept map mutations never happen automatically after evaluation. |
+| **LLM calls are never in the hot path of reads** | All API GET endpoints return stored data only. LLM calls happen only on explicit generate/evaluate/synthesize/distill actions. |
 
 ---
 
