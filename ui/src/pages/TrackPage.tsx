@@ -139,7 +139,7 @@ export function TrackPage() {
         setMetaSynth(msData.meta_synthesis)
         setMetaReady(readiness.ready)
         setMetaMissing(readiness.missing_shards ?? [])
-        const lastSess = trackData.sessions[trackData.sessions.length - 1]
+        const lastSess = trackData.sessions?.at(-1)
         if (lastSess?.has_synthesis) {
           api.getSynthesis(trackId, lastSess.number)
             .then(r => setLastSynthesis(r.synthesis))
