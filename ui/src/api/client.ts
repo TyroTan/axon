@@ -14,7 +14,7 @@ import type {
   ServerConfig,
   GetThreadResult,
   ThreadPreviewResult,
-  DuplicateTrackResult,
+  ForkTrackResult,
   CreateTrackResult,
   MergeTracksResult,
   CreateSessionResult,
@@ -121,7 +121,7 @@ export const api = {
       }
     }
   },
-  duplicateTrack: (id: string) => post<DuplicateTrackResult>(`/tracks/${id}/duplicate`),
+  forkTrack: (id: string) => post<ForkTrackResult>(`/tracks/${id}/fork`),
   mergeTracks: (sourceIds: string[], parentId: string) =>
     fetch(`${BASE}/tracks/merge`, {
       method: 'POST',

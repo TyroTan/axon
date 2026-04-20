@@ -193,7 +193,7 @@ func New(cfg Config) *fiber.App {
 		return c.Status(fiber.StatusCreated).JSON(result)
 	})
 
-	api.Post("/tracks/:id/duplicate", func(c *fiber.Ctx) error {
+	api.Post("/tracks/:id/fork", func(c *fiber.Ctx) error {
 		// Predict the new track ID before dispatch (NextTrackID is deterministic;
 		// no concurrent writers, so the handler will claim the same slot).
 		newID, err := trackStore.NextTrackID(c.Params("id"))

@@ -355,7 +355,7 @@ export function TrackPage() {
               if (!trackId || duplicating) return
               setDuplicating(true)
               try {
-                const res = await api.duplicateTrack(trackId)
+                const res = await api.forkTrack(trackId)
                 navigate(`/tracks/${res.new_track_id}`)
               } catch (e) {
                 setError(String(e))

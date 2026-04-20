@@ -134,7 +134,7 @@ export interface GetTrackContextResult {
   files: Record<string, string> // filename → content
 }
 
-export interface DuplicateTrackResult {
+export interface ForkTrackResult {
   new_track_id: string
 }
 
