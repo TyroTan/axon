@@ -34,11 +34,18 @@ func NearestLevel(effectiveScore int) LevelConfig {
 	return best
 }
 
-// EffectiveScore combines operator config score and learner signal.
-// Uses weighted average: operator intent counts 60%, learner reality 40%.
-// Clamped to the spine range [-3, +5].
+// EffectiveScore combines operator config score and learner signal via simple average.
+// Both sides are on the same spine so arithmetic is valid.
+// Clamped to [-3, +5].
 func EffectiveScore(configScore, learnerSignal int) int {
-	combined := (configScore*3 + learnerSignal*2) / 5
+	// Round half-up: add 1 before dividing to avoid truncation bias toward zero.
+	sum := configScore + learnerSignal
+	var combined int
+	if sum >= 0 {
+		combined = (sum + 1) / 2
+	} else {
+		combined = (sum - 1) / 2
+	}
 	if combined < -3 {
 		return -3
 	}

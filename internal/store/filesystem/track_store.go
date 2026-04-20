@@ -566,6 +566,28 @@ func (s *TrackStore) WriteTrackFile(_ context.Context, trackID, filename string,
 	return os.WriteFile(path, content, 0o644)
 }
 
+// ─── Track state ─────────────────────────────────────────────────────────────
+
+// ReadTrackState reads track_state.json. Returns zero-value if not found.
+func (s *TrackStore) ReadTrackState(_ context.Context, trackID string) domain.TrackState {
+	b, err := os.ReadFile(filepath.Join(s.experimentsDir, trackID, "track_state.json"))
+	if err != nil {
+		return domain.TrackState{}
+	}
+	var ts domain.TrackState
+	json.Unmarshal(b, &ts) //nolint: errcheck — zero-value on parse failure is safe
+	return ts
+}
+
+// WriteTrackState persists track_state.json.
+func (s *TrackStore) WriteTrackState(_ context.Context, trackID string, ts domain.TrackState) error {
+	b, err := json.MarshalIndent(ts, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(s.experimentsDir, trackID, "track_state.json"), b, 0o644)
+}
+
 // ─── Learner path ─────────────────────────────────────────────────────────────
 
 // AppendPathEntry appends one record to the global learner_path.jsonl log.
@@ -607,12 +629,28 @@ func (s *TrackStore) ReadPathEntries(_ context.Context) ([]domain.PathEntry, err
 	return entries, nil
 }
 
-// CurrentLearnerSignal derives the learner signal integer from the most recent
-// applied synthesis on the track (or its ancestors). Maps composite_state to
-// the difficulty spine: frustrated=-2, plateauing=-1, progressing=0, flow/accelerating=+1.
-// Falls back to 0 (neutral) if no synthesis exists yet.
+// CurrentLearnerSignal derives the learner signal integer for a track.
+// Combines two sources, taking the more negative (conservative) reading:
+//  1. consecutive fail counter from track_state.json
+//  2. composite_state from the most recent applied synthesis (own or ancestor)
+//
+// Spine mapping: frustrated/2+consec_easy=-3, frustrated=-2, plateauing=-1,
+// progressing=0, flow/accelerating=+1.
 func (s *TrackStore) CurrentLearnerSignal(ctx context.Context, trackID string) int {
-	// Walk own sessions newest-first, then ancestors.
+	// Source 1: track_state consecutive fail counter.
+	ts := s.ReadTrackState(ctx, trackID)
+	stateSignal := 0
+	switch {
+	case ts.ConsecutiveFailsEasyDelta >= 2:
+		stateSignal = -3 // failed easier sessions twice — significant regression
+	case ts.ConsecutiveFails >= 2:
+		stateSignal = -2
+	case ts.ConsecutiveFails == 1:
+		stateSignal = -1
+	}
+
+	// Source 2: most recent applied synthesis composite_state (own then ancestors).
+	synthesisSignal := 0
 	ids := []string{trackID}
 	anc := parentID(trackID)
 	for anc != "" {
@@ -637,17 +675,23 @@ func (s *TrackStore) CurrentLearnerSignal(ctx context.Context, trackID string) i
 			}
 			switch strings.ToLower(syn.CompositeState) {
 			case "frustrated", "overwhelmed":
-				return -2
+				synthesisSignal = -2
 			case "plateauing", "plateau", "stuck":
-				return -1
+				synthesisSignal = -1
 			case "flow", "accelerating":
-				return 1
+				synthesisSignal = 1
 			default:
-				return 0
+				synthesisSignal = 0
 			}
+			goto done
 		}
 	}
-	return 0
+done:
+	// Take the more conservative (lower) of the two signals.
+	if stateSignal < synthesisSignal {
+		return stateSignal
+	}
+	return synthesisSignal
 }
 
 // ─── Conversations ────────────────────────────────────────────────────────────

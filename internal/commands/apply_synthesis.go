@@ -16,6 +16,10 @@ import (
 // auto-set exploration_unlocked on a concept.
 const aspirationThreshold = 2
 
+// sessionFailThreshold is the avg correctness below which a session counts as a fail
+// for consecutive-fail tracking purposes.
+const sessionFailThreshold = 0.5
+
 // deltaMultiplier converts a generation-vs-answer effective score delta into a
 // bloom gain multiplier. Positive delta = session was generated harder than the
 // learner's current state → extra reward. Negative = easier than current state → reduced.
@@ -185,6 +189,60 @@ func (h *ApplySynthesisHandler) Handle(ctx context.Context, cmd ApplySynthesisCo
 	if err := h.store.WriteConceptMap(ctx, cmd.TrackID, cm); err != nil {
 		return fmt.Errorf("apply synthesis: write concept map: %w", err)
 	}
+
+	// ── Consecutive fail counter + failure SR amplification ───────────────────
+	// Compute session avg correctness from evaluations (already loaded above).
+	var sessionFailed bool
+	if eb != nil {
+		var evals []domain.Evaluation
+		if json.Unmarshal(eb, &evals) == nil && len(evals) > 0 {
+			var total float64
+			for _, e := range evals {
+				total += e.Correctness
+			}
+			avg := total / float64(len(evals))
+			sessionFailed = avg < sessionFailThreshold
+
+			// Failure path: if session was easier than current state (delta < 0)
+			// and learner still failed, amplify spaced repetition reset on failed concepts.
+			if sessionFailed && delta < 0 {
+				for _, e := range evals {
+					if e.Correctness < sessionFailThreshold {
+						for _, ci := range e.ConceptIndexes {
+							slot, ok := slotByIdx[ci]
+							if !ok {
+								continue
+							}
+							// Push next_review closer and reset streak — SR is already
+							// reset by synthesis, but we make consecutive_correct go negative
+							// by clamping interval_days to minimum and zeroing streak again.
+							cm.Concepts[slot].SpacedRepetition.IntervalDays = 1
+							cm.Concepts[slot].SpacedRepetition.ConsecutiveCorrect = 0
+							cm.Concepts[slot].SpacedRepetition.NextReview = nil
+						}
+					}
+				}
+				// Re-write concept map with amplified SR resets.
+				if err := h.store.WriteConceptMap(ctx, cmd.TrackID, cm); err != nil {
+					return fmt.Errorf("apply synthesis: write concept map (SR amplify): %w", err)
+				}
+			}
+		}
+	}
+
+	// Update consecutive fail counter in track_state.json.
+	ts := h.store.ReadTrackState(ctx, cmd.TrackID)
+	if sessionFailed {
+		ts.ConsecutiveFails++
+		if delta < 0 {
+			ts.ConsecutiveFailsEasyDelta++
+		}
+	} else {
+		// Passing session resets both counters.
+		ts.ConsecutiveFails = 0
+		ts.ConsecutiveFailsEasyDelta = 0
+	}
+	_ = h.store.WriteTrackState(ctx, cmd.TrackID, ts)
 
 	// Mark synthesis as applied and re-persist.
 	synthesis.Applied = true

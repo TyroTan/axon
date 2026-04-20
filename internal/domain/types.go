@@ -183,6 +183,19 @@ type Synthesis struct {
 	DeltaMultiplier float64 `json:"delta_multiplier,omitempty"`
 }
 
+// ─── Track state ─────────────────────────────────────────────────────────────
+
+// TrackState is persisted as track_state.json at the track root.
+// Tracks consecutive failure counts for adaptive signal decay.
+// ConsecutiveFails: sessions with avg correctness below failThreshold in a row.
+// ConsecutiveFailsEasyDelta: subset where session was easier than current state
+// (delta < 0) — this is a stronger signal of genuine struggle.
+// Both reset to 0 on a passing session.
+type TrackState struct {
+	ConsecutiveFails          int `json:"consecutive_fails"`
+	ConsecutiveFailsEasyDelta int `json:"consecutive_fails_easy_delta"`
+}
+
 // ─── Path tracking ───────────────────────────────────────────────────────────
 
 // StateSnapshot captures the two-sided difficulty state at a point in time.
