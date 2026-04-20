@@ -69,6 +69,7 @@ Every track has a `concept_map.json`. Structure:
 | `spaced_repetition` | object | Managed by session synthesizer. Do not edit manually. |
 | `exploration_unlocked` | bool | **v2 exploration state.** When true, concept is included in question selection even if prerequisites are unmet. Never affects bloom scoring — evidence state only. Set manually or auto-set when `aspiration_count` reaches threshold (default 2). |
 | `aspiration_count` | int | **v2 exploration state.** Increments each time the learner engages above their evidence floor on this concept (curiosity cluster signal, reach question attempt). Threshold → `exploration_unlocked = true`. |
+| `inquiry_precision` | float64 | **v2 inquiry quality (E9).** Session-averaged score (0.0–1.0) of how precisely the learner's own questions in tutoring threads targeted mechanism over symptom. Updated by ApplySynthesis when an Inquiry Patterns section exists in the distill snapshot. High `bloom_current` + low `inquiry_precision` = distinct detectable state. Default 0 (omitted). |
 
 ---
 

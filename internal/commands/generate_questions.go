@@ -221,12 +221,17 @@ Rules:
 - Include at least 3 MCQ and 1 free_text
 - is_cross_branch=true when concept_indexes span multiple branches
 - If a context file is a conversation analysis (contains sections like "Reasoning Patterns",
-  "Misconception Fingerprint", "Distractor Affinities", "Curiosity Clusters", or "Mental Models
-  That Clicked/Failed"), use it to adapt question framing and distractor selection — not to change
-  which concepts are tested, but how. Mirror the learner's reasoning style; target distractors at
-  their specific misframings; prioritise concepts from Curiosity Clusters slightly above what
-  bloom_gap alone would suggest; use framings from Mental Models That Clicked and avoid framings
-  from Mental Models That Failed.`
+  "Misconception Fingerprint", "Distractor Affinities", "Curiosity Clusters", "Mental Models
+  That Clicked/Failed", or "Inquiry Patterns"), use it to adapt question framing and distractor
+  selection — not to change which concepts are tested, but how. Mirror the learner's reasoning
+  style; target distractors at their specific misframings; prioritise concepts from Curiosity
+  Clusters slightly above what bloom_gap alone would suggest; use framings from Mental Models
+  That Clicked and avoid framings from Mental Models That Failed.
+- If an "Inquiry Patterns" section is present: for concepts flagged with low-precision questions,
+  include at least one question that forces the learner to target mechanism rather than symptom.
+  For concepts with a divergent thread arc, prefer scenario questions over recall questions to
+  encourage narrowing. Do not reward surface-feature answers — make the correct explanation
+  require mechanism-level reasoning.`
 }
 
 func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string) string {

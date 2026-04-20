@@ -452,10 +452,10 @@ AC:
 - Blocked by: M1.1
 
 AC:
-- [ ] `buildDistillSystem()` includes Inquiry Patterns section
-- [ ] Section outputs: high-precision questions verbatim, low-precision questions with
-  suggested sharper version, missed pivots (the question one step away from the insight)
-- [ ] Question generator ingests Inquiry Patterns (same pattern as Curiosity Clusters)
+- [x] `buildDistillSystem()` includes Inquiry Patterns section
+- [x] Section outputs: high-precision questions verbatim, low-precision questions with
+  suggested sharper version, missed pivots, thread arc classification
+- [x] Question generator ingests Inquiry Patterns (mechanism-forcing rule added to system prompt)
 
 ---
 
@@ -493,10 +493,10 @@ AC:
 - Blocked by: C3.1, C3.2
 
 AC:
-- [ ] `inquiry_precision` added to Concept struct (omitempty, default 0)
+- [x] `inquiry_precision` added to Concept struct (omitempty, default 0)
 - [ ] ApplySynthesis reads Inquiry Patterns section and updates per concept
 - [ ] Composite state detector reads `inquiry_precision` as additional input signal
-- [ ] `concept_taxonomy.md` updated with field definition
+- [x] `concept_taxonomy.md` updated with field definition
 
 ---
 
@@ -682,7 +682,7 @@ AC (once open decisions resolved):
 | **5** | **Live Concept Map Inheritance** | **F2** | **Child sessions use ancestor bloom floor at generation time** | ← next |
 | 6 | Pre-Merge Distill | F3 | RunSilent on source tracks before merge | |
 | 7 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, exploration_unlocked live | ✅ Done |
-| 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | |
+| 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | ✅ Done |
 | 9 | Application Evidence — schema | E10 schema | session.type field, application_task.json shape, open decisions resolved | |
 | 10 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked | |
 | 11 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied | |

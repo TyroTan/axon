@@ -219,6 +219,17 @@ Analogies, framings, or explanations that visibly unlocked understanding mid-con
 ## Mental Models That Failed
 Framings or explanations that required re-explanation or produced more confusion. Include what was tried and what the learner misread about it.
 
+## Inquiry Patterns
+The quality of questions the learner asked — not just how well they answered. Three sub-sections:
+
+**High-precision questions** (verbatim): Questions that targeted mechanism over symptom, showed constraint awareness, or narrowed the problem space effectively. One line each with the concept they targeted.
+
+**Low-precision questions** (with sharper version): Questions that targeted symptoms, were too broad, or missed the mechanism one step away from the insight. Format: original → suggested sharper version. Max 3 examples.
+
+**Missed pivots**: Cases where the learner was one question away from the core insight but took a different path. Format: what they asked → what they could have asked → why that would have been more direct.
+
+**Thread arc** (one line): Did the learner's questions narrow toward mechanism (convergent) or scatter across surface features (divergent) across the session?
+
 Rules:
 - Be specific — cite the question content, not just "question 3"
 - Do not fabricate signal that isn't in the conversations

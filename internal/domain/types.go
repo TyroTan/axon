@@ -50,6 +50,13 @@ type Concept struct {
 	// floor on this concept. Reaches threshold (default 2) → auto-unlock.
 	ExplorationUnlocked bool `json:"exploration_unlocked,omitempty"`
 	AspirationCount     int  `json:"aspiration_count,omitempty"`
+
+	// v2 inquiry quality — E9.
+	// InquiryPrecision: session-averaged score (0.0–1.0) of how well the learner's
+	// own questions in tutoring threads targeted mechanism over symptom.
+	// A learner who answers well but questions poorly is distinguishable from one
+	// who does both. Updated by ApplySynthesis when Inquiry Patterns section exists.
+	InquiryPrecision float64 `json:"inquiry_precision,omitempty"`
 }
 
 // ─── Concept Map ─────────────────────────────────────────────────────────────
