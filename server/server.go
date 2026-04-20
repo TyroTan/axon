@@ -16,6 +16,7 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/tyrohunt/axon/internal/commands"
+	"github.com/tyrohunt/axon/internal/config"
 	"github.com/tyrohunt/axon/internal/cqrs"
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
@@ -144,6 +145,126 @@ func New(cfg Config) *fiber.App {
 			"context_token_limit": cfg.ContextTokenLimit,
 			"soft_token_limit":    cfg.SoftTokenLimit,
 			"hard_token_limit":    cfg.HardTokenLimit,
+		})
+	})
+
+	// GET /api/config/levels — full difficulty level matrix + active level.
+	api.Get("/config/levels", func(c *fiber.Ctx) error {
+		active := config.ActiveLevel()
+		ordered := make([]fiber.Map, 0, len(config.LevelOrder))
+		for _, name := range config.LevelOrder {
+			l := config.Levels[name]
+			entry := fiber.Map{
+				"name":               l.Name,
+				"bloom_delta":        l.BloomDelta,
+				"difficulty_floor":   l.DifficultyFloor,
+				"time_multiplier":    l.TimeMultiplier,
+				"format_bias":        l.FormatBias,
+				"active":             l.Name == active.Name,
+			}
+			if l.CrossBranchWeight != nil {
+				entry["cross_branch_weight"] = *l.CrossBranchWeight
+			}
+			ordered = append(ordered, entry)
+		}
+		return c.JSON(fiber.Map{"levels": ordered, "active": active.Name})
+	})
+
+	// GET /api/tracks/:id/difficulty-preview?level=<name>
+	// Deterministic — no LLM. Returns predicted question distribution given level + concept map.
+	api.Get("/tracks/:id/difficulty-preview", func(c *fiber.Ctx) error {
+		levelName := c.Query("level", "")
+		var level config.LevelConfig
+		if levelName == "" {
+			level = config.ActiveLevel()
+		} else {
+			l, ok := config.Levels[levelName]
+			if !ok {
+				return fiber.NewError(fiber.StatusBadRequest,
+					"unknown level — valid values: recall, easy, default, medium, hard, intense, extreme")
+			}
+			level = l
+		}
+		cm, err := trackStore.GetEffectiveConceptMap(c.Context(), c.Params("id"))
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+
+		type conceptPreview struct {
+			Index           int     `json:"index"`
+			Name            string  `json:"name"`
+			Branch          string  `json:"branch"`
+			BloomCurrent    int     `json:"bloom_current"`
+			EffectiveTarget int     `json:"effective_target"`
+			DifficultyFloor float64 `json:"difficulty_floor"`
+			Eligible        bool    `json:"eligible"`
+		}
+
+		var previews []conceptPreview
+		totalEligible := 0
+		bloomSum := 0
+		for _, concept := range cm.Concepts {
+			target := concept.BloomCurrent + level.BloomDelta
+			if target < 1 {
+				target = 1
+			}
+			if target > 6 {
+				target = 6
+			}
+			eligible := target <= concept.BloomTarget || concept.ExplorationUnlocked
+			if eligible {
+				totalEligible++
+				bloomSum += target
+			}
+			previews = append(previews, conceptPreview{
+				Index:           concept.Index,
+				Name:            concept.Name,
+				Branch:          concept.Branch,
+				BloomCurrent:    concept.BloomCurrent,
+				EffectiveTarget: target,
+				DifficultyFloor: level.DifficultyFloor,
+				Eligible:        eligible,
+			})
+		}
+
+		avgBloom := 0.0
+		if totalEligible > 0 {
+			avgBloom = float64(bloomSum) / float64(totalEligible)
+		}
+
+		defaultLevel := config.Levels["default"]
+		defaultBloomSum := 0
+		defaultEligible := 0
+		for _, concept := range cm.Concepts {
+			t := concept.BloomCurrent + defaultLevel.BloomDelta
+			if t < 1 {
+				t = 1
+			}
+			if t > 6 {
+				t = 6
+			}
+			if t <= concept.BloomTarget || concept.ExplorationUnlocked {
+				defaultEligible++
+				defaultBloomSum += t
+			}
+		}
+		defaultAvgBloom := 0.0
+		if defaultEligible > 0 {
+			defaultAvgBloom = float64(defaultBloomSum) / float64(defaultEligible)
+		}
+
+		return c.JSON(fiber.Map{
+			"track_id":              c.Params("id"),
+			"level":                 level.Name,
+			"total_concepts":        len(cm.Concepts),
+			"eligible_concepts":     totalEligible,
+			"avg_effective_bloom":   avgBloom,
+			"difficulty_floor":      level.DifficultyFloor,
+			"format_bias":           level.FormatBias,
+			"time_multiplier":       level.TimeMultiplier,
+			"vs_default_bloom_delta": avgBloom - defaultAvgBloom,
+			"vs_default_difficulty_delta": level.DifficultyFloor - defaultLevel.DifficultyFloor,
+			"concepts":              previews,
 		})
 	})
 
@@ -796,8 +917,9 @@ func New(cfg Config) *fiber.App {
 			contextTokens = budget.TokensUsed
 		}
 
-		systemPrompt := commands.BuildSystemPrompt()
-		userPrompt := commands.BuildUserPrompt(trackID, "preview", cm, contextFiles)
+		activeLevel := config.ActiveLevel()
+		systemPrompt := commands.BuildSystemPrompt(activeLevel)
+		userPrompt := commands.BuildUserPrompt(trackID, "preview", cm, contextFiles, activeLevel)
 		systemTokens := (len(systemPrompt) + 3) / 4
 		userTokens := (len(userPrompt) + 3) / 4
 		totalTokens := systemTokens + userTokens

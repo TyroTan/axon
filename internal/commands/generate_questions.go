@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/tyrohunt/axon/internal/config"
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
 	"github.com/tyrohunt/axon/internal/metrics"
@@ -137,9 +138,10 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		}
 	}
 
+	level := config.ActiveLevel()
 	generationID := uuid.New().String()
-	system := BuildSystemPrompt()
-	user := BuildUserPrompt(cmd.TrackID, generationID, cm, contextFiles)
+	system := BuildSystemPrompt(level)
+	user := BuildUserPrompt(cmd.TrackID, generationID, cm, contextFiles, level)
 
 	chunks := h.client.Stream(ctx, questionModel, system, []llm.Message{
 		{Role: "user", Content: user},
@@ -185,7 +187,46 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 
 // ─── prompt builders ──────────────────────────────────────────────────────────
 
-func BuildSystemPrompt() string {
+func BuildSystemPrompt(level config.LevelConfig) string {
+	var levelRules strings.Builder
+
+	// Bloom targeting override.
+	if level.BloomDelta != 0 {
+		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: target bloom_level = bloom_current %+d for each concept (clamp to 1–6, never exceed bloom_target).\n", level.BloomDelta)
+	} else {
+		levelRules.WriteString("- Target bloom_level = bloom_current + 1 for each concept (don't exceed 6).\n")
+	}
+
+	// Difficulty floor override.
+	if level.DifficultyFloor > 0 {
+		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: all questions must have difficulty_estimate >= %.2f. Do not generate easier questions even if the concept is at a low bloom level.\n", level.DifficultyFloor)
+	}
+
+	// Cross-branch override.
+	if level.CrossBranchWeight != nil {
+		w := *level.CrossBranchWeight
+		if w == 0 {
+			levelRules.WriteString("- LEVEL OVERRIDE: do not generate cross-branch questions (is_cross_branch must be false for all).\n")
+		} else {
+			fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: at least %.0f%% of questions must be cross-branch (is_cross_branch=true).\n", w*100)
+		}
+	}
+
+	// Format bias override.
+	switch level.FormatBias {
+	case "mcq_only":
+		levelRules.WriteString("- LEVEL OVERRIDE: use mcq or scenario_mcq format only — no free_text or design questions.\n")
+	case "free_text_heavy":
+		levelRules.WriteString("- LEVEL OVERRIDE: at least 4 of 8 questions must be free_text or scenario_mcq format.\n")
+	case "design_heavy":
+		levelRules.WriteString("- LEVEL OVERRIDE: at least 3 of 8 questions must be design format.\n")
+	}
+
+	// Time multiplier note (informational — LLM uses expected_time_seconds).
+	if level.TimeMultiplier != 1.0 {
+		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: scale expected_time_seconds by %.1f× relative to what you would normally estimate.\n", level.TimeMultiplier)
+	}
+
 	return `You are an adaptive quiz question generator for the Axon learning system.
 Generate quiz questions as a strict JSON array. Output ONLY the JSON array — no prose, no markdown code fences, no extra text.
 
@@ -213,8 +254,7 @@ Rules:
 - bloom_label: Remember(1) Understand(2) Apply(3) Analyze(4) Evaluate(5) Create(6)
 - For free_text or design format: omit options/correct/distractor_explanations, set requires_explanation=true
 - For mcq/scenario_mcq: include all four options A-D, exactly one correct key
-- Target bloom_level = bloom_current + 1 for each concept (don't exceed 6)
-- Bottleneck concepts must appear in at least 2 questions
+` + levelRules.String() + `- Bottleneck concepts must appear in at least 2 questions
 - EXPLORATION_UNLOCKED concepts: include in the session even if prerequisites are unmet.
   Set difficulty_estimate to 0.5× what it would normally be (provisional scoring weight).
   This is faith-based exposure — the learner is stretching; failure is expected and acceptable.
@@ -234,10 +274,10 @@ Rules:
   require mechanism-level reasoning.`
 }
 
-func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string) string {
+func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string, level config.LevelConfig) string {
 	var sb strings.Builder
 
-	fmt.Fprintf(&sb, "Track: %s\nGeneration ID: %s\n\n", trackID, generationID)
+	fmt.Fprintf(&sb, "Track: %s\nGeneration ID: %s\nDifficulty Level: %s\n\n", trackID, generationID, level.Name)
 
 	sb.WriteString("Concept Map:\n")
 	// Group by branch.
