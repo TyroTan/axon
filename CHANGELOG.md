@@ -9,6 +9,32 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.29.0] — 2026-04-20 — v2 E2: aspiration_count auto-increment + exploration_unlocked auto-set (M2.2)
+
+### Updated
+- **`apply_synthesis.go`** — now updates both state planes in a single concept map write:
+  - Evidence state (existing): `bloom_current` + `spaced_repetition` from synthesis
+  - Exploration state (new): scans session's `01_questions.json` + `03_evaluations.json`;
+    for each answered question where `bloom_level > concept.bloom_current` (post-synthesis),
+    increments `aspiration_count` on the concept. When `aspiration_count >= 2`
+    (aspirationThreshold), sets `exploration_unlocked = true` automatically.
+
+### Design
+- Post-synthesis `bloom_current` is used as the floor — if the learner demonstrated
+  mastery at a level (synthesis moved them up), the question is no longer above-floor
+  and does not increment aspiration_count. Only genuine stretch attempts count.
+- Questions + evaluations are loaded opportunistically; if missing (e.g. no evaluations
+  yet), aspiration tracking is silently skipped — idempotency preserved.
+- `aspirationThreshold = 2` is a package-level constant; no config plumbing yet.
+
+### Testable now (E2 fully complete)
+- Complete a session with questions asked above a concept's demonstrated Bloom level
+- Apply Synthesis → inspect `concept_map.json` → `aspiration_count` should be > 0
+  on stretched concepts; `exploration_unlocked: true` on any that hit threshold 2
+- Next Generate Questions → those concepts appear in session regardless of prerequisites
+
+---
+
 ## [0.28.0] — 2026-04-20 — v2 E2: Dual State Architecture (schema + question generator)
 
 ### Added
