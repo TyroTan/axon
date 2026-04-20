@@ -129,19 +129,31 @@ func (s *TrackStore) GetEffectiveConceptMap(ctx context.Context, trackID string)
 		pos[c.Index] = i
 	}
 
-	// Walk ancestors from nearest to root, taking max bloom_current per concept.
+	// Walk ancestors from nearest to root, cascading the full learner state floor.
+	// Rules per field:
+	//   bloom_current      — max(own, ancestor): child never regresses below parent's level
+	//   exploration_unlocked — own OR ancestor: if parent unlocked it, child gets it
+	//   inquiry_precision  — max(own, ancestor): child inherits parent's inquiry quality floor
+	//   aspiration_count   — own only: each track accumulates its own stretch signal
 	ancestorID := parentID(trackID)
 	for ancestorID != "" {
 		anc, err := s.GetConceptMap(ctx, ancestorID)
 		if err != nil {
-			// Missing or malformed ancestor concept map — stop walking, not fatal.
 			break
 		}
 		for _, ac := range anc.Concepts {
-			if i, ok := pos[ac.Index]; ok {
-				if ac.BloomCurrent > own.Concepts[i].BloomCurrent {
-					own.Concepts[i].BloomCurrent = ac.BloomCurrent
-				}
+			i, ok := pos[ac.Index]
+			if !ok {
+				continue
+			}
+			if ac.BloomCurrent > own.Concepts[i].BloomCurrent {
+				own.Concepts[i].BloomCurrent = ac.BloomCurrent
+			}
+			if ac.ExplorationUnlocked {
+				own.Concepts[i].ExplorationUnlocked = true
+			}
+			if ac.InquiryPrecision > own.Concepts[i].InquiryPrecision {
+				own.Concepts[i].InquiryPrecision = ac.InquiryPrecision
 			}
 		}
 		ancestorID = parentID(ancestorID)
