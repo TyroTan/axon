@@ -683,6 +683,8 @@ AC (once open decisions resolved):
 | 6 | Pre-Merge Distill | F3 | RunSilent on source tracks before merge | ✅ Done |
 | 7 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, exploration_unlocked live | ✅ Done |
 | 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | ✅ Done |
+| 8b | Difficulty level system | — | Named levels (recall→extreme) on numeric spine, AXON_LEVEL_OVERRIDE, /config/levels, /difficulty-preview | ✅ Done |
+| 8c | Path-aware contextual scoring | — | StateSnapshot on sessions, learner_path.jsonl, delta_multiplier in apply_synthesis, consecutive fail counter | ✅ Done |
 | **9** | **Application Evidence — schema** | **E10 schema** | **session.type field, application_task.json shape, open decisions resolved** | **← next** |
 | 10 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked | |
 | 11 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied | |
