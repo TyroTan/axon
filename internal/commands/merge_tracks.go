@@ -27,11 +27,12 @@ type MergeTracksResult struct {
 }
 
 type MergeTracksHandler struct {
-	store *filesystem.TrackStore
+	store    *filesystem.TrackStore
+	distiller *DistillThreadsHandler
 }
 
-func NewMergeTracksHandler(store *filesystem.TrackStore) *MergeTracksHandler {
-	return &MergeTracksHandler{store: store}
+func NewMergeTracksHandler(store *filesystem.TrackStore, distiller *DistillThreadsHandler) *MergeTracksHandler {
+	return &MergeTracksHandler{store: store, distiller: distiller}
 }
 
 func (h *MergeTracksHandler) Handle(ctx context.Context, cmd MergeTracksCommand) (MergeTracksResult, error) {
@@ -43,6 +44,14 @@ func (h *MergeTracksHandler) Handle(ctx context.Context, cmd MergeTracksCommand)
 	for _, id := range cmd.SourceIDs {
 		if _, err := h.store.GetTrack(ctx, id); err != nil {
 			return MergeTracksResult{}, fmt.Errorf("merge tracks: source %q: %w", id, err)
+		}
+	}
+
+	// Pre-distill each source track (F3 — idempotent, non-fatal per source).
+	for _, id := range cmd.SourceIDs {
+		if _, err := h.distiller.RunSilent(ctx, DistillThreadsCommand{TrackID: id}); err != nil {
+			// Non-fatal: if distill fails (no threads, LLM error) merge proceeds without snapshot.
+			_ = err
 		}
 	}
 

@@ -100,7 +100,6 @@ func New(cfg Config) *fiber.App {
 		cmdBus, commands.NewUpdateContextHandler(trackStore),
 	)
 
-	mergeTracksHandler := commands.NewMergeTracksHandler(trackStore)
 	convTurnHandler := commands.NewConversationTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 	indexConvHandler := commands.NewIndexConversationHandler(trackStore, llmClient, rec)
 
@@ -124,6 +123,7 @@ func New(cfg Config) *fiber.App {
 	cqrs.Register[commands.DuplicateTrackCommand](
 		cmdBus, commands.NewDuplicateTrackHandler(trackStore, distillThreadsHandler),
 	)
+	mergeTracksHandler := commands.NewMergeTracksHandler(trackStore, distillThreadsHandler)
 	analyzeJobHandler := commands.NewAnalyzeJobHandler(trackStore, llmClient)
 	threadTurnHandler := commands.NewThreadTurnHandler(trackStore, llmClient, cfg.ContextTokenLimit)
 	detectStateHandler := commands.NewDetectLearnerStateHandler(trackStore, llmClient)
