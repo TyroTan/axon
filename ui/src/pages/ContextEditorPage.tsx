@@ -57,7 +57,8 @@ export function ContextEditorPage() {
 
   function selectFile(name: string) {
     setSelectedFile(name)
-    setDraft(data?.files[name] ?? '')
+    const content = data?.files[name] ?? data?.inherited_files?.[name] ?? ''
+    setDraft(content)
     setSaveStatus('idle')
     setSaveError(null)
   }
@@ -154,6 +155,8 @@ export function ContextEditorPage() {
   if (!data) return null
 
   const fileList = Object.keys(data.files).sort()
+  const inheritedList = Object.keys(data.inherited_files ?? {}).sort()
+  const isInherited = selectedFile != null && !(selectedFile in data.files)
 
   return (
     <div className="max-w-5xl space-y-4">
@@ -284,6 +287,31 @@ export function ContextEditorPage() {
               </li>
             ))}
           </ul>
+
+          {inheritedList.length > 0 && (
+            <>
+              <div className="px-3 py-1.5 border-t bg-muted/20 flex items-center gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Inherited</span>
+              </div>
+              <ul>
+                {inheritedList.map(name => (
+                  <li key={name}>
+                    <button
+                      onClick={() => selectFile(name)}
+                      className={cn(
+                        'w-full text-left px-3 py-2 text-xs truncate transition-colors',
+                        selectedFile === name
+                          ? 'bg-accent text-accent-foreground font-medium'
+                          : 'hover:bg-muted/50 text-muted-foreground/60'
+                      )}
+                    >
+                      <span className="truncate">{name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
 
         {/* Editor panel */}
@@ -293,34 +321,42 @@ export function ContextEditorPage() {
               <div className="px-4 py-2 border-b bg-muted/40 flex items-center justify-between">
                 <span className="text-xs font-mono text-muted-foreground">{selectedFile}</span>
                 <div className="flex items-center gap-3">
-                  {saveStatus === 'saved' && <span className="text-xs text-green-500">Saved</span>}
-                  {saveStatus === 'error' && <span className="text-xs text-destructive" title={saveError ?? ''}>Save failed</span>}
-                  {compactError && <span className="text-xs text-destructive" title={compactError}>Compact failed</span>}
-                  {!selectedFile.startsWith('_') && !selectedFile.includes('.compact.') && (
-                    <button
-                      onClick={compactFile}
-                      disabled={compacting}
-                      title="Distil this file to ~50% tokens via LLM — writes a .compact.md version"
-                      className={cn(
-                        buttonVariants({ variant: 'outline', size: 'sm' }),
-                        'h-6 text-xs px-3',
-                        compacting && 'opacity-60 cursor-not-allowed'
+                  {isInherited ? (
+                    <span className="text-xs text-muted-foreground/60 italic">
+                      from {data.inherited_from?.[selectedFile]} · read-only
+                    </span>
+                  ) : (
+                    <>
+                      {saveStatus === 'saved' && <span className="text-xs text-green-500">Saved</span>}
+                      {saveStatus === 'error' && <span className="text-xs text-destructive" title={saveError ?? ''}>Save failed</span>}
+                      {compactError && <span className="text-xs text-destructive" title={compactError}>Compact failed</span>}
+                      {!selectedFile.startsWith('_') && !selectedFile.includes('.compact.') && (
+                        <button
+                          onClick={compactFile}
+                          disabled={compacting}
+                          title="Distil this file to ~50% tokens via LLM — writes a .compact.md version"
+                          className={cn(
+                            buttonVariants({ variant: 'outline', size: 'sm' }),
+                            'h-6 text-xs px-3',
+                            compacting && 'opacity-60 cursor-not-allowed'
+                          )}
+                        >
+                          {compacting ? 'Compacting…' : 'Compact'}
+                        </button>
                       )}
-                    >
-                      {compacting ? 'Compacting…' : 'Compact'}
-                    </button>
+                      <button
+                        onClick={saveFile}
+                        disabled={saveStatus === 'saving'}
+                        className={cn(
+                          buttonVariants({ size: 'sm' }),
+                          'h-6 text-xs px-3',
+                          saveStatus === 'saving' && 'opacity-60 cursor-not-allowed'
+                        )}
+                      >
+                        {saveStatus === 'saving' ? 'Saving…' : 'Save'}
+                      </button>
+                    </>
                   )}
-                  <button
-                    onClick={saveFile}
-                    disabled={saveStatus === 'saving'}
-                    className={cn(
-                      buttonVariants({ size: 'sm' }),
-                      'h-6 text-xs px-3',
-                      saveStatus === 'saving' && 'opacity-60 cursor-not-allowed'
-                    )}
-                  >
-                    {saveStatus === 'saving' ? 'Saving…' : 'Save'}
-                  </button>
                 </div>
               </div>
               {compactStream && (
@@ -330,9 +366,13 @@ export function ContextEditorPage() {
               )}
               <textarea
                 value={draft}
-                onChange={e => { setDraft(e.target.value); setSaveStatus('idle') }}
+                onChange={e => { if (!isInherited) { setDraft(e.target.value); setSaveStatus('idle') } }}
+                readOnly={isInherited}
                 spellCheck={false}
-                className="flex-1 resize-none font-mono text-sm p-4 bg-background focus:outline-none min-h-[480px]"
+                className={cn(
+                  'flex-1 resize-none font-mono text-sm p-4 bg-background focus:outline-none min-h-[480px]',
+                  isInherited && 'text-muted-foreground/70 cursor-default'
+                )}
                 placeholder="Paste markdown content here…"
               />
             </>

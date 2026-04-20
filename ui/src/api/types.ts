@@ -131,7 +131,9 @@ export interface GetTrackResult {
 
 export interface GetTrackContextResult {
   track_id: string
-  files: Record<string, string> // filename → content
+  files: Record<string, string>            // own — editable
+  inherited_files: Record<string, string>  // from ancestors — read-only
+  inherited_from: Record<string, string>   // filename → source track ID
 }
 
 export interface ForkTrackResult {
