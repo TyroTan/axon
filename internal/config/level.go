@@ -46,8 +46,8 @@ var Levels = map[string]LevelConfig{
 		DifficultyFloor: 0.65,
 		TimeMultiplier:  1.0,
 	},
-	"hard": {
-		Name:              "hard",
+	"challenge": {
+		Name:              "challenge",
 		BloomDelta:        1,
 		DifficultyFloor:   0.5,
 		CrossBranchWeight: ptr(0.4),
@@ -73,7 +73,7 @@ var Levels = map[string]LevelConfig{
 }
 
 // LevelOrder is the canonical display order (easiest → hardest).
-var LevelOrder = []string{"recall", "easy", "default", "medium", "hard", "intense", "extreme"}
+var LevelOrder = []string{"recall", "easy", "default", "medium", "challenge", "intense", "extreme"}
 
 // ActiveLevel reads AXON_LEVEL_OVERRIDE and returns the matching config.
 // Falls back to "default" for unset or unknown values.
