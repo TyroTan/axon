@@ -191,7 +191,56 @@ All named concepts introduced in v2, with research grounding:
 
 ---
 
-## 7. The Unknown — Transfer Function
+## 7. Theoretical Contributors — Coverage Map
+
+Axon's ultimate goal is learner improvement and real-world success, not just score improvement.
+That goal is served by multiple learning science frameworks. This section names them, estimates
+their contribution weight, and tracks axon's current coverage honestly.
+
+| # | Framework | What it measures | Est. weight | Axon coverage |
+|---|---|---|---|---|
+| 1 | **Spaced Repetition** (Ebbinghaus/Leitner) | Retention over time, forgetting curve | ~20% | ✅ Implemented — `spaced_repetition` in concept_map, synthesis scheduling |
+| 2 | **Deliberate Practice** (Ericsson) | Practicing at the edge of ability with tight feedback | ~20% | ⚠ Partial — bottleneck detection + composite states approximate it; no explicit challenge-calibration dial yet |
+| 3 | **Bloom's Taxonomy** | Cognitive depth progression L1→L6 | ~15% | ✅ Primary framework — question generation, evaluation, synthesis |
+| 4 | **Transfer / Application** | Can the learner use knowledge in novel real-world contexts | ~15% | ⚠ E10 (Application Evidence Sessions) targets this — not yet built |
+| 5 | **Metacognition** (Flavell) | Knowing what you know and don't; directing your own learning | ~10% | ⚠ Brier score calibration + E9 Inquiry Quality — incomplete |
+| 6 | **Motivation / Self-Determination** (Deci & Ryan) | Autonomy, competence, intrinsic drive | ~10% | ⚠ Trust proxy + pre-session nudge — shallow; no explicit intrinsic motivation model |
+| 7 | **Feedback Quality** | Specific, actionable, timely correction per attempt | ~5% | ✅ `feedback_for_learner` in evaluations |
+| 8 | **Social / Collaborative** (Vygotsky ZPD) | Learning with and through others; zone of proximal development | ~5% | ❌ Not in axon |
+
+**Current coverage: ~55–60% of what drives learner success in the knowledge/engineering domain.**
+
+### Known gaps — recorded as explicit deferred items
+
+- **Deliberate Practice calibration**: the dial system (E4/E5) partially addresses this but there is no
+  explicit "challenge at exactly your edge" mechanism. Composite state detection (E3) is the closest proxy.
+- **Transfer**: the single most valuable and most absent signal. E10 (Application Evidence Sessions) is
+  the primary path to measuring this. Until E10 is built, axon measures mastery-in-context only.
+- **Metacognition depth**: calibration via Brier score is shallow. E9 (Inquiry Quality) adds one more
+  dimension. True metacognitive tracking would require learner self-reports and longitudinal gap awareness.
+- **Intrinsic motivation**: trust proxy and nudge system are behaviorally inferred approximations.
+  No direct motivation model is planned for this iteration.
+- **Social/collaborative**: out of scope for axon's current single-learner model. Noted as a ceiling.
+
+### Creative and physical domains — known category mismatch
+
+Bloom's Taxonomy and MCQ-style evaluation are the wrong shape for creative or physical skill domains.
+These domains require different frameworks:
+
+| Domain | Right framework | Status |
+|---|---|---|
+| Physical skill (cycling, swimming, running) | Fitts & Posner motor learning stages + performance metrics (pace, RPE, power, periodization) | Out of scope |
+| Creative output (music, art, design) | Divergent thinking (Guilford) + creative self-efficacy (Bandura) — fluency, flexibility, originality | Out of scope |
+| Endurance / performance sport | Periodization theory + psychological toughness models | Out of scope |
+| All domains | Flow state (Csikszentmihalyi) | ⚠ Partially captured in composite learner states |
+
+**Axon's realistic ceiling** for the knowledge/engineering domain, fully built out: ~75–80% of what
+drives learner success. For creative or physical domains, the core model would need a different ontology —
+not just gap-filling.
+
+---
+
+## 8. The Unknown — Transfer Function
 
 The single unknown that, if resolved, unlocks compounding gains:
 
@@ -209,6 +258,10 @@ harder through the threshold. If context-dependent, branch isolation may be acti
 **Proxies being built toward it:** situation log (S6), decision audit questions, reach
 question engagement pattern. The conversation analyzer (M1) is the most direct current
 path to approximating this function.
+
+**E10 (Application Evidence Sessions) is the primary direct proxy.** By having the learner
+narrate real application work under AI interrogation, axon gains the first signal that
+is not mediated by question format — it is raw evidence of transfer in progress.
 
 ---
 
@@ -234,19 +287,30 @@ path to approximating this function.
 | `03_evaluations.json` | correctness, feedback | + signal_type: gap/stretch/aspiration/regression |
 | `04_synthesis.json` | bloom updates, next session plan | + composite_state_detected, nudge_suggestion, dial_positions |
 | `context/` | source snapshots | + `conversation_analysis.json` (from prompt 05) |
-| `prompts/` | 01–04 | + `05_conversation_analyzer.md` |
+| `prompts/` | 01–04 | + `05_conversation_analyzer.md`, `06_application_evaluator.md` |
 | Session pre-flight | none | pre-session nudge output before question generation |
+| Session type | implicit (always quiz) | + `type: 'quiz' \| 'application'` field on session |
+| `application_task.json` | — | task definition: title, concept_indexes, llm_assistance_mode, success_criteria |
+| `application_standup.jsonl` | — | per-round exchanges in the interrogator loop |
+| `application_evidence.json` | — | extracted evidence: bloom_level per concept_index, orchestration quality score |
 
 ---
 
-## 10. Critical Path to Compounding Gains
+## 11. Critical Path to Compounding Gains
 
 ```
-M1 (Conversation Analyzer)
-  → M3 (Composite State Detection)
-      → M4 (Pre-Session Nudge)
-          → S2 (Provisional Unlock) via M2 (Dual State Model)
-              → S3 (Aspiration Gap Tracking)
+F2 (Live Concept Map Inheritance)       ← immediate unblock for multi-track learners
+  → feeds E10 trigger logic meaningfully
+
+F3 (Pre-Merge Idempotent Distill)       ← consistency fix before more tracks exist
+
+M1 (Conversation Analyzer) ✅
+  → M3 (Composite State Detection) ✅
+      → M4 (Pre-Session Nudge) ✅
+          → M2 (Dual State Model)
+              → E9 (Inquiry Quality)
+                  → E10 (Application Evidence Sessions)   ← transfer function proxy
+                      → E8 (Self-Reflection Loop)
 ```
 
 Everything else is additive. This chain is what converts axon from a measurement system

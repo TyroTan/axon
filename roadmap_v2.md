@@ -20,6 +20,7 @@
 | **Generative Formats** | E7 | Teach-back, teach-forward, contradiction, unknown-edge | 9–10 |
 | **Self-Reflection Loop** | E8 | Post-session reflection, concept self-discovery, mode evolution | 11 |
 | **Inquiry Quality** | E9 | Measure how well learner asks questions, not just answers them | 12 |
+| **Application Evidence Sessions** | E10 | New session type: real-work debrief, AI interrogator, transfer function proxy | 13–14 |
 
 ---
 
@@ -42,10 +43,15 @@ E6 requires E3
 E7 requires E1 + E4
 E8 requires E1 + E2 (reads all accumulated session data)
 E9 requires E1 (extends distill-threads; feeds E8 reflection input)
+E10 requires E2 + E9 (needs dual state schema + inquiry quality signal)
+
+F2 (Live Concept Map Inheritance) — pre-condition for E10 trigger logic to be meaningful
+F3 (Pre-Merge Idempotent Distill) — consistency fix, no dependencies
 ```
 
-**Critical path:** `E1 → E3 → E4 → E2 → E5`
+**Critical path:** `F2 → F3 → E2 → E9 → E10 → E8`
 **Self-evolution path:** `E1 → E9 → E8` (parallel to main critical path, mergeable at E4)
+**Transfer proxy path:** `F2 → E2 → E9 → E10` (first real-world application signal)
 
 ---
 
@@ -548,11 +554,132 @@ AC:
 
 ---
 
-## Won't Have — This Iteration
+---
+
+### F2 — Live Concept Map Inheritance
+
+> As a learner working in a forked track, I want my sessions to start from my parent track's
+> current bloom_current levels as a floor, so that progress made in the parent after I forked
+> is not lost to me.
+
+**Why:** concept_map.json is currently a frozen snapshot at fork time. Parent progress after
+fork never reaches the child. This mirrors the context inheritance gap that was closed by
+`GetTrackContext` walking the ancestor chain — the same pattern should apply to bloom stats.
+
+**Mechanism:** at question-generation time, walk the ancestor chain (same as `parentTrackID`)
+and for each concept_index, take `max(own.bloom_current, ancestor.bloom_current)` as the
+effective floor. Child's own synthesis updates can only raise, never lower. No write-back to
+parent — purely read-time aggregation.
+
+- Size: **M** · Priority: **Must** · Status: **Not started**
+
+Open decisions before building:
+- [ ] Where does the merge happen — in `GetConceptMap` query, or in the question generator prompt?
+- [ ] Does the floor apply only to bloom_current or also to spaced_repetition schedule?
+- [ ] Should the effective floor be visible in the UI (concept map view)?
+
+AC:
+- [ ] Child sessions use `max(own, ancestor)` bloom floor for question targeting
+- [ ] Ancestor chain walked at generation time, not cached
+- [ ] No mutation of ancestor concept_map.json — read-only
+- [ ] Works transitively: track_2_2_1 inherits from track_2_2 inherits from track_2
+
+---
+
+### F3 — Pre-Merge Idempotent Distill
+
+> As a system, I want merge to automatically run Distill Threads on each source track
+> before merging their concept maps, so the merged track inherits distilled session wisdom
+> from all sources rather than raw state.
+
+**Why:** Smart Fork (F1) added idempotent pre-step distilling before branch. Merge currently
+has no equivalent — it copies concept maps but discards session thread knowledge from source
+tracks. Inconsistency that grows worse as more tracks accumulate sessions.
+
+- Size: **S** · Priority: **Should** · Status: **Not started**
+
+AC:
+- [ ] `MergeTracksHandler` calls `DistillThreadsHandler.RunSilent` on each source track before merging
+- [ ] Idempotent: skipped per source track if `session_insights.snapshot.md` already exists
+- [ ] Non-fatal: if distill fails for a source, merge proceeds without it (warning logged)
+
+---
+
+### E10 — Application Evidence Sessions
+
+> As a learner, I want a session type where I narrate real work I am doing — a project,
+> a task, a problem solved at work — and an AI interrogator extracts application-level
+> evidence from my account, so that axon can measure transfer, not just recall.
+
+**Why this is the transfer function proxy:** current sessions measure mastery-in-context
+(MCQ, scenario, free-text within axon's framing). Application Evidence Sessions measure
+whether the learner can apply concepts in their actual work — the signal that matters most
+for real-world success and the one most absent from axon today.
+
+**The LLM-assistance dimension:** in the modern engineering context, learners use AI
+assistance heavily (often 80–100% of execution). This does not invalidate the signal —
+it shifts what is being measured. The interrogator branches on `llm_assistance_mode`:
+
+| Mode | LLM assistance | Interrogator probes | Bloom dimension |
+|---|---|---|---|
+| `autonomous` | ≤20% | Reasoning process, problem decomposition, solution construction | L3 Apply, L4 Analyze |
+| `directed` | ≥80% | How they framed prompts, what they rejected, how they caught errors | L5 Evaluate, L6 Create |
+| `mixed` | 20–80% | Both dimensions, weighted by self-report | L3–L6 |
+
+A learner at 90% AI assistance who can articulate *why* they rejected the AI's first approach
+is demonstrating higher bloom than a learner at 0% who can only describe what they built.
+The ratio is a mode selector, not a penalty modifier.
+
+**Session lifecycle:**
+```
+1. Task Definition
+   Learner: "I am working on X" (freeform)
+   LLM co-structures into: task_title, concept_indexes_relevant,
+   llm_assistance_mode, expected_bloom_ceiling, success_criteria
+
+2. Standup Loop (N rounds until satisfied)
+   AI: probing question targeting a concept or decision point
+   Learner: narrative response
+   AI: scores evidence_so_far, decides to probe deeper or close
+   → repeat until evidence_sufficient OR max_rounds reached
+
+3. Evidence Extraction
+   LLM reads full transcript → outputs per concept_index:
+   bloom_level_demonstrated, evidence_quote, orchestration_quality_score (directed mode),
+   gaps_identified, synthesis_notes
+
+4. Synthesis Integration
+   Same pipeline as quiz sessions: updates bloom_current
+   Rule: AES can raise bloom to L6 but cannot lower it
+   Attribution tag: bloom evidence tagged as 'application' source
+```
+
+- Size: **L** · Priority: **Must** · Status: **Spec only — schema decisions needed first**
+
+Open decisions (pre-conditions before building):
+- [ ] Session granularity: one AES = one project lifetime (multi-standup) vs. one AES = one exchange
+- [ ] Task origin: always learner-defined vs. axon suggests tasks from concept gaps
+- [ ] Termination signal: LLM decides "satisfied" vs. fixed round count
+- [ ] Bloom write ceiling: AES can raise to L6 vs. capped at L4
+- [ ] Trigger threshold: bloom_current ≥ 3 across N concepts in branch (deterministic) vs. post-synthesis LLM flag
+
+AC (once open decisions resolved):
+- [ ] `session.type` field: `'quiz' | 'application'` — backward compatible
+- [ ] `application_task.json` written at task definition step
+- [ ] `application_standup.jsonl` per-round exchanges persisted
+- [ ] `application_evidence.json` extracted evidence with bloom attribution
+- [ ] `prompts/06_application_evaluator.md` — branches on llm_assistance_mode
+- [ ] Trigger suggestion visible in TrackPage when bloom threshold met
+- [ ] Synthesis integration updates concept_map bloom_current with 'application' tag
+- [ ] UI: new session creation flow for application type
+
+---
+
+
 
 | Item | Reason |
 |---|---|
-| Transfer function measurement | Requires real-world outcome data axon cannot collect |
+| Transfer function direct measurement | Requires real-world outcome data axon cannot collect — E10 is the closest proxy |
 | Application sandbox | Separate infrastructure, out of scope |
 | Full interleaving engine | Needs S2.1 + multiple sessions of clean data first |
 | Biometric arousal signal | No input source available |
@@ -565,18 +692,20 @@ AC:
 
 | Sprint | Focus | Items | Exit Criteria |
 |---|---|---|---|
-| 1 | Conversation Analyzer | M1.1, M1.2 | Prompt 05 working, question generator ingests output |
-| 2 | Fingerprint workflow | M1.3 | Workflow documented, gitignore updated, sample output committed |
-| 3 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, provisional unlock logic tested |
-| 4 | State Detection core | M3.1 | 8 states detectable, composite_state in synthesis |
-| 5 | Trust proxy | M3.2 | perceived_trust_proxy in synthesis, session behavior modulated by it |
-| 6 | Nudge + Dials | M4.1, M4.2 | Pre-session nudge in UI, dial controls working, fork inheritance |
-| 7 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked |
-| 8 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied, situation log live |
-| 9 | Generative formats | C1.1, C1.2 | Teach-back and teach-forward evaluated and scored |
-| 10 | Edge formats | C1.3, C1.4 | Contradiction and unknown-edge probe live |
-| 11 | Self-Reflection Loop | C2.1, C2.2, C2.3 | ReflectCommand live, concept auto-promotion working, feeds next session |
-| 12 | Inquiry Quality | C3.1, C3.2, C3.3 | Inquiry Patterns in snapshot, counterfactual scaffold in threads, inquiry_precision tracked |
+| 1 | Conversation Analyzer | M1.1, M1.2 | Prompt 05 working, question generator ingests output | ✅ Done |
+| 2 | Fingerprint workflow | M1.3 | Workflow documented, sample output committed | ✅ Done |
+| 3 | State Detection + Nudge | E3, E4 | composite_state in synthesis, nudge banner in UI | ✅ Done |
+| 4 | Smart Fork | F1.1, F1.2 | Auto-distill + conversation snapshot on fork | ✅ Done |
+| **5** | **Live Concept Map Inheritance** | **F2** | **Child sessions use ancestor bloom floor at generation time** | ← next |
+| 6 | Pre-Merge Distill | F3 | RunSilent on source tracks before merge | |
+| 7 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, exploration_unlocked live | |
+| 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | |
+| 9 | Application Evidence — schema | E10 schema | session.type field, application_task.json shape, open decisions resolved | |
+| 10 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked | |
+| 11 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied | |
+| 12 | Inquiry Quality full | C3.1, C3.2, C3.3 | Inquiry Patterns in snapshot, inquiry_precision tracked | |
+| 13 | Application Evidence — build | E10 full | Interrogator loop live, evidence extraction, bloom write-back | |
+| 14 | Self-Reflection Loop | C2.1, C2.2, C2.3 | ReflectCommand live, feeds next session with E9+E10 signals | |
 
 ---
 
