@@ -539,7 +539,7 @@ AC:
 
 ---
 
-### F2 — Live Concept Map Inheritance
+### F2 — Live Concept Map Inheritance ✅ Done
 
 > As a learner working in a forked track, I want my sessions to start from my parent track's
 > current bloom_current levels as a floor, so that progress made in the parent after I forked
@@ -554,22 +554,22 @@ and for each concept_index, take `max(own.bloom_current, ancestor.bloom_current)
 effective floor. Child's own synthesis updates can only raise, never lower. No write-back to
 parent — purely read-time aggregation.
 
-- Size: **M** · Priority: **Must** · Status: **Not started**
+- Size: **M** · Priority: **Must** · Status: **Done**
 
-Open decisions before building:
-- [ ] Where does the merge happen — in `GetConceptMap` query, or in the question generator prompt?
-- [ ] Does the floor apply only to bloom_current or also to spaced_repetition schedule?
-- [ ] Should the effective floor be visible in the UI (concept map view)?
+Decisions made:
+- Merge happens in `store.GetEffectiveConceptMap()` called from question generator — not in prompt
+- Floor applies to: `bloom_current` (max), `exploration_unlocked` (OR), `inquiry_precision` (max); SR schedule stays own-only
+- UI visibility: not yet — deferred
 
 AC:
-- [ ] Child sessions use `max(own, ancestor)` bloom floor for question targeting
-- [ ] Ancestor chain walked at generation time, not cached
-- [ ] No mutation of ancestor concept_map.json — read-only
-- [ ] Works transitively: track_2_2_1 inherits from track_2_2 inherits from track_2
+- [x] Child sessions use `max(own, ancestor)` bloom floor for question targeting
+- [x] Ancestor chain walked at generation time, not cached
+- [x] No mutation of ancestor concept_map.json — read-only
+- [x] Works transitively: track_2_2_1 inherits from track_2_2 inherits from track_2
 
 ---
 
-### F3 — Pre-Merge Idempotent Distill
+### F3 — Pre-Merge Idempotent Distill ✅ Done
 
 > As a system, I want merge to automatically run Distill Threads on each source track
 > before merging their concept maps, so the merged track inherits distilled session wisdom
@@ -579,7 +579,7 @@ AC:
 has no equivalent — it copies concept maps but discards session thread knowledge from source
 tracks. Inconsistency that grows worse as more tracks accumulate sessions.
 
-- Size: **S** · Priority: **Should** · Status: **Not started**
+- Size: **S** · Priority: **Should** · Status: **Done**
 
 AC:
 - [ ] `MergeTracksHandler` calls `DistillThreadsHandler.RunSilent` on each source track before merging
@@ -679,11 +679,11 @@ AC (once open decisions resolved):
 | 2 | Fingerprint workflow | M1.3 | Workflow documented, sample output committed | ✅ Done |
 | 3 | State Detection + Nudge | E3, E4 | composite_state in synthesis, nudge banner in UI | ✅ Done |
 | 4 | Smart Fork | F1.1, F1.2 | Auto-distill + conversation snapshot on fork | ✅ Done |
-| **5** | **Live Concept Map Inheritance** | **F2** | **Child sessions use ancestor bloom floor at generation time** | ← next |
-| 6 | Pre-Merge Distill | F3 | RunSilent on source tracks before merge | |
+| 5 | Live Concept Map Inheritance | F2 | Child sessions use ancestor bloom floor + exploration + inquiry cascade | ✅ Done |
+| 6 | Pre-Merge Distill | F3 | RunSilent on source tracks before merge | ✅ Done |
 | 7 | Dual State Architecture | M2.1, M2.2 | concept_map schema updated, exploration_unlocked live | ✅ Done |
 | 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | ✅ Done |
-| 9 | Application Evidence — schema | E10 schema | session.type field, application_task.json shape, open decisions resolved | |
+| **9** | **Application Evidence — schema** | **E10 schema** | **session.type field, application_task.json shape, open decisions resolved** | **← next** |
 | 10 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked | |
 | 11 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied | |
 | 12 | Inquiry Quality full | C3.1, C3.2, C3.3 | Inquiry Patterns in snapshot, inquiry_precision tracked | |
