@@ -268,12 +268,10 @@ function EvalCard({
   const [threadOpen, setThreadOpen] = useState(false)
   const [messages, setMessages] = useState<ThreadMessage[]>([])
   const [threadLoaded, setThreadLoaded] = useState(false)
-  const [seeding, setSeeding] = useState(false)
   const [streaming, setStreaming] = useState(false)
   const [inputText, setInputText] = useState('')
   const [threadErr, setThreadErr] = useState<string | null>(null)
   const [lastMeta, setLastMeta] = useState<{ sessionId: string; inputTokens: number } | null>(null)
-  const streamRef = useRef('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // ── thread preview state ───────────────────────────────────────────────────
@@ -295,38 +293,9 @@ function EvalCard({
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, seeding, streaming])
+  }, [messages, streaming])
 
-  async function seedConversation() {
-    setSeeding(true)
-    setThreadErr(null)
-    streamRef.current = ''
-    // Optimistically add a streaming placeholder
-    const placeholder: ThreadMessage = { role: 'assistant', content: '', ts: new Date().toISOString() }
-    setMessages(prev => [...prev, placeholder])
-    try {
-      let accumulated = ''
-      const meta = await api.threadTurn(trackId, sessionNum, q.id, '', (text) => {
-        accumulated += text
-        setMessages(prev => {
-          const next = [...prev]
-          next[next.length - 1] = { ...placeholder, content: accumulated }
-          return next
-        })
-      })
-      setLastMeta(meta)
-      // Reload thread to get persisted messages with meta
-      const r = await api.getThread(trackId, sessionNum, q.id)
-      setMessages(r.thread?.messages ?? [])
-    } catch (e) {
-      setThreadErr(String(e))
-      setMessages(prev => prev.slice(0, -1)) // remove placeholder
-    } finally {
-      setSeeding(false)
-    }
-  }
-
-  async function sendMessage() {
+async function sendMessage() {
     if (!inputText.trim() || streaming) return
     const userMsg: ThreadMessage = { role: 'user', content: inputText.trim(), ts: new Date().toISOString() }
     const placeholder: ThreadMessage = { role: 'assistant', content: '', ts: new Date().toISOString() }
@@ -405,7 +374,17 @@ function EvalCard({
       </CardHeader>
 
       <CardContent className='pt-0 pl-9 space-y-3'>
-        {/* Your answer */}
+        {/* Your answer — free text / design */}
+        {!isMCQ && response?.selected_answer && (
+          <div className='space-y-1'>
+            <p className='text-xs font-semibold text-muted-foreground uppercase tracking-wider'>Your answer</p>
+            <p className='text-xs font-mono text-muted-foreground bg-muted/30 rounded p-2 leading-relaxed whitespace-pre-wrap'>
+              {response.selected_answer}
+            </p>
+          </div>
+        )}
+
+        {/* Your answer — MCQ */}
         {isMCQ && selectedKey && q.options && (
           <div className='space-y-1'>
             {(['A', 'B', 'C', 'D'] as const).map(key => {
@@ -496,7 +475,7 @@ function EvalCard({
               </div>
 
               {/* Messages — or seed prompt with preview */}
-              {messages.length === 0 && !seeding && (
+              {messages.length === 0 && (
                 <div className='space-y-2'>
                   {/* Preview panel */}
                   <div className='border border-border/50 rounded-lg overflow-hidden'>
@@ -583,18 +562,6 @@ function EvalCard({
                     )}
                   </div>
 
-                  {/* Fire button */}
-                  <div className='flex flex-col items-center gap-1'>
-                    <button
-                      onClick={seedConversation}
-                      className={cn(buttonVariants({ size: 'sm' }), 'text-xs')}
-                    >
-                      Open tutoring conversation
-                    </button>
-                    <p className='text-[10px] text-muted-foreground'>
-                      Sends question + answer + evaluation + {threadPreview?.rag_chunks.length ?? '…'} context chunks
-                    </p>
-                  </div>
                 </div>
               )}
 
@@ -639,26 +606,24 @@ function EvalCard({
               {threadErr && <p className='text-xs text-red-500'>{threadErr}</p>}
 
               {/* Input */}
-              {(messages.length > 0 || seeding) && (
-                <div className='flex gap-1.5'>
-                  <input
-                    type='text'
-                    value={inputText}
-                    onChange={e => setInputText(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                    placeholder='Ask a follow-up…'
-                    disabled={streaming || seeding}
-                    className='flex-1 text-xs border rounded px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary'
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={streaming || seeding || !inputText.trim()}
-                    className={cn(buttonVariants({ size: 'sm' }), 'text-xs px-3')}
-                  >
-                    {streaming ? '…' : 'Send'}
-                  </button>
-                </div>
-              )}
+              <div className='flex gap-1.5'>
+                <input
+                  type='text'
+                  value={inputText}
+                  onChange={e => setInputText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                  placeholder={messages.length === 0 ? 'Ask your first question…' : 'Ask a follow-up…'}
+                  disabled={streaming}
+                  className='flex-1 text-xs border rounded px-2 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary'
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={streaming || !inputText.trim()}
+                  className={cn(buttonVariants({ size: 'sm' }), 'text-xs px-3')}
+                >
+                  {streaming ? '…' : 'Send'}
+                </button>
+              </div>
             </div>
           )}
         </div>

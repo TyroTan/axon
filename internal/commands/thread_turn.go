@@ -179,7 +179,7 @@ func (h *ThreadTurnHandler) run(ctx context.Context, cmd ThreadTurnCommand, out 
 	var userPrompt string
 	if seeding {
 		callMode = "seeded"
-		userPrompt = buildSeedPrompt(q, response, evaluation, ragChunks)
+		userPrompt = buildSeedPrompt(q, response, evaluation, ragChunks, cmd.UserMessage)
 	} else {
 		if resumeID != "" {
 			// Resumed: only send the new user message.
@@ -191,8 +191,8 @@ func (h *ThreadTurnHandler) run(ctx context.Context, cmd ThreadTurnCommand, out 
 		}
 	}
 
-	// Record the user message in the thread (skip for seed turn).
-	if !seeding {
+	// Record the user message in the thread whenever one is present.
+	if cmd.UserMessage != "" {
 		thread.Messages = append(thread.Messages, domain.ThreadMessage{
 			Role:      "user",
 			Content:   cmd.UserMessage,
@@ -364,7 +364,7 @@ When seeding the conversation: summarise the evaluation outcome in 2-3 sentences
 In subsequent turns: answer the student's follow-up question directly. Keep responses focused — 3-6 sentences unless a longer explanation is essential.`
 }
 
-func buildSeedPrompt(q domain.Question, response *domain.Response, evaluation *domain.Evaluation, chunks []rag.Chunk) string {
+func buildSeedPrompt(q domain.Question, response *domain.Response, evaluation *domain.Evaluation, chunks []rag.Chunk, firstMessage ...string) string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "Question: %s\n", q.Question)
@@ -402,7 +402,11 @@ func buildSeedPrompt(q domain.Question, response *domain.Response, evaluation *d
 
 	appendRAGChunks(&sb, chunks)
 
-	sb.WriteString("\nPlease open the tutoring conversation based on the above.")
+	if len(firstMessage) > 0 && firstMessage[0] != "" {
+		fmt.Fprintf(&sb, "\n\nStudent's first question: %s", firstMessage[0])
+	} else {
+		sb.WriteString("\nPlease open the tutoring conversation based on the above.")
+	}
 	return sb.String()
 }
 
