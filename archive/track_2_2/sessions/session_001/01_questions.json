@@ -1,0 +1,223 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "A RAG system retrieves chunks about a multi-step surgical procedure. The corpus is complete and well-structured. Queries like 'what happens between step 2 and step 4?' consistently return chunks covering each step individually, but none connecting them. The system uses fixed-size chunking at 300 tokens with no overlap. What is the most likely cause of this retrieval gap?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "The corpus is missing documents that explicitly describe the transition between steps — this is a content coverage gap, not a chunking issue.",
+      "B": "Fixed-size chunking without overlap splits procedural continuity across boundaries; transition content falls between chunks and is retrieved by neither.",
+      "C": "The embedding model doesn't understand surgical terminology, so step-transition semantics are lost during encoding.",
+      "D": "300-token chunks are too small for procedural content — increasing chunk size to 1000 tokens would capture the transitions."
+    },
+    "correct": "B",
+    "correct_explanation": "Fixed-size chunking with no overlap creates hard boundaries at every 300 tokens. Transition content that spans a boundary is split — the end of one chunk and the beginning of the next each contain partial context. Queries about transitions retrieve neither chunk with high relevance because neither contains the full connecting context. Overlap (e.g., 50–100 tokens) ensures transition text appears intact in at least one chunk.",
+    "distractor_explanations": {
+      "A": "The question states the corpus is complete — this is the corpus-gap framing applied where it doesn't fit. The failure is in how existing content is chunked, not what's in the corpus.",
+      "C": "Embedding model vocabulary issues would cause broad retrieval failure across all surgical queries, not the specific pattern of missing transitions while individual steps are found correctly.",
+      "D": "Chunk size affects how much fits in one chunk but does not solve the boundary problem — larger fixed chunks still create hard cuts, just less frequently. Overlap specifically addresses boundary loss."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      15
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A dense retrieval system returns a chunk with cosine similarity 0.91 for the query 'pregnant patients with PCOS on metformin.' The chunk discusses PCOS management in reproductive-age women extensively. A clinician flags it as irrelevant because it never addresses pregnancy safety. Why does high cosine similarity fail to surface this constraint violation?",
+    "format": "mcq",
+    "options": {
+      "A": "Cosine similarity is computed using only the query's highest-weight tokens, so 'pregnant' may have been deprioritized during encoding.",
+      "B": "Cosine similarity measures the angle between mean-pooled query and chunk vectors — rare, specific constraints like 'pregnant' contribute less to the overall direction than dominant topic signals like 'PCOS management.'",
+      "C": "The embedding model hasn't seen enough pregnancy-plus-PCOS co-occurrences during training, so the similarity score is unreliable for this combination.",
+      "D": "Cosine similarity is symmetric — it scores the chunk against the query and the query against the chunk separately, then averages them, which dilutes constraint signals."
+    },
+    "correct": "B",
+    "correct_explanation": "Dense embeddings represent text as a single vector — the mean pool of all token representations. Dominant topic signals (PCOS, reproductive-age women, metformin) pull the vector direction strongly. A low-frequency constraint like 'pregnant' contributes little directional weight. A chunk about PCOS management that never mentions pregnancy can have nearly identical vector direction to one that does — cosine measures directional similarity, not the presence of any specific constraint. This is the center-of-mass effect: the query's rare constraint is averaged away.",
+    "distractor_explanations": {
+      "A": "Transformer encoders process all tokens via attention with no mechanism that deprioritizes lower-weight tokens before embedding — all tokens contribute to the final representation.",
+      "C": "Training coverage affects representation quality, but the failure described is geometric — it occurs even with well-trained models when a query constraint is semantically rare relative to the dominant topic cluster.",
+      "D": "Cosine similarity between two vectors is a single computation — one dot product divided by the product of norms. There is no double-scoring or averaging step; this description is fabricated."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      16
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A clinical RAG system indexes 500,000 Hindi-language documents using an English-only embedding model (1536-dim). Retrieval precision is poor. A developer proposes adding BM25 in a hybrid setup, arguing that BM25 can find exact Hindi medical terms regardless of embedding model language coverage. What is the critical flaw in this reasoning?",
+    "format": "mcq",
+    "options": {
+      "A": "BM25 requires a pre-built inverted index and won't scale to 500,000 documents without significant infrastructure overhead.",
+      "B": "BM25 can locate Hindi strings lexically, but the English-only embedding model cannot encode Hindi queries meaningfully — the semantic retrieval half of the hybrid system is broken regardless of BM25's lexical contribution.",
+      "C": "Hybrid retrieval requires that both BM25 and dense scores operate on the same document language — mixing English queries with Hindi documents breaks the fusion scoring.",
+      "D": "BM25's IDF weighting assigns low scores to rare medical terms, which are exactly the terms that need high recall in clinical settings."
+    },
+    "correct": "B",
+    "correct_explanation": "BM25 operates on term-frequency statistics — it can match a Hindi query term to a Hindi document string without understanding either language. However, an English-only embedding model will produce near-random embeddings for Hindi text since it has no representations for non-English vocabulary. The dense retrieval component, which handles paraphrases, synonyms, and conceptual queries, is fundamentally broken. Adding BM25 adds lexical recall but cannot compensate for the model's inability to encode Hindi semantics. The correct fix is a multilingual embedding model.",
+    "distractor_explanations": {
+      "A": "BM25 scales efficiently to millions of documents via standard inverted-index infrastructure — scale is not the issue here.",
+      "C": "Hybrid retrieval fusion (e.g., Reciprocal Rank Fusion) operates on per-document relevance scores, not on language alignment between the two systems — fusion does not break because the component methods use different retrieval mechanisms.",
+      "D": "IDF actually upweights rare terms in BM25 — rare medical terms receive higher IDF scores, which benefits recall. This distractor inverts BM25's IDF behavior."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      20
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A clinical RAG team with no ground-truth Q\u0026A pairs evaluates their system via weekly review: two clinicians check 20 sampled outputs for correctness. A new engineer proposes replacing this with a synthetic golden set plus RAGAS metrics. What is the primary limitation of the current expert-review approach that most directly justifies the switch?",
+    "format": "mcq",
+    "options": {
+      "A": "Clinicians are not trained in retrieval metrics and will evaluate generation fluency rather than retrieval quality.",
+      "B": "Expert review produces a snapshot assessment but no regression baseline — it cannot detect whether a model update or re-chunking degraded retrieval quality on previously passing cases.",
+      "C": "20 samples per week is insufficient statistical coverage — the sample size is the problem, not the review method itself.",
+      "D": "Expert review is unreliable because two clinicians will disagree on a significant fraction of cases, introducing noise into the quality signal."
+    },
+    "correct": "B",
+    "correct_explanation": "The core limitation of periodic HITL review is that it yields a point-in-time judgment with no stored baseline. When retrieval parameters change — new chunking strategy, re-embedding, model update — there is no automated way to compare against prior results. Cases that previously passed may now fail without detection. A synthetic golden set with RAGAS metrics enables regression testing: run the same fixed evaluation set after every change and compare recall@K, faithfulness, and context precision against the prior run. HITL does not scale as a regression mechanism.",
+    "distractor_explanations": {
+      "A": "Clinicians are appropriate evaluators for clinical output quality — domain expertise is one of HITL's genuine strengths, not a limitation.",
+      "C": "Sample size is addressable within the HITL model by sampling more cases; it does not explain why expert review fundamentally cannot provide regression signal regardless of sample size.",
+      "D": "Inter-rater disagreement is manageable through adjudication protocols — it is a calibration issue, not a structural flaw that prevents expert review from functioning as a quality mechanism."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      13
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "Two documents — one about 'bank accounts' and one about 'river banks' — are embedded by a general-purpose transformer. Both land near the centroid of all 'bank'-related documents in embedding space. What does this reveal about how the embedding space represents polysemous words?",
+    "format": "mcq",
+    "options": {
+      "A": "The model failed — a well-trained model would place 'bank account' and 'river bank' in completely separate regions with no proximity.",
+      "B": "Document-level embeddings reflect the distributional average of all tokens — the shared word 'bank' pulls both vectors toward a common region, blending financial and geographic signals rather than cleanly separating senses.",
+      "C": "Cosine similarity is not appropriate for polysemous words — Euclidean distance would correctly separate the two document senses.",
+      "D": "The two documents are genuinely semantically close because both involve the concept of 'boundaries' — the model is correctly representing a shared abstract meaning."
+    },
+    "correct": "B",
+    "correct_explanation": "When a document is encoded as a mean-pooled vector, all token representations are averaged together. Both documents contain the word 'bank,' which has a representation pulled toward all its training contexts — financial, geographic, and others. The financial document's 'bank' contribution pulls its vector toward the financial region; the geographic document's 'bank' pulls toward the geographic region. But both share partial overlap near the centroid of all bank-related usage. This is the manifold structure of embedding space: polysemous words create regions of ambiguity rather than clean separations. Contextual models (BERT) partially resolve this at the token level, but document-level pooling reintroduces the averaging effect.",
+    "distractor_explanations": {
+      "A": "Even well-trained contextual models produce document vectors that reflect distributional averaging — polysemy creating regions of ambiguity is a property of the geometry, not a model failure.",
+      "C": "Cosine and Euclidean distance are both computed on the same underlying vectors — switching metrics does not resolve the polysemy; both metrics operate on the same point in the high-dimensional space.",
+      "D": "The model is reflecting lexical co-occurrence statistics, not abstracting to a concept of 'boundaries.' Proximity is an artifact of the shared surface form, not a correct semantic generalization."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.25,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 70,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_6",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 3,
+    "bloom_label": "Apply",
+    "question": "You are designing the chunking strategy for a RAG system over a 10,000-page legal corpus. Documents include contracts (dense, clause-structured), case law summaries (narrative, 2–5 paragraphs), and regulatory filings (semi-structured with defined sections). Describe the chunking approach you would use. Address: (1) why a single fixed-size strategy would fail for this corpus, (2) what per-document-type adjustments you would make, and (3) how you would validate that your chunking strategy improves retrieval quality compared to a fixed-size baseline.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.55,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 240,
+    "requires_explanation": true
+  },
+  {
+    "id": "q_7",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      13,
+      15
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A similarity search returns two candidates: Document A has cosine similarity 0.97 and L2 distance 4.2 to the query; Document B has cosine similarity 0.85 and L2 distance 0.9. Which document is 'closer,' and what does this discrepancy reveal about these two metrics?",
+    "format": "mcq",
+    "options": {
+      "A": "Document A is closer — cosine similarity is the standard for semantic search and L2 distance is irrelevant when vectors encode meaning.",
+      "B": "Document B is closer in absolute position (L2), while Document A points in a more similar direction (cosine). The discrepancy reveals that cosine ignores magnitude — two vectors can have high cosine similarity even when far apart in absolute terms if they point the same way.",
+      "C": "The metrics are contradictory, so neither document can be said to be definitively closer — this is a known instability of high-dimensional spaces.",
+      "D": "Document A is semantically closer because cosine captures meaning; Document B is spatially closer but spatial proximity is irrelevant for semantic retrieval tasks."
+    },
+    "correct": "B",
+    "correct_explanation": "Cosine similarity measures the angle between two vectors — it is invariant to magnitude (vector length). L2 distance measures absolute spatial proximity, sensitive to both direction and magnitude. If Document A has a large vector norm, it can point in nearly the same direction as the query (high cosine) while being far away in absolute terms (high L2). Many embedding models normalize outputs to unit vectors, which makes cosine and L2 distance equivalent — but when vectors are unnormalized, the two metrics can rank documents differently. For semantic retrieval, cosine is typically preferred because semantic similarity is directional, not magnitude-dependent.",
+    "distractor_explanations": {
+      "A": "For unnormalized embeddings, L2 distance carries real information about spatial proximity and can produce genuinely different rankings than cosine — dismissing it is only valid when vectors are unit-normalized.",
+      "C": "The discrepancy is not an instability or contradiction — the two metrics measure different geometric properties and are expected to sometimes disagree. Understanding which property matters for the retrieval task resolves the ambiguity.",
+      "D": "Framing cosine as capturing 'meaning' and L2 as capturing only 'space' is imprecise — both are geometric operations on the same vector space. The distinction is directional similarity vs. Euclidean distance, not semantic vs. spatial."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.5,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_8",
+    "generation_id": "4f2526c3-e9b4-40cf-88aa-dd07dcf0fd7a",
+    "concept_indexes": [
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In Transformer self-attention, each token produces three vectors: Query (Q), Key (K), and Value (V). What is the functional role of each, and why does attention scoring use the dot product of Q and K rather than Q and V?",
+    "format": "mcq",
+    "options": {
+      "A": "Q represents 'what I'm looking for,' K represents 'what I offer to be found,' and V represents 'what I contribute if found.' Q·K scores compatibility between seeker and provider — using Q·V would score relevance based on content rather than on the lookup index.",
+      "B": "Q, K, and V are the same linear projection applied three times for numerical stability — the choice of Q·K over Q·V is a convention with no functional distinction.",
+      "C": "Q encodes the current token's position, K encodes the previous token's position, and V contains semantic content. Q·K measures positional proximity to determine which prior tokens to attend to.",
+      "D": "Q is used during training to compute gradients; K and V are the inference-time representations. Using Q·V would conflate training-time and inference-time computations."
+    },
+    "correct": "A",
+    "correct_explanation": "Self-attention decouples three functions via separate learned projections. Q (query) encodes 'what information does this token need?' K (key) encodes 'what information does this token advertise as available?' V (value) encodes 'what information does this token contribute if selected?' The dot product Q·K produces a compatibility score between what one token needs and what another offers — a lookup mechanism analogous to a key-value store. V is retrieved weighted by these scores, not used in the lookup itself. Using Q·V would collapse the index (K) and the payload (V) into the same computation, removing the ability to decouple relevance signaling from content retrieval.",
+    "distractor_explanations": {
+      "B": "Q, K, and V are three distinct linear projections with separate learned weight matrices (W_Q, W_K, W_V) — they are not the same operation applied repeatedly. The distinction is central to how attention works.",
+      "C": "Positional information is handled by positional encodings added to input embeddings before projection. Q and K are not positional vectors; self-attention is position-agnostic until positional encoding is applied.",
+      "D": "Q, K, and V are all used at inference time — there is no training-only vs inference-only split for these projections in the standard Transformer architecture."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.45,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  }
+]
