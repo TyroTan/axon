@@ -74,10 +74,7 @@ axon/
 
 | Track | Topic | Status |
 |---|---|---|
-| `track_1` | ML Fundamentals · RAG · LLM Systems | v1 baseline |
-| `track_2` | Upwork RAG interview prep | active — has sessions + distill snapshot |
-| `track_2_2` | Fork of track_2 (smart fork test) | active child — inherits track_2 context |
-| `track_3` | ML Fundamentals · ML Math Theory · RAG · LLM Systems | active — session_001 in progress |
+| `track_1` | ML Fundamentals · ML Math Theory · RAG Architecture · LLM Systems | clean slate root — no sessions, seed concept map |
 
 ---
 
