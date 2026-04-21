@@ -22,6 +22,7 @@
 | **Inquiry Quality** | E9 | Measure how well learner asks questions, not just answers them | 12 |
 | **Application Evidence Sessions** | E10 | New session type: real-work debrief, AI interrogator, transfer function proxy | 13–14 |
 | **System-Initiated Elaboration** | E11 | Evaluator emits elaboration triggers; consolidated elaboration page closes E9 loop | 15 |
+| **Concept Map Tending** | F4 | Dormancy scoring prevents concepts from being silently skipped across many sessions | 16 |
 
 ---
 
@@ -756,6 +757,72 @@ AC:
 
 ---
 
+---
+
+### F4 — Concept Map Tending
+
+> As a learner with a large concept map (30+ concepts), I want the system to ensure
+> that dormant concepts — those never quizzed or untouched across many sessions —
+> eventually surface in my sessions, without sacrificing question quality or forcing
+> irrelevant questions.
+
+**Why this matters:** with 38 concepts and 8 questions per session, each session
+samples ~21% of the concept space. The generator naturally prioritizes bloom-gap
+and bottleneck concepts. A concept at bloom=1, bloom_target=5, is_bottleneck=false,
+with no bloom gap yet established — is invisible to the generator forever. This is
+a silent coverage failure.
+
+**Design constraint:** quality is the top priority. Dormant concepts must be biased
+toward, not forced. The mechanism influences selection probability, not selection
+outcome.
+
+**Mechanism — pure function, no LLM:**
+```
+dormancy_score(concept) =
+  sessions_since_last_quizzed × (bloom_target - bloom_current) / max(bloom_current, 1)
+```
+- `sessions_since_last_quizzed`: derived from `times_quizzed` + current session count.
+  If `times_quizzed == 0`, treat as `sessions_since_last_quizzed = total_sessions`.
+- High score = never quizzed AND large bloom gap = highest tending priority.
+- Bottleneck concepts already get generator priority; tending targets non-bottleneck
+  dormant concepts specifically.
+
+**Generator integration:**
+The user prompt receives a new `## Dormant Concepts` section listing up to 3
+concepts with the highest dormancy score:
+```
+## Dormant Concepts (tending bias — quality permitting)
+[7] loss function landscape (score: 12.0) — not quizzed in 3 sessions, bloom gap 3
+[22] attention mechanism (score: 9.0) — never quizzed, bloom gap 4
+```
+The instruction: *"Include at least one dormant concept if it can be tested at
+appropriate quality. Skip if no natural question exists — do not force."*
+
+**New concept field:**
+```go
+TimesQuizzed int `json:"times_quizzed,omitempty"`
+```
+Updated by `ApplySynthesis` from `01_questions.json` — count how many questions
+referenced each concept_index in the session.
+
+**No new LLM call. No new session file. Pure counter + formula.**
+
+- Size: **S** · Priority: **Should** · Status: **Spec only**
+
+Open decisions:
+- [ ] Dormancy window: bias kicks in after N sessions (suggest N=2) or always?
+- [ ] Cap on dormant concepts injected per session (suggest 3)?
+- [ ] Should tending apply to `AXON_LEVEL_OVERRIDE=recall` (probably not — recall focuses reinforcement, not discovery)?
+
+AC:
+- [ ] `times_quizzed` field on `Concept` — zero-value safe, omitempty
+- [ ] `ApplySynthesis` increments `times_quizzed` for each concept_index appearing in `01_questions.json`
+- [ ] `BuildUserPrompt` computes top-N dormant concepts via pure formula, injects as `## Dormant Concepts` section
+- [ ] Dormant bias section omitted entirely when `AXON_LEVEL_OVERRIDE=recall`
+- [ ] `GET /api/tracks/:id/difficulty-preview` extended: includes `dormant_concepts` list in response
+
+---
+
 | Item | Reason |
 |---|---|
 | Transfer function direct measurement | Requires real-world outcome data axon cannot collect — E10 is the closest proxy |
@@ -788,6 +855,7 @@ AC:
 | 13 | Application Evidence — build | E10 full | Interrogator loop live, evidence extraction, bloom write-back | |
 | 14 | Self-Reflection Loop | C2.1, C2.2, C2.3 | ReflectCommand live, feeds next session with E9+E10 signals | |
 | 15 | System-Initiated Elaboration | E11 | elaboration_triggers in evaluation, ElaborationPage, 03b_elaborations.json, AXON_ELABORATION_RATE | |
+| 16 | Concept Map Tending | F4 | times_quizzed on concepts, dormancy_score pure function, dormant bias in generator | |
 
 ---
 
