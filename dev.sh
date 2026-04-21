@@ -17,6 +17,7 @@
 #                         by ~25% and deduplicates down to this count. Job-post questions
 #                         are generated in a separate call and merged before dedup.
 #   ANTHROPIC_API_KEY     If set, uses Anthropic HTTP API instead of claude CLI
+AXON_QUESTION_COUNT=10
 AXON_LEVEL_OVERRIDE="medium"
 AXON_ELABORATION_RATE="medium"
 set -e
@@ -30,4 +31,4 @@ npm run build
 
 echo "→ starting server on :$PORT"
 cd "$SCRIPT_DIR"
-AXON_LEVEL_OVERRIDE="$AXON_LEVEL_OVERRIDE" AXON_DIR="$SCRIPT_DIR" PORT="$PORT" go run .
+AXON_LEVEL_OVERRIDE="$AXON_LEVEL_OVERRIDE" AXON_QUESTION_COUNT="$AXON_QUESTION_COUNT" AXON_DIR="$SCRIPT_DIR" PORT="$PORT" go run .
