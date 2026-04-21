@@ -170,6 +170,51 @@ func score(text string, queryWords map[string]bool) float64 {
 	return float64(hits) / float64(len(queryWords))
 }
 
+// DistinctTopN selects n maximally dissimilar chunks using MMR-style greedy selection.
+// On each iteration it picks the chunk with the minimum maximum word-overlap to any
+// already-selected chunk, ensuring scenario seeds drawn from a job post are structurally
+// distinct from one another. Order of the input slice is used as tiebreaker.
+func DistinctTopN(chunks []Chunk, n int) []Chunk {
+	if len(chunks) == 0 || n <= 0 {
+		return nil
+	}
+	selected := make([]Chunk, 0, n)
+	remaining := make([]Chunk, len(chunks))
+	copy(remaining, chunks)
+
+	// Seed: pick the first chunk (deterministic).
+	selected = append(selected, remaining[0])
+	remaining = remaining[1:]
+
+	for len(selected) < n && len(remaining) > 0 {
+		bestIdx := -1
+		bestScore := 2.0 // higher than any possible overlap (max=1.0)
+
+		for i, candidate := range remaining {
+			// Max overlap between this candidate and any already-selected chunk.
+			maxOverlap := 0.0
+			for _, s := range selected {
+				qWords := tokenizeQuery(s.Content + " " + s.Heading)
+				ov := score(candidate.Content+" "+candidate.Heading, qWords)
+				if ov > maxOverlap {
+					maxOverlap = ov
+				}
+			}
+			if maxOverlap < bestScore {
+				bestScore = maxOverlap
+				bestIdx = i
+			}
+		}
+
+		if bestIdx < 0 {
+			break
+		}
+		selected = append(selected, remaining[bestIdx])
+		remaining = append(remaining[:bestIdx], remaining[bestIdx+1:]...)
+	}
+	return selected
+}
+
 func budgetFill(chunks []Chunk, k, tokenLimit int) []Chunk {
 	var result []Chunk
 	total := 0

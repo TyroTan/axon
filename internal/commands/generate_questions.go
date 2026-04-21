@@ -13,6 +13,7 @@ import (
 	"github.com/tyrohunt/axon/internal/domain"
 	"github.com/tyrohunt/axon/internal/llm"
 	"github.com/tyrohunt/axon/internal/metrics"
+	"github.com/tyrohunt/axon/internal/rag"
 	"github.com/tyrohunt/axon/internal/store/filesystem"
 )
 
@@ -361,15 +362,30 @@ func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, context
 		}
 	}
 
-	// Detect job post files (*.job.md) — inject ratio rule if present.
-	var jobFiles []string
-	for name := range contextFiles {
+	// Detect job post files (*.job.md) — extract 3 maximally distinct scenario seeds
+	// via naive MMR so job-framed questions can't collapse to overlapping scenarios.
+	var jobFileMap map[string]string
+	for name, content := range contextFiles {
 		if strings.HasSuffix(name, ".job.md") {
-			jobFiles = append(jobFiles, name)
+			if jobFileMap == nil {
+				jobFileMap = make(map[string]string)
+			}
+			jobFileMap[name] = content
 		}
 	}
-	if len(jobFiles) > 0 {
-		sb.WriteString("\nJob post context detected. At least 3 of 8 questions must be scenario_mcq or free_text framed as real-world application tasks from the job posting. Each job-framed question must target a different concept_index — no shared concepts across job-framed questions. Spread across branches.\n")
+	if len(jobFileMap) > 0 {
+		chunks := rag.ChunkFiles(jobFileMap, 300)
+		seeds := rag.DistinctTopN(chunks, 3)
+		if len(seeds) > 0 {
+			sb.WriteString("\nJob post detected. Generate exactly one job-framed question per scenario seed below. Each must target a different concept_index and use scenario_mcq or free_text format.\n")
+			for i, seed := range seeds {
+				heading := seed.Heading
+				if heading == "" {
+					heading = seed.File
+				}
+				fmt.Fprintf(&sb, "\nScenario seed %d [%s]:\n%s\n", i+1, heading, seed.Content)
+			}
+		}
 	}
 
 	sb.WriteString("\nGenerate 8 questions. Prioritize concepts where bloom_current < bloom_target.\n")
