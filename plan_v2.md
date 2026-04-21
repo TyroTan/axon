@@ -299,13 +299,16 @@ is not mediated by question format — it is raw evidence of transfer in progres
 
 | Component | v1 State | v2 Change |
 |---|---|---|
-| `concept_map.json` | bloom_current, is_bottleneck | + exploration_unlocked (bool), aspiration_count (int) |
+| `concept_map.json` | bloom_current, is_bottleneck | + exploration_unlocked (bool), aspiration_count (int), inquiry_precision (float, E9) |
+| `00_metadata.json` | creation time, shard_id | + state_snapshot: axon_config_score, learner_signal, effective_score, level_name (frozen at generation time, never mutated) |
 | `00_profile_snapshot.json` | per-concept bloom scores | + composite_state, aspiration_gap, perceived_trust_proxy |
-| `01_questions.json` | format: mcq/free_text/scenario_mcq | + format: reach/teach_back/teach_forward/contradiction/unknown_edge |
-| `03_evaluations.json` | correctness, feedback | + signal_type: gap/stretch/aspiration/regression |
-| `04_synthesis.json` | bloom updates, next session plan | + composite_state_detected, nudge_suggestion, dial_positions |
-| `context/` | source snapshots | + `conversation_analysis.json` (from prompt 05) |
+| `01_questions.json` | format: mcq/free_text/scenario_mcq | + format: reach/teach_back/teach_forward/contradiction/unknown_edge; multi-source (concept map + job posts), deduplicated and shuffled |
+| `03_evaluations.json` | correctness, feedback | + signal_type: gap/stretch/aspiration/regression; elaboration_triggers (E11) |
+| `04_synthesis.json` | bloom updates, next session plan | + composite_state_detected, nudge_suggestion, dial_positions, learner_signal, delta_multiplier |
+| `context/` | source snapshots | + `conversation_analysis.json` (from prompt 05); `*.job.md` files → dedicated question-generation call |
 | `prompts/` | 01–04 | + `05_conversation_analyzer.md`, `06_application_evaluator.md` |
+| `track_state.json` | — | consecutive_fails counter; feeds learner signal for automatic decay after repeated failures |
+| `learner_path.jsonl` | — | global append-only path log: one entry per session generation (axon_config_score, learner_signal, effective_score) |
 | Session pre-flight | none | pre-session nudge output before question generation |
 | Session type | implicit (always quiz) | + `type: 'quiz' \| 'application'` field on session |
 | `application_task.json` | — | task definition: title, concept_indexes, llm_assistance_mode, success_criteria |

@@ -7,7 +7,7 @@
 > Complements: ROADMAP.md (what's planned), CHANGELOG.md (what changed when),
 > README.md (quick-start + usage), plan.md (learning system theory).
 
-Last updated: 2026-04-21
+Last updated: 2026-04-21 (F6 multi-call generator, difficulty spine, path scoring)
 
 ---
 
@@ -110,7 +110,48 @@ Plain `.md` files in `track_N/context/`. They are:
 
 For conversations and thread tutoring, context files are **chunked** by markdown headings
 and ranked by keyword overlap (`rag/naive.go`). Chunks scoring below `MinScore = 0.30`
-are discarded before injection.
+are discarded before injection. `rag.DistinctTopN` is also used post-generation to
+deduplicate questions across multi-call batches (MMR-style greedy selection).
+
+### Difficulty System
+
+Sessions are generated at an **effective difficulty level** computed from two sides:
+
+| Side | Source | Range |
+|---|---|---|
+| Operator config | `AXON_LEVEL_OVERRIDE` env var | `recall(−3)` → `extreme(+5)` |
+| Learner signal | min of TrackState signal + composite_state synthesis signal | −3 → +5 |
+
+**Effective score** = simple average of both sides, rounded half-up, clamped to [−3, +5].
+**Named levels** (numeric spine): `recall(−3)`, `easy(−2)`, `default(0)`, `medium(+1)`,
+`challenge(+2)`, `intense(+3)`, `extreme(+5)`.
+
+Each level controls: `BloomDelta` (relative to bloom_current), `DifficultyFloor`,
+`CrossBranchWeight`, `FormatBias`, `TimeMultiplier`.
+
+**StateSnapshot** is frozen into `00_metadata.json` at question-generation time and never
+mutated — it records the axon_config_score, learner_signal, effective_score, and level_name
+that were active when the session was created. Used by `apply_synthesis` to compute the
+delta multiplier for bloom gain scaling.
+
+**Delta multiplier** — `generationEffective − currentEffective` at synthesis time:
+
+| Delta | Multiplier | Meaning |
+|---|---|---|
+| ≥ 3 | 1.5× | Session was much harder than current state |
+| 2 | 1.3× | |
+| 1 | 1.15× | Slight extra reward |
+| 0 | 1.0× | No adjustment |
+| −1 | 0.9× | Session easier than current state |
+| ≤ −2 | 0.8× | |
+
+**Consecutive fail counter** — `track_state.json` tracks `consecutive_fails` and
+`consecutive_fails_easy_delta`. When `delta < 0` (easier session) and the learner fails
+(avg_correctness < 0.5), SR reset is amplified. Two consecutive nudged failures feed back
+into the learner signal, reducing effective score in subsequent sessions automatically.
+
+**Learner path** — every generation event is appended to `learner_path.jsonl` (global,
+append-only) with the three-way score record. Used for auditing and future session planning.
 
 ---
 
@@ -119,7 +160,7 @@ are discarded before injection.
 ### US-01: Study a topic I understand using my own documents
 1. Track exists with context files loaded
 2. Open track page → **+ Start Session**
-3. **Generate Questions** → streams 8 questions (MCQ + free_text, Bloom-calibrated)
+3. **Generate Questions** → streams N questions (default 8, `AXON_QUESTION_COUNT`), Bloom-calibrated at the effective difficulty level (operator config × learner signal)
 4. Answer each question: MCQ option, free-text, confidence 1–5, optional explanation
 5. **Submit** → sticky bar transforms to green confirmation + "Evaluate with AI ↑"
 6. **Evaluate** → LLM scores every response with Brier calibration, bloom_demonstrated,
@@ -367,17 +408,18 @@ axon/
   track_N/
     concept_map.json          concept graph with bloom state
     track_meta.json           optional; is_composite + source_ids
+    track_state.json          consecutive_fails counter; feeds learner signal
     context/
       _sources.md             human-only; not sent to LLM
       _split_plan.md          auto-generated when corpus > soft limit
       *.md / *.snapshot.md    context injected into questions
     sessions/
       session_NNN/
-        00_metadata.json      shard_id (if large corpus)
-        01_questions.json     generated questions
+        00_metadata.json      shard_id (if large corpus), state_snapshot (difficulty spine)
+        01_questions.json     generated questions (post-dedup, deterministically shuffled)
         02_responses.json     user answers
         03_evaluations.json   LLM evaluations
-        04_synthesis.json     bloom update proposals
+        04_synthesis.json     bloom update proposals, learner_signal, delta_multiplier
         threads/
           {question_id}.json  per-question tutoring thread
     prompts/                  manual bootstrap prompts (human use only)
@@ -385,6 +427,7 @@ axon/
   conversations/
     {uuid}.json               ConversationMessage[] with per-message meta
     {uuid}.index.json         ConversationIndex (summary, topics, per-ply breakdown)
+  learner_path.jsonl          global append-only path log: one entry per generation event
   metrics.jsonl               append-only operational telemetry
   dev.sh                      build UI + start server in one command
 ```
@@ -402,7 +445,22 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 
 `StreamResume` passes `--resume <sessionID>` (claudecli) or falls back to fresh (anthropic).
 `StreamResume` used in: thread tutoring, conversation turns.
-`Stream` used in: question generation, evaluation, synthesis, meta-synthesis, compaction.
+`Stream` used in: question generation (multiple calls per session), evaluation, synthesis,
+meta-synthesis, compaction.
+
+### Question generation pipeline (F6)
+
+A single session generation runs multiple sequential LLM calls:
+1. **Concept map call** — `BuildSystemPrompt` + `BuildUserPrompt`, requests `target + 25%` questions.
+2. **Job post calls** — one call per `*.job.md` in context, using `BuildJobPostSystemPrompt` +
+   `BuildJobPostUserPrompt`. Each call is fully job-framed; target scales with session size (3/5/8).
+3. **Consolidate** — `deduplicateQuestions`: stage 1 exact `(concept_indexes, bloom_level)` match,
+   stage 2 `rag.DistinctTopN` MMR text similarity → trim to `AXON_QUESTION_COUNT`.
+4. **Shuffle** — FNV-64a hash of `generationID` → deterministic interleaving of all sources.
+5. **Renumber** → write `01_questions.json`.
+
+`AXON_QUESTION_COUNT` (default 8) is the final target count. The pipeline over-generates
+by design so the deduplicator has headroom to prefer quality over quantity.
 
 ---
 
@@ -439,6 +497,9 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 | GET | `/api/conversations/:id/index` | Get conversation index |
 | POST | `/api/conversations/:id/index` | SSE generate conversation index |
 | GET | `/api/config` | Live server config (limits, mode) |
+| GET | `/api/config/levels` | Full difficulty level matrix with scores, active level name |
+| GET | `/api/learner-path` | Full learner_path.jsonl as JSON array |
+| GET | `/api/tracks/:id/difficulty-preview` | Deterministic stat check: effective level given current track state |
 | GET | `/api/metrics` | Operational metrics |
 
 Full interactive explorer: `/monitoring` → API Explorer.
