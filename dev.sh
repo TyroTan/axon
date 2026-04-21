@@ -13,8 +13,12 @@
 #   AXON_CONTEXT_LIMIT    Max inherited context tokens per session (default: 50000)
 #   AXON_SOFT_LIMIT       Token count that triggers a split plan (default: 250000)
 #   AXON_HARD_LIMIT       Token count that aborts generation entirely (default: 300000)
+#   AXON_QUESTION_COUNT   Target questions per session (default: 8). Generator over-produces
+#                         by ~25% and deduplicates down to this count. Job-post questions
+#                         are generated in a separate call and merged before dedup.
 #   ANTHROPIC_API_KEY     If set, uses Anthropic HTTP API instead of claude CLI
 AXON_LEVEL_OVERRIDE="medium"
+AXON_ELABORATION_RATE="medium"
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

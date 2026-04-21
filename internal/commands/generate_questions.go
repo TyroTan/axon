@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"math/rand"
+	"sort"
 	"strings"
-
 	"time"
 
 	"github.com/google/uuid"
@@ -20,6 +22,9 @@ import (
 const questionModel = "claude-opus-4-6"
 const questionMaxTokens = 4096
 
+// defaultQuestionTarget is used when AXON_QUESTION_COUNT is not set.
+const defaultQuestionTarget = 8
+
 // GenerateQuestionsCommand starts an LLM generation stream for a session.
 type GenerateQuestionsCommand struct {
 	TrackID       string
@@ -31,18 +36,23 @@ type GenerateQuestionsHandler struct {
 	store             *filesystem.TrackStore
 	client            llm.Client
 	contextTokenLimit int
-	softTokenLimit    int // triggers split plan when exceeded (T2)
-	hardTokenLimit    int // hard abort when exceeded (T2)
+	softTokenLimit    int
+	hardTokenLimit    int
+	questionTarget    int // AXON_QUESTION_COUNT — target questions per session (default 8)
 	rec               *metrics.Recorder
 }
 
-func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit, softTokenLimit, hardTokenLimit int, rec *metrics.Recorder) *GenerateQuestionsHandler {
+func NewGenerateQuestionsHandler(store *filesystem.TrackStore, client llm.Client, contextTokenLimit, softTokenLimit, hardTokenLimit, questionTarget int, rec *metrics.Recorder) *GenerateQuestionsHandler {
+	if questionTarget <= 0 {
+		questionTarget = defaultQuestionTarget
+	}
 	return &GenerateQuestionsHandler{
 		store:             store,
 		client:            client,
 		contextTokenLimit: contextTokenLimit,
 		softTokenLimit:    softTokenLimit,
 		hardTokenLimit:    hardTokenLimit,
+		questionTarget:    questionTarget,
 		rec:               rec,
 	}
 }
@@ -69,9 +79,6 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 	}
 
 	// ── Soft/hard limit gate ─────────────────────────────────────────────────
-	// Load the full corpus (no limit) to measure total tokens before committing
-	// to an LLM call. Hard limit aborts immediately; soft limit writes a split
-	// plan and halts — user must approve shards via the context editor (T4).
 	_, fullFiles, totalTokens, err := h.store.LoadFullContext(ctx, cmd.TrackID)
 	if err != nil {
 		return fmt.Errorf("generate questions: full context load: %w", err)
@@ -103,8 +110,6 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 	}
 
 	// ── Load context for LLM ─────────────────────────────────────────────────
-	// If the session was created with a shard, load only that shard's files.
-	// Otherwise use the normal budget-gated inherited context.
 	var contextFiles map[string]string
 	meta, _ := h.store.ReadSessionMetadata(ctx, cmd.TrackID, cmd.SessionNumber)
 	if meta.ShardID != "" {
@@ -141,7 +146,7 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		}
 	}
 
-	// Build state snapshot from two-sided spine before any LLM call.
+	// ── State snapshot ───────────────────────────────────────────────────────
 	configLevel := config.ActiveLevel()
 	learnerSignal := h.store.CurrentLearnerSignal(ctx, cmd.TrackID)
 	effectiveScore := config.EffectiveScore(configLevel.Score, learnerSignal)
@@ -152,14 +157,10 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		EffectiveScore:  effectiveScore,
 		LevelName:       activeLevel.Name,
 	}
-
-	// Persist snapshot into session metadata (written once, never mutated).
 	if sessMeta, err2 := h.store.ReadSessionMetadata(ctx, cmd.TrackID, cmd.SessionNumber); err2 == nil {
 		sessMeta.StateSnapshot = snapshot
 		_ = h.store.WriteSessionMetadata(ctx, cmd.TrackID, cmd.SessionNumber, sessMeta)
 	}
-
-	// Append path entry for the generation event.
 	_ = h.store.AppendPathEntry(ctx, domain.PathEntry{
 		TrackID:         cmd.TrackID,
 		SessionNum:      cmd.SessionNumber,
@@ -170,34 +171,57 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 		EffectiveScore:  snapshot.EffectiveScore,
 	})
 
+	// ── Partition context: job posts vs regular ──────────────────────────────
+	jobFiles := map[string]string{}
+	regularFiles := map[string]string{}
+	for name, content := range contextFiles {
+		if strings.HasSuffix(name, ".job.md") {
+			jobFiles[name] = content
+		} else {
+			regularFiles[name] = content
+		}
+	}
+
 	generationID := uuid.New().String()
-	system := BuildSystemPrompt(activeLevel)
-	user := BuildUserPrompt(cmd.TrackID, generationID, cm, contextFiles, activeLevel)
+	var allQuestions []domain.Question
 
-	chunks := h.client.Stream(ctx, questionModel, system, []llm.Message{
-		{Role: "user", Content: user},
-	}, questionMaxTokens)
-
-	// Accumulate streamed text, forward to caller.
-	var sb strings.Builder
-	for chunk := range chunks {
-		if chunk.Error != nil {
-			return chunk.Error
-		}
-		if chunk.Text != "" {
-			sb.WriteString(chunk.Text)
-			out <- llm.Chunk{Text: chunk.Text}
-		}
-		if chunk.Done {
-			break
-		}
-	}
-
-	// Parse the accumulated JSON and persist.
-	questions, err := parseQuestionsJSON(sb.String(), generationID)
+	// ── Call 1: concept map questions ────────────────────────────────────────
+	// Over-generate by 25% (min +2) so the deduplicator has room to work.
+	cmTarget := h.questionTarget + overgenerate(h.questionTarget)
+	out <- llm.Chunk{Text: fmt.Sprintf("[concept map: requesting %d questions]\n", cmTarget)}
+	cmQuestions, err := h.streamCall(ctx, cmd,
+		BuildSystemPrompt(activeLevel),
+		BuildUserPrompt(cmd.TrackID, generationID, cm, regularFiles, activeLevel, cmTarget),
+		generationID, out,
+	)
 	if err != nil {
-		return fmt.Errorf("generate questions: parse JSON: %w", err)
+		return err
 	}
+	allQuestions = append(allQuestions, cmQuestions...)
+
+	// ── Call 2+: one call per job post file ──────────────────────────────────
+	// Each call is entirely job-framed; no ratio rules needed.
+	if len(jobFiles) > 0 {
+		jobTarget := jobQuestionTarget(h.questionTarget)
+		for name, content := range jobFiles {
+			out <- llm.Chunk{Text: fmt.Sprintf("[job post %s: requesting %d questions]\n", name, jobTarget)}
+			jpQuestions, err := h.streamCall(ctx, cmd,
+				BuildJobPostSystemPrompt(activeLevel),
+				BuildJobPostUserPrompt(cmd.TrackID, generationID, cm, name, content, activeLevel, jobTarget),
+				generationID, out,
+			)
+			if err != nil {
+				return err
+			}
+			allQuestions = append(allQuestions, jpQuestions...)
+		}
+	}
+
+	// ── Deduplicate + shuffle + trim ─────────────────────────────────────────
+	questions := deduplicateQuestions(allQuestions, h.questionTarget)
+	questions = shuffleQuestions(questions, generationID)
+	renumberQuestions(questions)
+
 	b, err := json.MarshalIndent(questions, "", "  ")
 	if err != nil {
 		return fmt.Errorf("generate questions: marshal: %w", err)
@@ -216,24 +240,48 @@ func (h *GenerateQuestionsHandler) run(ctx context.Context, cmd GenerateQuestion
 	return nil
 }
 
+// streamCall executes a single LLM call, streams chunks to out, and returns parsed questions.
+func (h *GenerateQuestionsHandler) streamCall(ctx context.Context, cmd GenerateQuestionsCommand, system, user, generationID string, out chan<- llm.Chunk) ([]domain.Question, error) {
+	chunks := h.client.Stream(ctx, questionModel, system, []llm.Message{
+		{Role: "user", Content: user},
+	}, questionMaxTokens)
+
+	var sb strings.Builder
+	for chunk := range chunks {
+		if chunk.Error != nil {
+			return nil, chunk.Error
+		}
+		if chunk.Text != "" {
+			sb.WriteString(chunk.Text)
+			out <- llm.Chunk{Text: chunk.Text}
+		}
+		if chunk.Done {
+			break
+		}
+	}
+
+	questions, err := parseQuestionsJSON(sb.String(), generationID)
+	if err != nil {
+		return nil, fmt.Errorf("generate questions: parse JSON: %w", err)
+	}
+	return questions, nil
+}
+
 // ─── prompt builders ──────────────────────────────────────────────────────────
 
 func BuildSystemPrompt(level config.LevelConfig) string {
 	var levelRules strings.Builder
 
-	// Bloom targeting override.
 	if level.BloomDelta != 0 {
 		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: target bloom_level = bloom_current %+d for each concept (clamp to 1–6, never exceed bloom_target).\n", level.BloomDelta)
 	} else {
 		levelRules.WriteString("- Target bloom_level = bloom_current + 1 for each concept (don't exceed 6).\n")
 	}
 
-	// Difficulty floor override.
 	if level.DifficultyFloor > 0 {
 		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: all questions must have difficulty_estimate >= %.2f. Do not generate easier questions even if the concept is at a low bloom level.\n", level.DifficultyFloor)
 	}
 
-	// Cross-branch override.
 	if level.CrossBranchWeight != nil {
 		w := *level.CrossBranchWeight
 		if w == 0 {
@@ -243,17 +291,15 @@ func BuildSystemPrompt(level config.LevelConfig) string {
 		}
 	}
 
-	// Format bias override.
 	switch level.FormatBias {
 	case "mcq_only":
 		levelRules.WriteString("- LEVEL OVERRIDE: use mcq or scenario_mcq format only — no free_text or design questions.\n")
 	case "free_text_heavy":
-		levelRules.WriteString("- LEVEL OVERRIDE: at least 4 of 8 questions must be free_text or scenario_mcq format.\n")
+		levelRules.WriteString("- LEVEL OVERRIDE: at least half of questions must be free_text or scenario_mcq format.\n")
 	case "design_heavy":
-		levelRules.WriteString("- LEVEL OVERRIDE: at least 3 of 8 questions must be design format.\n")
+		levelRules.WriteString("- LEVEL OVERRIDE: at least a third of questions must be design format.\n")
 	}
 
-	// Time multiplier note (informational — LLM uses expected_time_seconds).
 	if level.TimeMultiplier != 1.0 {
 		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: scale expected_time_seconds by %.1f× relative to what you would normally estimate.\n", level.TimeMultiplier)
 	}
@@ -302,22 +348,64 @@ Rules:
   include at least one question that forces the learner to target mechanism rather than symptom.
   For concepts with a divergent thread arc, prefer scenario questions over recall questions to
   encourage narrowing. Do not reward surface-feature answers — make the correct explanation
-  require mechanism-level reasoning.
-- If a context file ends in ".job.md": it is a job posting. Use it as a scenario wrapper for
-  at least 3 of 8 questions — frame those questions as tasks the learner might face in that role.
-  The concept map still determines which concepts are tested; the job post only provides the
-  real-world framing. Do not generate questions about the job posting itself.
-  Each job-framed question must target a strictly different concept_index — no two job-framed
-  questions may share the same concept_indexes list. Spread across different branches if possible.`
+  require mechanism-level reasoning.`
 }
 
-func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string, level config.LevelConfig) string {
+// BuildJobPostSystemPrompt generates the system prompt for a dedicated job-post question call.
+// All questions in this call are job-framed — no ratio rules needed.
+func BuildJobPostSystemPrompt(level config.LevelConfig) string {
+	var levelRules strings.Builder
+
+	if level.DifficultyFloor > 0 {
+		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: all questions must have difficulty_estimate >= %.2f.\n", level.DifficultyFloor)
+	}
+	if level.TimeMultiplier != 1.0 {
+		fmt.Fprintf(&levelRules, "- LEVEL OVERRIDE: scale expected_time_seconds by %.1f×.\n", level.TimeMultiplier)
+	}
+
+	return `You are an adaptive quiz question generator for the Axon learning system.
+You are generating job-context questions: every question must be framed as a real-world task the learner would face in the described role.
+Generate quiz questions as a strict JSON array. Output ONLY the JSON array — no prose, no markdown code fences, no extra text.
+
+Each question object must match this schema exactly:
+{
+  "id": "q_1",
+  "generation_id": "<copy from input>",
+  "concept_indexes": [0],
+  "bloom_level": 3,
+  "bloom_label": "Apply",
+  "question": "<scenario question>",
+  "format": "scenario_mcq",
+  "options": {"A": "...", "B": "...", "C": "...", "D": "..."},
+  "correct": "B",
+  "correct_explanation": "...",
+  "distractor_explanations": {"A": "...", "C": "...", "D": "..."},
+  "is_cross_branch": false,
+  "difficulty_estimate": 0.5,
+  "spaced_repetition_concept_id": null,
+  "expected_time_seconds": 90,
+  "requires_explanation": false
+}
+
+Rules:
+- bloom_label: Remember(1) Understand(2) Apply(3) Analyze(4) Evaluate(5) Create(6)
+- Default format is scenario_mcq; use free_text for open-ended design/trade-off tasks
+- For mcq/scenario_mcq: include all four options A-D, exactly one correct key
+- For free_text: omit options/correct/distractor_explanations, set requires_explanation=true
+- concept_indexes must reference the provided concept map — do not invent new concepts
+- Each question must target a different concept_index — do not repeat the same concept
+- Spread questions across different branches of the concept map where possible
+- Do not generate questions about the job posting itself (salary, company name, etc.)
+- The job posting provides real-world framing only; the concept map determines what is tested
+` + levelRules.String()
+}
+
+func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string, level config.LevelConfig, targetCount int) string {
 	var sb strings.Builder
 
 	fmt.Fprintf(&sb, "Track: %s\nGeneration ID: %s\nDifficulty Level: %s\n\n", trackID, generationID, level.Name)
 
 	sb.WriteString("Concept Map:\n")
-	// Group by branch.
 	branchConcepts := map[string][]domain.Concept{}
 	for _, c := range cm.Concepts {
 		branchConcepts[c.Branch] = append(branchConcepts[c.Branch], c)
@@ -350,53 +438,152 @@ func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, context
 
 	if len(contextFiles) > 0 {
 		sb.WriteString("\nContext Documents:\n")
-		// Sort filenames for determinism.
 		filenames := make([]string, 0, len(contextFiles))
 		for name := range contextFiles {
-			if !strings.HasPrefix(name, "_") { // skip _sources.md etc.
+			if !strings.HasPrefix(name, "_") {
 				filenames = append(filenames, name)
 			}
 		}
+		sort.Strings(filenames)
 		for _, name := range filenames {
 			fmt.Fprintf(&sb, "\n--- %s ---\n%s\n", name, contextFiles[name])
 		}
 	}
 
-	// Detect job post files (*.job.md) — extract 3 maximally distinct scenario seeds
-	// via naive MMR so job-framed questions can't collapse to overlapping scenarios.
-	var jobFileMap map[string]string
-	for name, content := range contextFiles {
-		if strings.HasSuffix(name, ".job.md") {
-			if jobFileMap == nil {
-				jobFileMap = make(map[string]string)
-			}
-			jobFileMap[name] = content
-		}
-	}
-	if len(jobFileMap) > 0 {
-		chunks := rag.ChunkFiles(jobFileMap, 300)
-		seeds := rag.DistinctTopN(chunks, 3)
-		if len(seeds) > 0 {
-			sb.WriteString("\nJob post detected. Generate exactly one job-framed question per scenario seed below. Each must target a different concept_index and use scenario_mcq or free_text format.\n")
-			for i, seed := range seeds {
-				heading := seed.Heading
-				if heading == "" {
-					heading = seed.File
-				}
-				fmt.Fprintf(&sb, "\nScenario seed %d [%s]:\n%s\n", i+1, heading, seed.Content)
-			}
-		}
-	}
-
-	sb.WriteString("\nGenerate 8 questions. Prioritize concepts where bloom_current < bloom_target.\n")
+	fmt.Fprintf(&sb, "\nGenerate %d questions. Prioritize concepts where bloom_current < bloom_target. Favour quality over count — produce fewer but sharper questions if needed.\n", targetCount)
 	return sb.String()
 }
 
+// BuildJobPostUserPrompt builds the user prompt for a dedicated job-post question call.
+func BuildJobPostUserPrompt(trackID, generationID string, cm domain.ConceptMap, jobFileName, jobContent string, level config.LevelConfig, targetCount int) string {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "Track: %s\nGeneration ID: %s\nDifficulty Level: %s\n\n", trackID, generationID, level.Name)
+
+	sb.WriteString("Concept Map (use for concept_indexes only):\n")
+	branchConcepts := map[string][]domain.Concept{}
+	for _, c := range cm.Concepts {
+		branchConcepts[c.Branch] = append(branchConcepts[c.Branch], c)
+	}
+	for _, branch := range cm.MajorBranches {
+		concepts := branchConcepts[branch]
+		if len(concepts) == 0 {
+			continue
+		}
+		fmt.Fprintf(&sb, "\nBranch: %s\n", branch)
+		for _, c := range concepts {
+			fmt.Fprintf(&sb, "  [%d] %s\n", c.Index, c.Name)
+		}
+	}
+
+	fmt.Fprintf(&sb, "\nJob Posting (%s):\n%s\n", jobFileName, jobContent)
+	fmt.Fprintf(&sb, "\nGenerate %d job-framed questions. Each must target a different concept — spread across branches. Favour quality over count.\n", targetCount)
+	return sb.String()
+}
+
+// ─── deduplication + shuffle ──────────────────────────────────────────────────
+
+// deduplicateQuestions removes duplicate questions from the pool and returns
+// at most n maximally distinct questions. Two-stage:
+//  1. Exact match on (sorted concept_indexes, bloom_level) — guaranteed structural duplicates.
+//  2. MMR text similarity via rag.DistinctTopN — removes scenario-phrasing duplicates.
+func deduplicateQuestions(questions []domain.Question, n int) []domain.Question {
+	if len(questions) == 0 {
+		return nil
+	}
+
+	// Stage 1: exact (concept_indexes, bloom_level) dedup — keep first occurrence.
+	type conceptKey string
+	seen := map[conceptKey]bool{}
+	stage1 := make([]domain.Question, 0, len(questions))
+	for _, q := range questions {
+		idxCopy := make([]int, len(q.ConceptIndexes))
+		copy(idxCopy, q.ConceptIndexes)
+		sort.Ints(idxCopy)
+		key := conceptKey(fmt.Sprintf("%v|%d", idxCopy, q.BloomLevel))
+		if !seen[key] {
+			seen[key] = true
+			stage1 = append(stage1, q)
+		}
+	}
+
+	if len(stage1) <= n {
+		return stage1
+	}
+
+	// Stage 2: MMR text similarity — pick n most mutually distinct questions.
+	chunks := make([]rag.Chunk, len(stage1))
+	for i, q := range stage1 {
+		chunks[i] = rag.Chunk{
+			Content: q.Question,
+			Heading: fmt.Sprintf("%d", i),
+		}
+	}
+	selected := rag.DistinctTopN(chunks, n)
+
+	result := make([]domain.Question, 0, len(selected))
+	for _, c := range selected {
+		var idx int
+		fmt.Sscanf(c.Heading, "%d", &idx)
+		if idx >= 0 && idx < len(stage1) {
+			result = append(result, stage1[idx])
+		}
+	}
+	return result
+}
+
+// shuffleQuestions returns a deterministically shuffled copy of questions.
+// Seed is derived from generationID via FNV-64a so the same session always
+// produces the same final order regardless of call ordering.
+func shuffleQuestions(questions []domain.Question, generationID string) []domain.Question {
+	if len(questions) == 0 {
+		return questions
+	}
+	h := fnv.New64a()
+	h.Write([]byte(generationID))
+	r := rand.New(rand.NewSource(int64(h.Sum64()))) //nolint:gosec
+	out := make([]domain.Question, len(questions))
+	copy(out, questions)
+	r.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
+	return out
+}
+
+// renumberQuestions resets question IDs to q_1, q_2, ... after consolidation.
+func renumberQuestions(questions []domain.Question) {
+	for i := range questions {
+		questions[i].ID = fmt.Sprintf("q_%d", i+1)
+	}
+}
+
+// ─── sizing helpers ───────────────────────────────────────────────────────────
+
+// overgenerate returns the extra questions to request beyond target (25%, min 2).
+func overgenerate(target int) int {
+	extra := target / 4
+	if extra < 2 {
+		extra = 2
+	}
+	return extra
+}
+
+// jobQuestionTarget returns how many questions to request per job post file.
+// Scales with session target: small sessions get 3, larger get up to 8.
+func jobQuestionTarget(sessionTarget int) int {
+	switch {
+	case sessionTarget >= 16:
+		return 8
+	case sessionTarget >= 12:
+		return 5
+	default:
+		return 3
+	}
+}
+
+// ─── JSON parsing ─────────────────────────────────────────────────────────────
+
 // parseQuestionsJSON extracts a JSON array from the LLM output.
-// Strips markdown fences if present, patches generation_id if missing.
 func parseQuestionsJSON(raw, generationID string) ([]domain.Question, error) {
 	s := strings.TrimSpace(raw)
-	// Strip markdown code fence if LLM added one despite instructions.
 	if strings.HasPrefix(s, "```") {
 		first := strings.Index(s, "\n")
 		if first >= 0 {
@@ -412,7 +599,6 @@ func parseQuestionsJSON(raw, generationID string) ([]domain.Question, error) {
 	if err := json.Unmarshal([]byte(s), &questions); err != nil {
 		return nil, fmt.Errorf("unmarshal: %w (raw prefix: %.200s)", err, s)
 	}
-	// Patch any missing generation IDs.
 	for i := range questions {
 		if questions[i].GenerationID == "" {
 			questions[i].GenerationID = generationID

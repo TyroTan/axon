@@ -36,6 +36,7 @@ type Config struct {
 	ContextTokenLimit int    // AXON_CONTEXT_LIMIT — max tokens for inherited context (default 80000)
 	SoftTokenLimit    int    // AXON_SOFT_LIMIT — trigger split plan above this (default 250000)
 	HardTokenLimit    int    // AXON_HARD_LIMIT — hard abort above this (default 300000)
+	QuestionTarget    int    // AXON_QUESTION_COUNT — target questions per session (default 8)
 }
 
 // New wires dependencies and returns a configured Fiber app.
@@ -112,7 +113,7 @@ func New(cfg Config) *fiber.App {
 	)
 
 	createSessionHandler := commands.NewCreateSessionHandler(trackStore)
-	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit, cfg.SoftTokenLimit, cfg.HardTokenLimit, rec)
+	generateQuestionsHandler := commands.NewGenerateQuestionsHandler(trackStore, llmClient, cfg.ContextTokenLimit, cfg.SoftTokenLimit, cfg.HardTokenLimit, cfg.QuestionTarget, rec)
 	submitResponsesHandler := commands.NewSubmitResponsesHandler(trackStore)
 	evaluateResponsesHandler := commands.NewEvaluateResponsesHandler(trackStore, llmClient, rec)
 	generateSynthesisHandler := commands.NewGenerateSynthesisHandler(trackStore, llmClient, rec)
@@ -935,7 +936,7 @@ func New(cfg Config) *fiber.App {
 
 		activeLevel := config.ActiveLevel()
 		systemPrompt := commands.BuildSystemPrompt(activeLevel)
-		userPrompt := commands.BuildUserPrompt(trackID, "preview", cm, contextFiles, activeLevel)
+		userPrompt := commands.BuildUserPrompt(trackID, "preview", cm, contextFiles, activeLevel, 8)
 		systemTokens := (len(systemPrompt) + 3) / 4
 		userTokens := (len(userPrompt) + 3) / 4
 		totalTokens := systemTokens + userTokens

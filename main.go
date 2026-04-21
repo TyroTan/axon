@@ -53,6 +53,13 @@ func main() {
 		}
 	}
 
+	questionTarget := 0 // 0 → handler uses defaultQuestionTarget (8)
+	if v := os.Getenv("AXON_QUESTION_COUNT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			questionTarget = n
+		}
+	}
+
 	app := server.New(server.Config{
 		ExperimentsDir:    experimentsDir,
 		DistDir:           distDir,
@@ -61,6 +68,7 @@ func main() {
 		ContextTokenLimit: contextTokenLimit,
 		SoftTokenLimit:    softTokenLimit,
 		HardTokenLimit:    hardTokenLimit,
+		QuestionTarget:    questionTarget,
 	})
 
 	log.Printf("Axon API on http://localhost:%s  |  UI on http://localhost:5173 (dev)", port)
