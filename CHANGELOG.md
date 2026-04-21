@@ -9,6 +9,45 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.32.0] — 2026-04-21 — F6: Scalable multi-call generation + question-level MMR deduplication
+
+### Added
+- **`AXON_QUESTION_COUNT`** env var — controls target questions per session (default 8).
+  Wired through `main.go → server.Config → GenerateQuestionsHandler`.
+- **`BuildJobPostSystemPrompt` / `BuildJobPostUserPrompt`** — dedicated prompts for job-post
+  question calls. All questions in the call are job-framed; no ratio rules. Target scales
+  with session size (3 / 5 / 8 for target < 12 / 12–15 / 16+).
+- **`deduplicateQuestions`** in `generate_questions.go` — two-stage:
+  1. Exact `(sorted concept_indexes, bloom_level)` match → drop duplicates, keep first.
+  2. `rag.DistinctTopN` MMR text similarity → pick `n` most mutually distinct from remainder.
+- **`shuffleQuestions`** — FNV-64a hash of `generationID` seeds deterministic shuffle,
+  interleaving concept-map and job-post questions consistently across re-runs.
+
+### Changed
+- **`generate_questions.go:run()`** refactored into a multi-call pipeline:
+  1. Concept map call — requests `target + overgenerate(target)` questions.
+  2. One call per `*.job.md` file (isolated, focused brief).
+  3. Merge → deduplicate → shuffle → renumber → write `01_questions.json`.
+- **`BuildSystemPrompt`** — removed job-post ratio rule (job posts now have their own call).
+- **`BuildUserPrompt`** — removed MMR seed injection block; takes explicit `targetCount int`
+  and emits it in the "Generate N questions" instruction.
+- Format bias rules updated to relative fractions ("at least half", "at least a third")
+  instead of hardcoded counts that assumed 8 questions.
+
+### Removed
+- `rag.DistinctTopN` seed injection in `BuildUserPrompt` (superseded by isolated job-post calls).
+
+---
+
+## [0.31.0] — 2026-04-21 — feat(generator): naive MMR job scenario seeds
+
+### Added
+- **`rag.DistinctTopN`** — greedy MMR-style selection of maximally dissimilar chunks from
+  a `[]rag.Chunk` pool. Iteratively picks the chunk with minimum max word-overlap to
+  already-selected chunks. Used as the deduplication primitive.
+
+---
+
 ## [0.29.0] — 2026-04-20 — v2 E2: aspiration_count auto-increment + exploration_unlocked auto-set (M2.2)
 
 ### Updated

@@ -23,6 +23,7 @@
 | **Application Evidence Sessions** | E10 | New session type: real-work debrief, AI interrogator, transfer function proxy | 13–14 |
 | **System-Initiated Elaboration** | E11 | Evaluator emits elaboration triggers; consolidated elaboration page closes E9 loop | 15 |
 | **Concept Map Tending** | F4 | Dormancy scoring prevents concepts from being silently skipped across many sessions | 16 |
+| **Scalable Multi-Call Generation** | F6 | Multi-call pipeline: concept map + per-job-post calls, question-level MMR dedup, AXON_QUESTION_COUNT | 8d |
 
 ---
 
@@ -834,6 +835,46 @@ AC:
 
 ---
 
+### F6 — Scalable Multi-Call Generation with Question-Level Deduplication ✅ Done
+
+> As a learner, I want sessions to contain high-quality, non-redundant questions even when
+> the concept map is large or job-post context files are present — without extra LLM roundtrips
+> or single-prompt constraint overload.
+
+**Mechanism:**
+
+1. **Concept map call** — requests `target + 25% overage` questions (min +2). A single
+   call for targets ≤ 16; multi-call with concept exclusion lists is future work.
+2. **Per-job-post call** — one dedicated call per `*.job.md` file. The call receives the
+   job content as primary framing and the concept map for `concept_indexes` only. Target
+   scales with session size: 3 / 5 / 8 questions for target < 12 / 12–15 / 16+.
+3. **Two-stage deduplication** (`deduplicateQuestions`):
+   - Stage 1: exact match on `(sorted concept_indexes, bloom_level)` — structurally
+     identical questions are dropped, keeping first occurrence.
+   - Stage 2: MMR text similarity via `rag.DistinctTopN` — picks `n` maximally
+     distinct questions from the remaining pool by minimising pairwise word-overlap.
+4. **Deterministic shuffle** — FNV-64a hash of `generationID` seeds `math/rand.Shuffle`
+   so concept-map and job-post questions are interleaved consistently.
+
+**`AXON_QUESTION_COUNT`** — new env var controlling session target (default 8). Overproduction
+and trimming are handled transparently; operator sets the desired output count.
+
+**Why this is better than ratio-rule injection:**
+- Each LLM call has a single, narrow responsibility — no competing constraint clauses.
+- Structural deduplication is guaranteed by construction (Go code), not LLM compliance.
+- Scales to 20+ questions by adding more concept-map calls with exclusion lists (future).
+
+**ACs:**
+- [x] `deduplicateQuestions` — two-stage, deterministic
+- [x] `shuffleQuestions` — FNV-seeded, deterministic
+- [x] `BuildJobPostSystemPrompt` / `BuildJobPostUserPrompt` — focused job-framed call
+- [x] `AXON_QUESTION_COUNT` wired through `main.go → server.Config → handler`
+- [x] `dev.sh` documents new env var
+- [x] Seed injection from previous `BuildUserPrompt` removed (now superseded)
+- [x] `rag.DistinctTopN` preserved as the deduplication primitive (stage 2)
+
+---
+
 ## Sprint Plan
 
 | Sprint | Focus | Items | Exit Criteria |
@@ -848,6 +889,7 @@ AC:
 | 8 | Inquiry Quality schema | E9 schema | inquiry_precision field defined, extraction prompt drafted | ✅ Done |
 | 8b | Difficulty level system | — | Named levels (recall→extreme) on numeric spine, AXON_LEVEL_OVERRIDE, /config/levels, /difficulty-preview | ✅ Done |
 | 8c | Path-aware contextual scoring | — | StateSnapshot on sessions, learner_path.jsonl, delta_multiplier in apply_synthesis, consecutive fail counter | ✅ Done |
+| 8d | Scalable multi-call generation + dedup | F6 | Multi-call pipeline, job-post isolated call, MMR question dedup, AXON_QUESTION_COUNT | ✅ Done |
 | **9** | **Application Evidence — schema** | **E10 schema** | **session.type field, application_task.json shape, open decisions resolved** | **← next** |
 | 10 | Faith-based unlocking | S1.1, S1.2 | Reach questions in rotation, aspiration gap tracked | |
 | 11 | Regression intelligence | S2.1, S2.2, S2.3 | Regression classified, frustration turn applied | |
