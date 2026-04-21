@@ -305,7 +305,9 @@ Rules:
 - If a context file ends in ".job.md": it is a job posting. Use it as a scenario wrapper for
   at least 3 of 8 questions — frame those questions as tasks the learner might face in that role.
   The concept map still determines which concepts are tested; the job post only provides the
-  real-world framing. Do not generate questions about the job posting itself.`
+  real-world framing. Do not generate questions about the job posting itself.
+  Each job-framed question must target a strictly different concept_index — no two job-framed
+  questions may share the same concept_indexes list. Spread across different branches if possible.`
 }
 
 func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string, level config.LevelConfig) string {
@@ -367,7 +369,7 @@ func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, context
 		}
 	}
 	if len(jobFiles) > 0 {
-		sb.WriteString("\nJob post context detected. At least 3 of 8 questions must be scenario_mcq or free_text framed as real-world application tasks drawn from the job posting requirements. Concept targeting still follows the concept map — the job post provides the scenario wrapper only.\n")
+		sb.WriteString("\nJob post context detected. At least 3 of 8 questions must be scenario_mcq or free_text framed as real-world application tasks from the job posting. Each job-framed question must target a different concept_index — no shared concepts across job-framed questions. Spread across branches.\n")
 	}
 
 	sb.WriteString("\nGenerate 8 questions. Prioritize concepts where bloom_current < bloom_target.\n")
