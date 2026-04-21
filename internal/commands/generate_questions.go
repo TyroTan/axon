@@ -301,7 +301,11 @@ Rules:
   include at least one question that forces the learner to target mechanism rather than symptom.
   For concepts with a divergent thread arc, prefer scenario questions over recall questions to
   encourage narrowing. Do not reward surface-feature answers — make the correct explanation
-  require mechanism-level reasoning.`
+  require mechanism-level reasoning.
+- If a context file ends in ".job.md": it is a job posting. Use it as a scenario wrapper for
+  at least 3 of 8 questions — frame those questions as tasks the learner might face in that role.
+  The concept map still determines which concepts are tested; the job post only provides the
+  real-world framing. Do not generate questions about the job posting itself.`
 }
 
 func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, contextFiles map[string]string, level config.LevelConfig) string {
@@ -353,6 +357,17 @@ func BuildUserPrompt(trackID, generationID string, cm domain.ConceptMap, context
 		for _, name := range filenames {
 			fmt.Fprintf(&sb, "\n--- %s ---\n%s\n", name, contextFiles[name])
 		}
+	}
+
+	// Detect job post files (*.job.md) — inject ratio rule if present.
+	var jobFiles []string
+	for name := range contextFiles {
+		if strings.HasSuffix(name, ".job.md") {
+			jobFiles = append(jobFiles, name)
+		}
+	}
+	if len(jobFiles) > 0 {
+		sb.WriteString("\nJob post context detected. At least 3 of 8 questions must be scenario_mcq or free_text framed as real-world application tasks drawn from the job posting requirements. Concept targeting still follows the concept map — the job post provides the scenario wrapper only.\n")
 	}
 
 	sb.WriteString("\nGenerate 8 questions. Prioritize concepts where bloom_current < bloom_target.\n")
