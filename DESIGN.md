@@ -150,14 +150,30 @@ Each fork is a deliberate **path divergence** — a new learning trajectory star
 
 **The compound value:** each path represents LLM-pre-solved domain traversal from a different angle. A merge across two paths that covered the same concepts differently creates a richer combined map than either path alone — surfacing which concepts were bottlenecks on one trajectory but not another, which contexts unlocked exploration faster, which bloom targets were reached via different question types. This is the growth-hack pattern: compounding LLM-generated learning intelligence across deliberately chosen paths.
 
-#### Concept map attribution (not yet built)
+#### Fork workflow — implementation detail
 
-The intended two-file pattern for deep ancestry:
+`DuplicateTrackHandler.Handle()` runs these steps in order:
 
-- `_concept_map_sources.json` — `_`-prefixed (LLM never sees it). Records which concept indexes came from which ancestor track at fork/merge time. Attribution is explicit and permanent.
-- The combined effective map (union of all ancestor concept definitions + own) rebuilt at each fork/merge event, not continuously.
+1. **Freeze step 1** — `DistillThreadsHandler.RunSilent` → `context/session_insights.snapshot.md`.
+   LLM call. Idempotent: skipped if snapshot already exists.
+2. **Freeze step 2** — `snapshotConversations` → `context/conversations.snapshot.md`.
+   No LLM call — pure aggregation from `ConversationIndex` objects. Idempotent: explicit file
+   existence check before writing.
+3. **Branch** — `store.NextTrackID` → `store.GetEffectiveConceptMap` (full ancestor cascade,
+   not just parent's own state) → `store.CreateTrack` with the cascaded map.
+4. **`_track_origin.json`** written at child track root — machine-readable provenance.
+   Records event type (`"fork"`), source track ID(s), RFC3339 timestamp, and a snapshot of
+   every concept's effective `bloom_current`/`bloom_target` at copy time.
+   Underscore prefix keeps it invisible to the question generator. Enables future multi-track
+   synergy detection at merge time.
+5. **`context/_sources.md`** written — human-readable provenance doc explaining the inheritance
+   cascade for anyone inspecting the child track.
+6. **`prompts/`** copied from source track.
 
-This mirrors the `_sources.md` / content file pattern already used for context docs. Concept definitions from different ancestry nodes would be attributed to their origin, enabling future synergy detection at merge time.
+**Critical invariant (implemented):** Step 3 uses `GetEffectiveConceptMap`, not `GetConceptMap`.
+If a grandparent has `bloom_current=4` on a concept but the parent hasn't run Apply Synthesis
+yet (so the parent's own file still shows `bloom_current=1`), the child correctly starts at 4 —
+not 1. The child's bloom floor is the full ancestor cascade, not just its immediate parent's state.
 
 ### Bloom's Taxonomy — Standard Use and Structural Extensions
 

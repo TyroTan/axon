@@ -282,6 +282,28 @@ type MetaSynthesis struct {
 	Applied           bool               `json:"applied"`
 }
 
+// ─── Track Origin ─────────────────────────────────────────────────────────────
+
+// TrackOriginConcept is a point-in-time snapshot of one concept's learning state
+// captured from the source track(s) at copy time.
+type TrackOriginConcept struct {
+	Index        int    `json:"index"`
+	Name         string `json:"name"`
+	BloomCurrent int    `json:"bloom_current"` // effective bloom floor at fork time
+	BloomTarget  int    `json:"bloom_target"`
+}
+
+// TrackOrigin is written as _track_origin.json at the track root after every
+// fork or merge. It records machine-readable provenance: which tracks were
+// copied, when, and the effective concept bloom state at copy time.
+// The underscore prefix ensures the question generator never reads this file.
+type TrackOrigin struct {
+	EventType    string               `json:"event_type"`     // "fork" | "merge"
+	SourceIDs    []string             `json:"source_ids"`     // one for fork, many for merge
+	CreatedAt    string               `json:"created_at"`     // RFC3339
+	ConceptFloor []TrackOriginConcept `json:"concept_floor"`  // effective state at copy time
+}
+
 // ─── Steer Intent ─────────────────────────────────────────────────────────────
 
 type SteerDirection string

@@ -9,6 +9,23 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.33.0] — 2026-04-21 — Fork fix: ancestor-cascaded bloom floor + _track_origin.json provenance
+
+### Fixed
+- **`DuplicateTrackHandler`** now calls `GetEffectiveConceptMap` (not `GetConceptMap`) when
+  branching a child track. Previously the child inherited only the parent's own bloom state,
+  missing any ancestor-cascaded floors that hadn't yet been written to the parent via
+  Apply Synthesis. The child now starts with the full cascaded bloom floor.
+
+### Added
+- **`domain.TrackOrigin` / `domain.TrackOriginConcept`** structs in `internal/domain/types.go`.
+- **`_track_origin.json`** written at the track root on every fork. Records: event type
+  (`fork`), source track ID(s), timestamp (RFC3339), and a snapshot of every concept's
+  effective bloom state at copy time. Underscore prefix keeps it invisible to the question
+  generator. Enables future multi-track synergy detection at merge time.
+
+---
+
 ## [0.32.0] — 2026-04-21 — F6: Scalable multi-call generation + question-level MMR deduplication
 
 ### Added

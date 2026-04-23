@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,13 +62,14 @@ func (h *DuplicateTrackHandler) Handle(ctx context.Context, cmd DuplicateTrackCo
 		return fmt.Errorf("duplicate track: %w", err)
 	}
 
-	cm, err := h.store.GetConceptMap(ctx, cmd.SourceTrackID)
+	cm, err := h.store.GetEffectiveConceptMap(ctx, cmd.SourceTrackID)
 	if err != nil {
 		return fmt.Errorf("duplicate track: read concept map: %w", err)
 	}
+	forkedAt := time.Now().Format("2006-01-02")
 	cm.Track = newID
-	cm.GeneratedAt = time.Now().Format("2006-01-02")
-	cm.Note = fmt.Sprintf("Inherited from %s on %s. bloom_current preserved.", cmd.SourceTrackID, cm.GeneratedAt)
+	cm.GeneratedAt = forkedAt
+	cm.Note = fmt.Sprintf("Inherited from %s on %s. bloom_current is ancestor-cascaded floor.", cmd.SourceTrackID, forkedAt)
 
 	newTrack := domain.Track{
 		ID:        newID,
@@ -78,6 +80,25 @@ func (h *DuplicateTrackHandler) Handle(ctx context.Context, cmd DuplicateTrackCo
 
 	if err := h.store.CreateTrack(ctx, newTrack, cm); err != nil {
 		return fmt.Errorf("duplicate track: create: %w", err)
+	}
+
+	// Write _track_origin.json — machine-readable provenance for the child node.
+	// Underscore prefix keeps it invisible to the question generator.
+	origin := domain.TrackOrigin{
+		EventType: "fork",
+		SourceIDs: []string{cmd.SourceTrackID},
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}
+	for _, c := range cm.Concepts {
+		origin.ConceptFloor = append(origin.ConceptFloor, domain.TrackOriginConcept{
+			Index:        c.Index,
+			Name:         c.Name,
+			BloomCurrent: c.BloomCurrent,
+			BloomTarget:  c.BloomTarget,
+		})
+	}
+	if raw, err := json.Marshal(origin); err == nil {
+		_ = h.store.WriteTrackFile(ctx, newID, "_track_origin.json", raw)
 	}
 
 	sourcesContent := fmt.Sprintf(`# Context Sources — %s
