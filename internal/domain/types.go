@@ -303,15 +303,16 @@ type TrackOriginSourceFloor struct {
 }
 
 // TrackOrigin is written as _track_origin.json at the track root after every
-// fork or merge. The underscore prefix keeps it invisible to the question generator.
+// copy event (fork, clone, merge). The underscore prefix keeps it invisible to
+// the question generator.
 //
 // ConceptFloor — concepts in THIS track's index space (post-remap).
 // PerSourceFloors — for merge only: each source's concept bloom state at its
 //   original indexes before remapping. Enables synergy detection by comparing
 //   bloom levels for the same semantic concept across sources.
 type TrackOrigin struct {
-	EventType       string                   `json:"event_type"`                  // "fork" | "merge"
-	SourceIDs       []string                 `json:"source_ids"`                  // one for fork, many for merge
+	EventType       string                   `json:"event_type"`                  // "fork" | "clone" | "merge"
+	SourceIDs       []string                 `json:"source_ids"`                  // one for fork/clone, many for merge
 	CreatedAt       string                   `json:"created_at"`                  // RFC3339
 	ConceptFloor    []TrackOriginConcept     `json:"concept_floor"`               // merged-map index space
 	PerSourceFloors []TrackOriginSourceFloor `json:"per_source_floors,omitempty"` // merge only

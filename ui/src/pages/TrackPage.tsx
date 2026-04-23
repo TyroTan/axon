@@ -372,7 +372,9 @@ export function TrackPage() {
               }
             }}
             disabled={duplicating || data?.has_distill_snapshot === true}
-            title={data?.has_distill_snapshot ? 'Already snapshotted — add new sessions before forking again' : undefined}
+            title={data?.has_distill_snapshot
+              ? 'Already snapshotted — add new sessions before forking again'
+              : 'Create a child track that inherits this track\'s context on every session'}
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), (duplicating || data?.has_distill_snapshot) && 'opacity-60 cursor-not-allowed')}
           >
             {duplicating ? 'Forking…' : 'Fork'}

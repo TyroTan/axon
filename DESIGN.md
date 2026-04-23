@@ -74,25 +74,25 @@ Major branches are inherited at fork/clone time alongside the concept map. They 
 
 #### Track creation — three modes
 
-| Mode | Route | Result | Parent ID | Context inheritance |
-|---|---|---|---|---|
-| **Blank** | `POST /tracks {branches}` | New root, empty concept map | none | none |
-| **Clone** | `POST /tracks {source_id}` | New root, concept map + context copied | none | physical copy, frozen at clone time |
-| **Fork** | `POST /tracks/:id/fork` | New child, same concept map | set | live cascade at generation time |
+| UI label | Mode | Route | Result | Parent ID | Context |
+|---|---|---|---|---|---|
+| **New topic** | blank | `POST /tracks {branches}` | New root, empty concept map | none | none |
+| **Copy track** | clone | `POST /tracks {source_id}` | New root, concept map + context copied | none | physical snapshot, frozen at copy time |
+| **Fork** | fork | `POST /tracks/:id/fork` | New child | set | live cascade at every session |
 
 **The philosophical distinction:**
 
-*Blank* is a fresh topic. You're starting a knowledge domain from scratch. You supply branch names; the concept map generator populates concepts later. No relationship to any existing track.
+*New topic* — you're starting a fresh knowledge domain. You name the branches; the concept map starts empty. No relationship to any existing track.
 
-*Clone* is an independent restart from a known starting point. You want to study the same material again — from a different angle, with a different job context, or after time has passed — but you don't want your new sessions to affect the original track or inherit its future changes. The source track is a template, not a parent. After clone time, the two tracks are fully independent. Context files are physically copied from the source's own `context/` only (not cascaded ancestors). No freeze steps — no distillation happens before copy.
+*Copy track* — you want to study the same material independently: from a different angle, different job context, or after time has passed. The source track is a template, not a parent. After copy time, both tracks are strangers — no inheritance, no link. Context files are physically copied from the source's own `context/` only (not the cascaded ancestor chain). No freeze steps before copy.
 
-*Fork* is a deliberate path divergence from a living track. The child shares the parent's full accumulated knowledge state at fork time (via `GetEffectiveConceptMap`, including all ancestor cascade), and continues to inherit the parent's context files at every future session (live, not copied). The fork captures the crystallized session signal of the parent before branching (distill threads → snapshot, conversation snapshot). Use fork when you want the child to be a specialized continuation — for a specific job, a harder angle, a pruned concept subset — while remaining rooted in the parent's growing knowledge base.
+*Fork* — a deliberate path divergence from a living track. The child inherits the parent's full accumulated knowledge state at fork time (`GetEffectiveConceptMap`, full ancestor cascade) and continues to see the parent's context files on every future session (live, not copied). Before branching, the parent's session signal is crystallized (distill threads → snapshot, conversation snapshot). Use fork when the child should be a specialized continuation — a different job context, a harder angle, a focused concept subset — while remaining rooted in the parent's growing knowledge base.
 
-**What they share:** all three write `_track_origin.json` (blank does not — it has no source). Fork and clone both use `GetEffectiveConceptMap` so the starting bloom floor is the full ancestor-cascaded state, not just the source's own unsynced file.
+**What they share:** copy and fork both use `GetEffectiveConceptMap` so the starting bloom floor is the full ancestor-cascaded state, not just the source's own file. Both write `_track_origin.json`. New topic writes neither.
 
 **UI entry points:**
-- Blank + Clone → sidebar "+" → `/tracks/new` → `NewTrackPage` (labeled "New Root Track")
-- Fork → track page → **Fork** button (produces `track_N_M` child)
+- New topic + Copy track → sidebar **+** → `/tracks/new` (labeled "New Track")
+- Fork → track page → **Fork** button (hover tooltip explains child inheritance; produces `track_N_M`)
 
 ### Session
 A single quiz cycle inside a track. Five sequential steps, each writing a file:
