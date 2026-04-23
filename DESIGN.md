@@ -110,49 +110,54 @@ Plain `.md` files in `track_N/context/`. They are:
 > it is not injected into sessions for this track. This is a supported, documented
 > pattern and not a workaround.
 
-### Concept Map Inheritance and Cascade
+### Concept Map Inheritance, Snapshots, and Learning Path Simulation
 
-The concept map is the structured, indexed background of each track node's context. It is not just a learner state file — it is the explicit knowledge graph that every session draws from. Because tracks form a tree, concept maps have inheritance semantics.
+The concept map is the structured, indexed knowledge graph for each track node. It is not just a learner state file — it is the explicit skeleton that every session draws from, and it carries the full lineage of what was known when this node was created.
 
-**What cascades at generation time (live, read-only):**
+#### Fork/duplicate = point-in-time snapshot
 
-`GetEffectiveConceptMap` walks the full ancestor chain on every question generation call and applies these rules per concept index:
+When a child track is created (fork or duplicate), it receives a full copy of the parent's `concept_map.json` **at that exact moment**. This is a snapshot — not a live link. All concept definitions (indexes, names, branches, prerequisites) and their current state are frozen into the child at creation time.
+
+**Parent freeze constraint:** Once LLM activity has occurred on a child (question generation, evaluation, or synthesis), the parent's concept structure is effectively frozen for that lineage. If the parent's knowledge structure needs to evolve, the correct action is to fork again — creating a new independent node from the updated parent. Modifying a parent's concept map after children have active sessions is not a supported workflow.
+
+#### Live state cascade at generation time (read-only)
+
+`GetEffectiveConceptMap` walks the full ancestor chain on every question generation and applies these rules per concept index:
 
 | Field | Rule | Rationale |
 |---|---|---|
-| `bloom_current` | max(own, ancestor) | Child never regresses below what was already demonstrated upstream |
-| `exploration_unlocked` | OR(own, ancestor) | Faith-based unlock granted anywhere in the chain propagates down |
+| `bloom_current` | max(own, ancestor) | Child never regresses below what was demonstrated upstream |
+| `exploration_unlocked` | OR(own, ancestor) | Faith-based unlock anywhere in the chain propagates down |
 | `inquiry_precision` | max(own, ancestor) | Inquiry quality floor is inherited |
 | `aspiration_count` | own only | Stretch signal is local to each track's sessions |
 
-This is **read-only** — no ancestor file is ever mutated by this process.
+This is read-only — no ancestor file is ever mutated. The live cascade only applies to *state fields*, not concept *definitions*. New concept indexes added to a parent after forking do not appear in existing children.
 
-**What propagates on explicit events only (fork, duplicate, merge):**
+#### What does NOT propagate — by design
 
-When a child track is created (fork or duplicate), it receives a full copy of the parent's `concept_map.json` at that moment. This copy includes all concept definitions (indexes, names, branches, prerequisites) and their current state. This is a snapshot — not a live link.
-
-Merge additionally re-indexes and unions concept maps from multiple source tracks.
-
-**What does NOT propagate — by design:**
-
-- Child progress never writes back to a parent or sibling. Downstream only.
+- Child progress never writes back to parent or sibling. Downstream only.
 - Siblings never read each other's concept maps. No lateral inheritance.
-- If a parent gains new concept definitions after a fork, existing descendants do not automatically receive them. A new explicit fork or merge is required.
+- Post-fork parent changes (new concepts, structural edits) are invisible to existing children. Fork again to get them.
 
-**The open gap — concept map concatenation across deep ancestry:**
+#### The learning path simulation model
 
-At track_2_2_3 (depth 3 from root), the context file cascade already surfaces all ancestor `.md` files (via `LoadInheritedContext`). The concept map cascade surfaces ancestor *state* (bloom_current etc.) but only for concept indexes that already exist in the child's own map. New concept definitions added to intermediate ancestors after forking are not visible.
+Each fork is a deliberate **path divergence** — a new learning trajectory starting from a known snapshot of the knowledge graph. Tracks form a tree of learning journeys, not a single linear path. This is the core use case:
 
-The intended solution (not yet built):
+- Fork at any node to simulate a new trajectory from that exact knowledge state
+- Each path accumulates its own sessions, bloom progression, cognitive fingerprint, and context
+- Paths are independent — the same underlying concept map can be explored from multiple angles simultaneously
+- Merge is the **convergence event** — it unions concept maps from multiple paths, combining trajectories that started from the same or different ancestry
 
-- `_concept_map_sources.json` — `_`-prefixed so the LLM never sees it. Records which concept indexes were inherited from which ancestor track at fork/merge time. Attribution is explicit and permanent.
-- `concept_map_combined.json` (or inline in `concept_map.json`) — the full union of all ancestor concept definitions, re-indexed with source attribution. Rebuilt on each fork/merge event, not continuously.
+**The compound value:** each path represents LLM-pre-solved domain traversal from a different angle. A merge across two paths that covered the same concepts differently creates a richer combined map than either path alone — surfacing which concepts were bottlenecks on one trajectory but not another, which contexts unlocked exploration faster, which bloom targets were reached via different question types. This is the growth-hack pattern: compounding LLM-generated learning intelligence across deliberately chosen paths.
 
-This mirrors how context files work: the source file (`_sources.md`) records provenance; the content files are what the LLM sees. The concept map gets the same two-file pattern.
+#### Concept map attribution (not yet built)
 
-**The cascade direction is a product constraint, not a limitation:**
+The intended two-file pattern for deep ancestry:
 
-Upstream write-back and sibling cross-reading are deliberately excluded. They would create circular dependencies in the learner state graph and make it impossible to reason about which sessions caused which concept map changes. The tree is append-only and directional.
+- `_concept_map_sources.json` — `_`-prefixed (LLM never sees it). Records which concept indexes came from which ancestor track at fork/merge time. Attribution is explicit and permanent.
+- The combined effective map (union of all ancestor concept definitions + own) rebuilt at each fork/merge event, not continuously.
+
+This mirrors the `_sources.md` / content file pattern already used for context docs. Concept definitions from different ancestry nodes would be attributed to their origin, enabling future synergy detection at merge time.
 
 ### Bloom's Taxonomy — Standard Use and Structural Extensions
 

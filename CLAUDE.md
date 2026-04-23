@@ -53,8 +53,9 @@ Do not infer capability claims from the codebase alone — the learning theory g
 - **Active session data is immutable.** If a session has evaluations or synthesis, do not mutate its files.
 - **Evidence state and exploration state never mix** in scoring logic (v2 dual state model).
 - **Files starting with `_` are skipped** by the question generator (e.g. `_sources.md`).
-- **Concept map inheritance is downstream-only.** Do not propose or implement upstream write-back (child → parent), sibling cross-reading, or automatic continuous sync. Propagation happens only on explicit events: fork, duplicate, merge. This is a product constraint, not a gap — see `DESIGN.md` §2 "Concept Map Inheritance and Cascade".
-- **Do not introduce foreign patterns.** When extending the system, verify the proposed pattern is consistent with the existing inheritance model (downstream-only, explicit-trigger, read-time state cascade). Novel ideas that require bidirectional state or lateral coupling violate the core design and must not be added without explicit user direction.
+- **Concept map inheritance is downstream-only, snapshot-based.** Fork/duplicate = point-in-time snapshot. The parent is effectively frozen for that lineage once LLM activity (question generation, evaluation, synthesis) has occurred on the child. If the parent needs to evolve, fork again — do not modify the parent in place. Do not propose upstream write-back, sibling cross-reading, or continuous sync. See `DESIGN.md` §2 "Concept Map Inheritance, Snapshots, and Learning Path Simulation".
+- **Each fork is a learning path divergence, each merge is convergence.** The track tree simulates parallel learning trajectories from snapshot starting points. Do not propose patterns that couple paths laterally or require shared mutable state across branches.
+- **Do not introduce foreign patterns.** Proposals that require bidirectional state, lateral coupling, or automatic propagation violate the core design. Raise the idea explicitly rather than implementing it.
 
 ---
 
