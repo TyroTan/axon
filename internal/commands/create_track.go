@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -79,22 +80,42 @@ func (h *CreateTrackHandler) blank(ctx context.Context, branches []string, newID
 }
 
 func (h *CreateTrackHandler) clone(ctx context.Context, cmd CreateTrackCommand, newID string) (CreateTrackResult, error) {
-	// Read source concept map.
-	cm, err := h.store.GetConceptMap(ctx, cmd.SourceTrackID)
+	// Read source concept map with full ancestor cascade so the clone starts at
+	// the correct bloom floor, not just the source's own unsynced file state.
+	cm, err := h.store.GetEffectiveConceptMap(ctx, cmd.SourceTrackID)
 	if err != nil {
 		return CreateTrackResult{}, fmt.Errorf("create track (clone): read source concept map: %w", err)
 	}
+	clonedAt := time.Now()
 	branches := cmd.Branches
 	if len(branches) == 0 {
 		branches = cm.MajorBranches
 	}
 	cm.Track = newID
-	cm.GeneratedAt = time.Now().Format("2006-01-02")
-	cm.Note = fmt.Sprintf("Cloned from %s on %s. bloom_current preserved.", cmd.SourceTrackID, cm.GeneratedAt)
+	cm.GeneratedAt = clonedAt.Format("2006-01-02")
+	cm.Note = fmt.Sprintf("Cloned from %s on %s. bloom_current is ancestor-cascaded floor.", cmd.SourceTrackID, cm.GeneratedAt)
 
-	t := domain.Track{ID: newID, Branches: branches, CreatedAt: time.Now()}
+	t := domain.Track{ID: newID, Branches: branches, CreatedAt: clonedAt}
 	if err := h.store.CreateTrack(ctx, t, cm); err != nil {
 		return CreateTrackResult{}, fmt.Errorf("create track (clone): create: %w", err)
+	}
+
+	// Write _track_origin.json — provenance for this clone node.
+	origin := domain.TrackOrigin{
+		EventType: "clone",
+		SourceIDs: []string{cmd.SourceTrackID},
+		CreatedAt: clonedAt.UTC().Format(time.RFC3339),
+	}
+	for _, c := range cm.Concepts {
+		origin.ConceptFloor = append(origin.ConceptFloor, domain.TrackOriginConcept{
+			Index:        c.Index,
+			Name:         c.Name,
+			BloomCurrent: c.BloomCurrent,
+			BloomTarget:  c.BloomTarget,
+		})
+	}
+	if raw, err := json.Marshal(origin); err == nil {
+		_ = h.store.WriteTrackFile(ctx, newID, "_track_origin.json", raw)
 	}
 
 	// Copy context files from source (own context/ only — not cascaded ancestors).

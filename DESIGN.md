@@ -181,7 +181,7 @@ Written at track root for every fork and merge. Underscore prefix: invisible to 
 
 ```json
 {
-  "event_type": "fork" | "merge",
+  "event_type": "fork" | "clone" | "merge",
   "source_ids": ["track_X"],
   "created_at": "2026-04-23T10:00:00Z",
   "concept_floor": [
@@ -195,7 +195,7 @@ Written at track root for every fork and merge. Underscore prefix: invisible to 
 
 | Field | Type | Why this, not something else |
 |---|---|---|
-| `event_type` | `"fork"` \| `"merge"` | Changes interpretation of `source_ids` and `per_source_floors` |
+| `event_type` | `"fork"` \| `"clone"` \| `"merge"` | Changes interpretation of `source_ids` and `per_source_floors` |
 | `source_ids` | `[]string` (track IDs) | IDs are stable keys; file paths break if axon dir moves |
 | `created_at` | RFC3339 string | Absolute — remains interpretable after time passes |
 | `concept_floor[].index` | int | Index in **this track's** concept map (post-remap for merges) |
@@ -210,12 +210,19 @@ Written at track root for every fork and merge. Underscore prefix: invisible to 
 - Session IDs / session count — captured in the snapshot `.md` files
 - Concept map version hash — not versioned; timestamp + track ID is the key
 
-**Fork vs merge — what differs:**
+**Three copy event types — how they differ:**
 
 *Fork* (`event_type: "fork"`, one `source_id`):
 - `concept_floor` indexes match the parent's concept map 1:1 (no remapping)
 - `per_source_floors` is omitted — all concepts come from the single source
 - `bloom_current` is the effective floor from `GetEffectiveConceptMap(parent)` — may be higher than what's in the parent's own `concept_map.json` if an ancestor had unsynced progress
+
+*Clone* (`event_type: "clone"`, one `source_id`):
+- Creates a new **root** track (`track_2`, not `track_1_2`) — no `parent_id`, no live context cascade
+- `concept_floor` indexes match the source's concept map 1:1 (no remapping)
+- `per_source_floors` is omitted — same single-source logic as fork
+- Context files are physically copied from the source's own `context/` directory (not the cascaded ancestor chain). The new root is an independent node from creation time — no runtime inheritance
+- Triggered via `POST /tracks { source_id: "..." }` and the "Clone existing track" mode in the New Track UI
 
 *Merge* (`event_type: "merge"`, two or more `source_ids`):
 - `concept_floor` indexes are the re-indexed positions in the merged map (source A concepts: 0..lenA-1, source B: lenA..lenA+lenB-1, etc.)
