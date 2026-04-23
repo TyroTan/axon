@@ -38,6 +38,8 @@ new session types. If a proposed change violates one, the change is wrong — no
 | **Active session data is immutable** | Once a session has evaluations or synthesis, its files are read-only. No mutation, no re-evaluation. Start a new session. |
 | **Track data is VCS-tracked** | Sessions, contexts, conversations, concept maps are all committed to git. Never gitignore them. Only `metrics.jsonl` is excluded. |
 | **Context inheritance is read-time, not copy-time** | Context files are read from the ancestor chain at question-generation time. Forking does not copy context files. Child file wins on collision. |
+| **Concept map inheritance is downstream-only** | Concept map state cascades parent → child at read time. No upstream write-back, no sibling cross-reading. A child track's progress never modifies a parent or sibling concept map. This is by design. |
+| **Concept map propagation is explicit, not continuous** | New concept definitions only flow downstream on explicit signals: fork, duplicate, merge. There is no automatic sync. If a parent gains new concepts after a fork, descendants do not receive them until a new explicit fork/merge event. |
 | **Concept map is the track's memory** | All session files (questions, responses, evaluations) are ephemeral relative to `concept_map.json`. The concept map is the authoritative learner state. |
 | **`_`-prefixed files are system files** | Files beginning with `_` are never injected into question generation prompts. They are internal scaffolding (`_sources.md`, `_split_plan.md`, `_exclude`). |
 | **Synthesis is applied, not auto-applied** | `Apply Synthesis` is always an explicit user action. Concept map mutations never happen automatically after evaluation. |
@@ -107,6 +109,50 @@ Plain `.md` files in `track_N/context/`. They are:
 > The file is intentionally empty — its only purpose is to shadow the ancestor file so
 > it is not injected into sessions for this track. This is a supported, documented
 > pattern and not a workaround.
+
+### Concept Map Inheritance and Cascade
+
+The concept map is the structured, indexed background of each track node's context. It is not just a learner state file — it is the explicit knowledge graph that every session draws from. Because tracks form a tree, concept maps have inheritance semantics.
+
+**What cascades at generation time (live, read-only):**
+
+`GetEffectiveConceptMap` walks the full ancestor chain on every question generation call and applies these rules per concept index:
+
+| Field | Rule | Rationale |
+|---|---|---|
+| `bloom_current` | max(own, ancestor) | Child never regresses below what was already demonstrated upstream |
+| `exploration_unlocked` | OR(own, ancestor) | Faith-based unlock granted anywhere in the chain propagates down |
+| `inquiry_precision` | max(own, ancestor) | Inquiry quality floor is inherited |
+| `aspiration_count` | own only | Stretch signal is local to each track's sessions |
+
+This is **read-only** — no ancestor file is ever mutated by this process.
+
+**What propagates on explicit events only (fork, duplicate, merge):**
+
+When a child track is created (fork or duplicate), it receives a full copy of the parent's `concept_map.json` at that moment. This copy includes all concept definitions (indexes, names, branches, prerequisites) and their current state. This is a snapshot — not a live link.
+
+Merge additionally re-indexes and unions concept maps from multiple source tracks.
+
+**What does NOT propagate — by design:**
+
+- Child progress never writes back to a parent or sibling. Downstream only.
+- Siblings never read each other's concept maps. No lateral inheritance.
+- If a parent gains new concept definitions after a fork, existing descendants do not automatically receive them. A new explicit fork or merge is required.
+
+**The open gap — concept map concatenation across deep ancestry:**
+
+At track_2_2_3 (depth 3 from root), the context file cascade already surfaces all ancestor `.md` files (via `LoadInheritedContext`). The concept map cascade surfaces ancestor *state* (bloom_current etc.) but only for concept indexes that already exist in the child's own map. New concept definitions added to intermediate ancestors after forking are not visible.
+
+The intended solution (not yet built):
+
+- `_concept_map_sources.json` — `_`-prefixed so the LLM never sees it. Records which concept indexes were inherited from which ancestor track at fork/merge time. Attribution is explicit and permanent.
+- `concept_map_combined.json` (or inline in `concept_map.json`) — the full union of all ancestor concept definitions, re-indexed with source attribution. Rebuilt on each fork/merge event, not continuously.
+
+This mirrors how context files work: the source file (`_sources.md`) records provenance; the content files are what the LLM sees. The concept map gets the same two-file pattern.
+
+**The cascade direction is a product constraint, not a limitation:**
+
+Upstream write-back and sibling cross-reading are deliberately excluded. They would create circular dependencies in the learner state graph and make it impossible to reason about which sessions caused which concept map changes. The tree is append-only and directional.
 
 ### Bloom's Taxonomy — Standard Use and Structural Extensions
 
