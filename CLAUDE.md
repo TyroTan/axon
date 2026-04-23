@@ -45,6 +45,26 @@ Do not infer capability claims from the codebase alone — the learning theory g
 
 ---
 
+## Documentation sync (run after every code change)
+
+DESIGN.md sections that describe implementation details carry `<!-- sources: file1, file2 -->` anchors. When you change a file, check whether any anchor references it and update that section if the content is now wrong.
+
+**Mechanical checklist — before every commit:**
+
+1. **Which files changed?** List them.
+2. **CHANGELOG.md** — add an entry if the change is user-visible, architectural, or fixes a bug.
+3. **DESIGN.md** — run: `grep -n "sources:.*<changed-filename>" DESIGN.md`. For each match, verify the described behavior still matches the code and update if not.
+4. **If you wrote a new DESIGN.md section with implementation details** (function names, field lists, routes, step-by-step behavior): add `<!-- sources: path/to/file.go -->` immediately after the heading before committing.
+
+**What does NOT need a doc sync check:**
+- Changes to `track_*/` data files (sessions, context, concept maps) — these are learner data, not architecture
+- Pure test files
+- Comment-only changes
+
+**Why this exists:** DESIGN.md has two kinds of content — stable philosophy (never goes stale) and volatile implementation facts (go stale immediately on refactor). Anchors mark the volatile sections so the staleness check is mechanical, not dependent on reasoning.
+
+---
+
 ## Key guardrails (always apply)
 
 - **Track data is VCS-tracked.** Sessions, contexts, conversations are committed. Never gitignore them.

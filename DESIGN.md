@@ -73,6 +73,7 @@ Every track declares 2–5 `major_branches` — the top-level knowledge domains 
 Major branches are inherited at fork/clone time alongside the concept map. They are not a routing or inference mechanism — just human-readable metadata that stays in sync with whatever concepts actually live in the concept map.
 
 #### Track creation — three modes
+<!-- sources: internal/commands/create_track.go, internal/commands/duplicate_track.go, server/server.go, ui/src/pages/NewTrackPage.tsx, ui/src/pages/TrackPage.tsx -->
 
 | UI label | Mode | Route | Result | Parent ID | Context |
 |---|---|---|---|---|---|
@@ -95,6 +96,7 @@ Major branches are inherited at fork/clone time alongside the concept map. They 
 - Fork → track page → **Fork** button (hover tooltip explains child inheritance; produces `track_N_M`)
 
 ### Session
+<!-- sources: internal/domain/types.go -->
 A single quiz cycle inside a track. Five sequential steps, each writing a file:
 
 | Step | File | Description |
@@ -111,6 +113,7 @@ are held in `localStorage` (`axon:session:{trackId}:{sessionNum}`), auto-saved w
 1.5 s debounce, cleared on submit.
 
 ### Concept Map
+<!-- sources: internal/domain/types.go -->
 The learning graph. Contains all concepts for a track with:
 - `bloom_current` — where the learner is now (1–6), updated by Apply Synthesis
 - `bloom_target` — ceiling for this concept in this track (2–5)
@@ -122,6 +125,7 @@ The concept map is the **memory of the track**. All other files (sessions, evalu
 are ephemeral relative to the concept map.
 
 ### Context Files
+<!-- sources: internal/store/filesystem/track_store.go, server/server.go -->
 Plain `.md` files in `track_N/context/`. They are:
 - Injected **whole** (no RAG) into the question generation prompt
 - Inherited parent → child (child file wins on filename collision)
@@ -152,6 +156,7 @@ When a child track is created (fork or duplicate), it receives a full copy of th
 **Parent freeze constraint:** Once LLM activity has occurred on a child (question generation, evaluation, or synthesis), the parent's concept structure is effectively frozen for that lineage. If the parent's knowledge structure needs to evolve, the correct action is to fork again — creating a new independent node from the updated parent. Modifying a parent's concept map after children have active sessions is not a supported workflow.
 
 #### Live state cascade at generation time (read-only)
+<!-- sources: internal/store/filesystem/track_store.go -->
 
 `GetEffectiveConceptMap` walks the full ancestor chain on every question generation and applies these rules per concept index:
 
@@ -182,6 +187,7 @@ Each fork is a deliberate **path divergence** — a new learning trajectory star
 **The compound value:** each path represents LLM-pre-solved domain traversal from a different angle. A merge across two paths that covered the same concepts differently creates a richer combined map than either path alone — surfacing which concepts were bottlenecks on one trajectory but not another, which contexts unlocked exploration faster, which bloom targets were reached via different question types. This is the growth-hack pattern: compounding LLM-generated learning intelligence across deliberately chosen paths.
 
 #### Fork workflow — implementation detail
+<!-- sources: internal/commands/duplicate_track.go -->
 
 `DuplicateTrackHandler.Handle()` runs these steps in order:
 
@@ -207,6 +213,7 @@ yet (so the parent's own file still shows `bloom_current=1`), the child correctl
 not 1. The child's bloom floor is the full ancestor cascade, not just its immediate parent's state.
 
 #### `_track_origin.json` — attribution schema
+<!-- sources: internal/domain/types.go, internal/commands/duplicate_track.go, internal/commands/create_track.go, internal/commands/merge_tracks.go -->
 
 Written at track root for every fork and merge. Underscore prefix: invisible to question generator.
 
@@ -307,6 +314,7 @@ are discarded before injection. `rag.DistinctTopN` is also used post-generation 
 deduplicate questions across multi-call batches (MMR-style greedy selection).
 
 ### Difficulty System
+<!-- sources: internal/config/level.go, internal/commands/apply_synthesis.go -->
 
 Sessions are generated at an **effective difficulty level** computed from two sides:
 
@@ -642,6 +650,7 @@ All LLM calls go through `llm.Client` interface (`Stream` + `StreamResume`). Two
 meta-synthesis, compaction.
 
 ### Question generation pipeline (F6)
+<!-- sources: internal/commands/generate_questions.go, internal/rag/naive.go -->
 
 A single session generation runs multiple sequential LLM calls:
 1. **Concept map call** — `BuildSystemPrompt` + `BuildUserPrompt`, requests `target + 25%` questions.
@@ -658,6 +667,7 @@ by design so the deduplicator has headroom to prefer quality over quantity.
 ---
 
 ## 9. API surface (selected)
+<!-- sources: server/server.go -->
 
 | Method | Path | Purpose |
 |---|---|---|
