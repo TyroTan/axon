@@ -25,7 +25,7 @@ query_axon_docs("gitignore rules sessions")
 
 | File | Layer | What it governs |
 |---|---|---|
-| `DESIGN.md` | **How it's built** | Implemented architecture, invariants, data model, API surface, user stories (implemented + deferred) |
+| `DESIGN.md` | **How it's built + what it is** | Implemented architecture, invariants, data model, API surface, user stories, **learning theory grounding** (Bloom's extensions, calibration, dual state, prerequisite graph) |
 | `plan_v2.md` | **Why and what** | Mission, product constraints ("axon is NOT"), theoretical frameworks, v2 design, known unknowns |
 | `roadmap_v2.md` | **What and when** | Epics, MoSCoW priority, sprint plan, ACs, dependency graph, open decisions |
 | `plan.md` | v1 theory | v1 dimensions D1–D6, Bloom's distribution, spaced repetition schedule |
@@ -38,6 +38,10 @@ query_axon_docs("gitignore rules sessions")
 - Product constraints (axon will never be X) → `plan_v2.md` §2
 - Architectural invariants (code must always do X) → `DESIGN.md` §1
 - Operational guardrails (Claude Code must never do X) → this file, below
+
+**For identity and capability questions** ("what is axon", "does axon use X framework", "is this claim about axon accurate"):
+→ consult `DESIGN.md` §2 (Core Concepts, including Bloom's extensions) and §8 (Theoretical Contributors coverage map).
+Do not infer capability claims from the codebase alone — the learning theory grounding is documented in DESIGN.md, not derivable from Go files.
 
 ---
 
@@ -74,7 +78,8 @@ axon/
 
 | Track | Topic | Status |
 |---|---|---|
-| `track_1` | ML Fundamentals · ML Math Theory · RAG Architecture · LLM Systems | clean slate root — no sessions, seed concept map |
+| `track_1` | ML Fundamentals · ML Math Theory · RAG Architecture · LLM Systems · Pedagogy & Communication | clean slate root — no sessions, seed concept map |
+| `track_2` | MLOps: Data Engineering · Model Lifecycle · Deployment & Serving · Monitoring & Reliability · MLOps Infrastructure | cold-start root — 20 scenario concept map, no sessions |
 
 ---
 

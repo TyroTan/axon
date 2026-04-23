@@ -108,6 +108,45 @@ Plain `.md` files in `track_N/context/`. They are:
 > it is not injected into sessions for this track. This is a supported, documented
 > pattern and not a workaround.
 
+### Bloom's Taxonomy — Standard Use and Structural Extensions
+
+Axon uses the **revised Bloom's Taxonomy (Anderson & Krathwohl, 2001)** as its primary cognitive scaffold, but the accurate claim is that it *structurally extends* Bloom's rather than simply applying it.
+
+**What the standard taxonomy provides:**
+Revised Bloom's is 2-dimensional, not 1-dimensional:
+
+| | Factual | Conceptual | Procedural | Metacognitive |
+|---|---|---|---|---|
+| Remember | | | | |
+| Understand | | | | |
+| Apply | | | | |
+| Analyze | | | | |
+| Evaluate | | | | |
+| Create | | | | |
+
+Most systems that claim to "use Bloom's" implement only the left column of the Cognitive Process dimension (1–6). Axon explicitly targets the full second axis:
+- **Procedural knowledge** — `teach_back` (construct explanation from scratch), `teach_forward` (adapt explanation to audience's known gaps)
+- **Metacognitive knowledge** — `unknown_edge` (describe where you don't know what to do), `decision_audit` (reflect on a real past decision), `inquiry_precision` score in E9 (measuring how well the learner asks questions, not just answers them)
+
+**"Higher order" — partially correct, not the full claim:**
+Higher-order thinking (HOT) in educational research refers specifically to Bloom's L4–L6 (Analyze, Evaluate, Create). Axon does bias toward these levels via `bloom_target` ceilings and the difficulty spine — so the HOT framing is accurate but understates what's happening. The stronger and more precise claim is structural extension.
+
+**Three structural extensions that Bloom's has no concept of:**
+
+| Extension | What Bloom's says | What Axon adds |
+|---|---|---|
+| **Prerequisite graph** | No concept of concept-level dependency | `prerequisite_indexes` gates access; mastery of one concept unlocks another |
+| **Dual state** | Single competence level per concept | `bloom_current` (evidence state, behaviorally proven) vs `exploration_unlocked` (faith-based, aspiration-driven) — Bloom's encodes neither |
+| **Calibration overlay** | Nothing about confidence accuracy | Brier score on every response; metacognitive gap between stated confidence and behavioral evidence |
+
+Spaced repetition scheduling is a fourth layer orthogonal to Bloom's — Bloom's is a taxonomy of cognitive depth, not a retention schedule.
+
+**Research grounding for the extensions:**
+- Prerequisite graph: Carroll's mastery learning model (1963) + concept-graph approaches in intelligent tutoring systems
+- Dual state: Winne & Hadwin COPES model (1998); productive failure (Kapur, 2010)
+- Calibration: Brier (1950); Dunning-Kruger (1999); metacognition as defined by Flavell (1979)
+- Procedural/metacognitive knowledge dimension: Anderson & Krathwohl (2001) — the same revision that added these axes to Bloom's original 1956 taxonomy
+
 For conversations and thread tutoring, context files are **chunked** by markdown headings
 and ranked by keyword overlap (`rag/naive.go`). Chunks scoring below `MinScore = 0.30`
 are discarded before injection. `rag.DistinctTopN` is also used post-generation to
