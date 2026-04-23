@@ -381,10 +381,18 @@ func New(cfg Config) *fiber.App {
 	})
 
 	api.Put("/tracks/:id/context/:filename", func(c *fiber.Ctx) error {
+		// Body may be plain text or {"content":"..."} JSON — accept both.
+		content := string(c.Body())
+		var jsonBody struct {
+			Content string `json:"content"`
+		}
+		if err := c.BodyParser(&jsonBody); err == nil && jsonBody.Content != "" {
+			content = jsonBody.Content
+		}
 		if err := cmdBus.Dispatch(c.Context(), commands.UpdateContextCommand{
 			TrackID:  c.Params("id"),
 			Filename: c.Params("filename"),
-			Content:  string(c.Body()),
+			Content:  content,
 		}); err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}

@@ -9,6 +9,27 @@ Format: [semantic version] — date — description.
 
 ---
 
+## [0.34.0] — 2026-04-23 — Merge fix: effective concept map + per-source attribution + PUT context fix
+
+### Fixed
+- **`MergeTracksHandler.mergeConceptMaps`** now calls `GetEffectiveConceptMap` per source
+  (not `GetConceptMap`). Merged tracks inherit the full ancestor-cascaded bloom floor from
+  each source, not just each source's own unsynced file state.
+- **`PUT /api/tracks/:id/context/:filename`** now parses `{"content":"..."}` JSON body and
+  extracts the `content` field. Previously the raw JSON bytes were written literally to the
+  file. Falls back to using the raw body if the body is not JSON or has no `content` key.
+
+### Added
+- **`domain.TrackOriginSourceFloor`** struct — per-source pre-remap concept bloom snapshot
+  for merge attribution.
+- **`TrackOrigin.PerSourceFloors`** field — populated on merge events with each source's
+  concept floors at their original (pre-remap) indexes. Enables future synergy detection:
+  compare bloom levels for the same semantic concept across diverged learning paths.
+- **DESIGN.md** — full `_track_origin.json` attribution schema spec: field rationale table,
+  fork vs merge differences, synergy detection use case.
+
+---
+
 ## [0.33.0] — 2026-04-21 — Fork fix: ancestor-cascaded bloom floor + _track_origin.json provenance
 
 ### Fixed

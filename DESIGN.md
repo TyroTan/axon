@@ -175,6 +175,55 @@ If a grandparent has `bloom_current=4` on a concept but the parent hasn't run Ap
 yet (so the parent's own file still shows `bloom_current=1`), the child correctly starts at 4 —
 not 1. The child's bloom floor is the full ancestor cascade, not just its immediate parent's state.
 
+#### `_track_origin.json` — attribution schema
+
+Written at track root for every fork and merge. Underscore prefix: invisible to question generator.
+
+```json
+{
+  "event_type": "fork" | "merge",
+  "source_ids": ["track_X"],
+  "created_at": "2026-04-23T10:00:00Z",
+  "concept_floor": [
+    { "index": 0, "name": "ML data pipeline anatomy", "bloom_current": 3, "bloom_target": 4 }
+  ],
+  "per_source_floors": [...]
+}
+```
+
+**Field rationale:**
+
+| Field | Type | Why this, not something else |
+|---|---|---|
+| `event_type` | `"fork"` \| `"merge"` | Changes interpretation of `source_ids` and `per_source_floors` |
+| `source_ids` | `[]string` (track IDs) | IDs are stable keys; file paths break if axon dir moves |
+| `created_at` | RFC3339 string | Absolute — remains interpretable after time passes |
+| `concept_floor[].index` | int | Index in **this track's** concept map (post-remap for merges) |
+| `concept_floor[].name` | string | Snapshot for human readability without loading concept_map.json |
+| `concept_floor[].bloom_current` | int | Effective cascaded floor at copy time (GetEffectiveConceptMap output, not raw file value) |
+| `concept_floor[].bloom_target` | int | Aspiration ceiling — captures intent, not just current state |
+| `per_source_floors` | array, merge only | Pre-remap per-source bloom state; see below |
+
+**Not captured (and why):**
+- Concept definitions (description, prerequisites, unlocks) — already in `concept_map.json`; no duplication
+- Branch labels — derivable from `concept_map.json`
+- Session IDs / session count — captured in the snapshot `.md` files
+- Concept map version hash — not versioned; timestamp + track ID is the key
+
+**Fork vs merge — what differs:**
+
+*Fork* (`event_type: "fork"`, one `source_id`):
+- `concept_floor` indexes match the parent's concept map 1:1 (no remapping)
+- `per_source_floors` is omitted — all concepts come from the single source
+- `bloom_current` is the effective floor from `GetEffectiveConceptMap(parent)` — may be higher than what's in the parent's own `concept_map.json` if an ancestor had unsynced progress
+
+*Merge* (`event_type: "merge"`, two or more `source_ids`):
+- `concept_floor` indexes are the re-indexed positions in the merged map (source A concepts: 0..lenA-1, source B: lenA..lenA+lenB-1, etc.)
+- `per_source_floors` is populated — one entry per source, with that source's concept floors at their **original pre-remap indexes**. This is the attribution record needed for synergy detection: given concept index N in source A and concept M in source B with the same name/branch, it is possible to compare which path reached a higher bloom level and why.
+
+**Synergy detection use case (not yet built):**
+At merge time, `per_source_floors` makes it possible to ask: "did source track A demonstrate concept X at a higher bloom level than source track B, or vice versa?" The merged map takes the effective bloom floor (max of all sources via `GetEffectiveConceptMap`), but the per-source record shows the contribution. This is the foundation for future multi-path learning intelligence: which trajectory was more effective for which concept cluster.
+
 ### Bloom's Taxonomy — Standard Use and Structural Extensions
 
 Axon uses the **revised Bloom's Taxonomy (Anderson & Krathwohl, 2001)** as its primary cognitive scaffold, but the accurate claim is that it *structurally extends* Bloom's rather than simply applying it.

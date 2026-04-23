@@ -284,24 +284,37 @@ type MetaSynthesis struct {
 
 // ─── Track Origin ─────────────────────────────────────────────────────────────
 
-// TrackOriginConcept is a point-in-time snapshot of one concept's learning state
-// captured from the source track(s) at copy time.
+// TrackOriginConcept is a point-in-time snapshot of one concept's bloom state.
+// Index is always relative to THIS track's concept map (post-remap for merges).
+// BloomCurrent is the effective cascaded floor at copy time (GetEffectiveConceptMap output).
 type TrackOriginConcept struct {
 	Index        int    `json:"index"`
 	Name         string `json:"name"`
-	BloomCurrent int    `json:"bloom_current"` // effective bloom floor at fork time
+	BloomCurrent int    `json:"bloom_current"`
 	BloomTarget  int    `json:"bloom_target"`
 }
 
+// TrackOriginSourceFloor is the pre-remap concept bloom state for one source track.
+// Used in merge events to preserve per-source attribution before index remapping.
+// Index is the concept's original index in the source track's concept map.
+type TrackOriginSourceFloor struct {
+	SourceID string               `json:"source_id"`
+	Concepts []TrackOriginConcept `json:"concepts"` // original indexes, not remapped
+}
+
 // TrackOrigin is written as _track_origin.json at the track root after every
-// fork or merge. It records machine-readable provenance: which tracks were
-// copied, when, and the effective concept bloom state at copy time.
-// The underscore prefix ensures the question generator never reads this file.
+// fork or merge. The underscore prefix keeps it invisible to the question generator.
+//
+// ConceptFloor — concepts in THIS track's index space (post-remap).
+// PerSourceFloors — for merge only: each source's concept bloom state at its
+//   original indexes before remapping. Enables synergy detection by comparing
+//   bloom levels for the same semantic concept across sources.
 type TrackOrigin struct {
-	EventType    string               `json:"event_type"`     // "fork" | "merge"
-	SourceIDs    []string             `json:"source_ids"`     // one for fork, many for merge
-	CreatedAt    string               `json:"created_at"`     // RFC3339
-	ConceptFloor []TrackOriginConcept `json:"concept_floor"`  // effective state at copy time
+	EventType       string                   `json:"event_type"`                  // "fork" | "merge"
+	SourceIDs       []string                 `json:"source_ids"`                  // one for fork, many for merge
+	CreatedAt       string                   `json:"created_at"`                  // RFC3339
+	ConceptFloor    []TrackOriginConcept     `json:"concept_floor"`               // merged-map index space
+	PerSourceFloors []TrackOriginSourceFloor `json:"per_source_floors,omitempty"` // merge only
 }
 
 // ─── Steer Intent ─────────────────────────────────────────────────────────────

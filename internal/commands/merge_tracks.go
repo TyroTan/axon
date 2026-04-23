@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -76,7 +77,7 @@ func (h *MergeTracksHandler) Handle(ctx context.Context, cmd MergeTracksCommand)
 	}
 
 	// ── 2. Union concept maps — re-index, preserve intra-source links ────────
-	mergedCM, err := h.mergeConceptMaps(ctx, newID, cmd.SourceIDs)
+	mergedCM, perSourceFloors, err := h.mergeConceptMaps(ctx, newID, cmd.SourceIDs)
 	if err != nil {
 		return MergeTracksResult{}, fmt.Errorf("merge tracks: merge concept maps: %w", err)
 	}
@@ -107,7 +108,29 @@ func (h *MergeTracksHandler) Handle(ctx context.Context, cmd MergeTracksCommand)
 		return MergeTracksResult{}, fmt.Errorf("merge tracks: write _sources.md: %w", err)
 	}
 
-	// ── 6. Write track_meta.json ──────────────────────────────────────────────
+	// ── 6. Write _track_origin.json ──────────────────────────────────────────
+	// Machine-readable provenance: which tracks were merged, when, and each
+	// concept's effective bloom state at merge time. Underscore prefix keeps
+	// it invisible to the question generator.
+	origin := domain.TrackOrigin{
+		EventType:       "merge",
+		SourceIDs:       cmd.SourceIDs,
+		CreatedAt:       now.UTC().Format(time.RFC3339),
+		PerSourceFloors: perSourceFloors,
+	}
+	for _, c := range mergedCM.Concepts {
+		origin.ConceptFloor = append(origin.ConceptFloor, domain.TrackOriginConcept{
+			Index:        c.Index,
+			Name:         c.Name,
+			BloomCurrent: c.BloomCurrent,
+			BloomTarget:  c.BloomTarget,
+		})
+	}
+	if raw, err := json.Marshal(origin); err == nil {
+		_ = h.store.WriteTrackFile(ctx, newID, "_track_origin.json", raw)
+	}
+
+	// ── 7. Write track_meta.json ──────────────────────────────────────────────
 	meta := domain.TrackMeta{
 		IsComposite: true,
 		SourceIDs:   cmd.SourceIDs,
@@ -127,16 +150,30 @@ func (h *MergeTracksHandler) Handle(ctx context.Context, cmd MergeTracksCommand)
 // Concepts are re-indexed 0…N in source order.
 // Prerequisite/unlock links within the same source block are remapped;
 // cross-source links are cleared (they reference different concept spaces).
-func (h *MergeTracksHandler) mergeConceptMaps(ctx context.Context, newID string, sourceIDs []string) (domain.ConceptMap, error) {
+// Also returns per-source floors (pre-remap) for _track_origin.json attribution.
+func (h *MergeTracksHandler) mergeConceptMaps(ctx context.Context, newID string, sourceIDs []string) (domain.ConceptMap, []domain.TrackOriginSourceFloor, error) {
 	branchSet := map[string]bool{}
 	var allBranches []string
 	var allConcepts []domain.Concept
+	var perSource []domain.TrackOriginSourceFloor
 
 	for _, srcID := range sourceIDs {
-		cm, err := h.store.GetConceptMap(ctx, srcID)
+		cm, err := h.store.GetEffectiveConceptMap(ctx, srcID)
 		if err != nil {
-			return domain.ConceptMap{}, fmt.Errorf("concept map %s: %w", srcID, err)
+			return domain.ConceptMap{}, nil, fmt.Errorf("concept map %s: %w", srcID, err)
 		}
+
+		// Capture pre-remap bloom state for attribution.
+		floor := domain.TrackOriginSourceFloor{SourceID: srcID}
+		for _, c := range cm.Concepts {
+			floor.Concepts = append(floor.Concepts, domain.TrackOriginConcept{
+				Index:        c.Index,
+				Name:         c.Name,
+				BloomCurrent: c.BloomCurrent,
+				BloomTarget:  c.BloomTarget,
+			})
+		}
+		perSource = append(perSource, floor)
 
 		// Collect branches.
 		for _, b := range cm.MajorBranches {
@@ -164,9 +201,9 @@ func (h *MergeTracksHandler) mergeConceptMaps(ctx context.Context, newID string,
 		Track:         newID,
 		MajorBranches: allBranches,
 		GeneratedAt:   time.Now().Format("2006-01-02"),
-		Note: fmt.Sprintf("Composite track — merged from: %s", strings.Join(sourceIDs, ", ")),
+		Note:          fmt.Sprintf("Composite track — merged from: %s", strings.Join(sourceIDs, ", ")),
 		Concepts:      allConcepts,
-	}, nil
+	}, perSource, nil
 }
 
 // remapIndexes shifts a list of concept indexes by offset.
