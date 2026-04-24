@@ -1,212 +1,225 @@
 [
   {
     "id": "q_1",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
     "concept_indexes": [
-      14
-    ],
-    "bloom_level": 2,
-    "bloom_label": "Understand",
-    "question": "A RAG system for clinical guidelines is returning responses that blend two unrelated treatment protocols. Retrieval logs show the top-ranked chunk contains the end of one guideline section and the beginning of another. Which chunking design decision most directly causes this failure?",
-    "format": "mcq",
-    "options": {
-      "A": "The embedding model has insufficient context length to encode longer chunks, causing partial encoding at document boundaries",
-      "B": "Fixed-size chunking splits documents at arbitrary token boundaries that do not respect semantic or structural boundaries, mixing content from adjacent sections",
-      "C": "The HNSW vector index was built with a low ef_construction value, causing approximate nearest-neighbor misses at section boundaries",
-      "D": "Cross-encoder re-ranking deprioritizes chunks that span section boundaries due to lower coherence scores"
-    },
-    "correct": "B",
-    "correct_explanation": "Fixed-size chunking divides text by token count without regard for logical structure — paragraph breaks, section headers, or semantic shifts. In clinical guidelines, this produces chunks whose embedding is a mixed-signal average of two unrelated topics, making them retrievable for either topic but grounding neither completely. The failure originates at ingestion, not retrieval scoring.",
-    "distractor_explanations": {
-      "A": "Embedding model context length determines how much text is encoded at once, not where split boundaries are placed. Drug names and short clinical terms are well within standard context limits. The described failure is about boundary placement, not encoding capacity.",
-      "C": "ef_construction affects HNSW index build quality — recall versus speed during ANN search. It cannot cause boundary-crossing failures; that is a chunking decision made before the index exists.",
-      "D": "Cross-encoder re-ranking scores chunk-query relevance pairs post-retrieval. It cannot repair a chunk whose content already spans two unrelated topics. The failure is upstream at ingestion, not at the re-ranking stage."
-    },
-    "is_cross_branch": false,
-    "difficulty_estimate": 0.68,
-    "spaced_repetition_concept_id": null,
-    "expected_time_seconds": 75,
-    "requires_explanation": false
-  },
-  {
-    "id": "q_2",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
-    "concept_indexes": [
-      13,
+      14,
       15
     ],
     "bloom_level": 2,
     "bloom_label": "Understand",
-    "question": "In a multilingual health RAG system serving English and Hindi speakers, Hindi queries for a common PCOS symptom reliably retrieve English-language chunks about that symptom, even though semantically equivalent Hindi chunks exist in the corpus. Cosine similarity is used throughout. Which explanation is most likely correct?",
+    "question": "A RAG system retrieves document B (cosine similarity 0.97 with the query) over document C (cosine similarity 0.71, L2 distance 0.15 from query embedding). A teammate argues the system should use L2 distance instead because document C is 'closer.' Which explanation best clarifies why cosine similarity is the appropriate metric here and what L2 distance is actually measuring?",
     "format": "mcq",
     "options": {
-      "A": "L2 distance favors English embeddings because they occupy a higher-norm region; switching from cosine to dot product would restore Hindi retrieval",
-      "B": "The multilingual embedding model encodes semantically equivalent content from different languages into geometrically distant clusters because cross-lingual alignment was not a strong training objective",
-      "C": "Hindi tokens produce longer BPE sequences, inflating the output embedding magnitude and pushing Hindi vectors to the periphery of the embedding space",
-      "D": "Cosine similarity penalizes low-frequency tokens in Hindi, systematically downranking Hindi chunks for Hindi queries"
+      "A": "Cosine similarity measures directional alignment in embedding space independent of vector magnitude, making it the correct proxy for semantic relatedness; L2 distance conflates direction and magnitude, so document C's low L2 reflects similar embedding norm to the query, not semantic closeness",
+      "B": "L2 distance is always incorrect for retrieval tasks because embedding spaces are not Euclidean; only cosine similarity is mathematically valid in high-dimensional vector spaces",
+      "C": "Document B has higher cosine similarity because its chunk size was smaller, producing a denser, more focused embedding that happens to align better with query direction",
+      "D": "The choice of metric does not matter because all modern embedding models normalize output vectors to unit norm, making cosine similarity and L2 distance produce identical rankings"
     },
-    "correct": "B",
-    "correct_explanation": "Multilingual embedding models vary significantly in cross-lingual alignment quality. A model with weak multilingual supervision may encode 'irregular periods' (EN) and its Hindi equivalent into separate geometric clusters rather than a shared semantic neighborhood. When the Hindi query embedding is computed, it may be geometrically closer to irrelevant English embeddings than to correctly matching Hindi chunks — not because of metric properties, but because the model's representation space does not align registers across languages. This is a model selection failure diagnosable by measuring cross-lingual nearest-neighbor alignment directly.",
+    "correct": "A",
+    "correct_explanation": "Cosine similarity measures cos(θ) between two vectors — it is purely directional, ignoring magnitude. In semantic embedding spaces, what matters is the direction a document's representation 'points': semantically similar content should point in similar directions regardless of embedding norm (which can vary with document length, vocabulary density, or model internals). L2 distance measures Euclidean separation, which is sensitive to both direction and magnitude. A document with similar direction but different magnitude (e.g., shorter document) can appear 'far' under L2 while being semantically equivalent. The teammate's argument confuses geometric proximity in Euclidean space with semantic similarity.",
     "distractor_explanations": {
-      "A": "Cosine similarity is magnitude-invariant by definition — it normalizes both vectors before computing the dot product, so L2 norm differences cannot cause retrieval bias. Switching to dot product would reintroduce norm sensitivity, which is the wrong direction.",
-      "C": "BPE tokenization affects input representation before embedding. The embedding model aggregates over all token representations (typically mean pooling) to produce a fixed-size output vector. Raw sequence length does not directly inflate output norm in a way that systematically biases cosine-similarity retrieval.",
-      "D": "Cosine similarity operates on the final embedding vector, not on token-level frequencies. Term frequency effects are a property of BM25 and other bag-of-words models, not of dense embedding retrieval. Cosine similarity has no mechanism to penalize low-frequency source tokens after embedding."
+      "B": "High-dimensional embedding spaces are Euclidean. L2 distance is mathematically valid in them. The issue is not mathematical validity but which geometric property (direction vs. magnitude+direction) best captures semantic relatedness for a given embedding model.",
+      "C": "Chunk size affects the content encoded in the embedding, not the geometric relationship between embedding direction and cosine similarity score. Cosine similarity does not systematically favor smaller chunks.",
+      "D": "Not all embedding models normalize outputs to unit norm. Models like OpenAI's text-embedding series do produce unit-normalized embeddings (making cosine and normalized L2 equivalent), but many others (e.g., BERT-based models) do not. Even when normalized, the teammate's reasoning — that L2 should be used — would still be wrong in the non-normalized case, which is common."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.7,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 85,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
+    "concept_indexes": [
+      22,
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "An LLM with a 128k-token context window consistently ignores information placed in the middle 60% of a long document while reliably using information from the beginning and end. Which Transformer mechanism most directly explains this failure, and why does scaling the context window not automatically fix it?",
+    "format": "mcq",
+    "options": {
+      "A": "Attention weight distributions are softmax-normalized and shaped by positional encoding; training data biases toward recency and primacy cause the model to systematically under-weight mid-sequence positions, and a larger context window extends this bias rather than correcting it",
+      "B": "The KV cache evicts middle-sequence token representations under memory pressure during generation, making them unavailable to the attention computation",
+      "C": "Softmax in self-attention clips gradient signals from mid-sequence positions to zero during fine-tuning, so the model never learned to use them regardless of context length",
+      "D": "Transformer positional encodings are only defined for the first and last 10% of sequence positions; tokens in the middle receive a default zero encoding that the model learned to ignore"
+    },
+    "correct": "A",
+    "correct_explanation": "The 'lost in the middle' phenomenon is a training distribution artifact. Models trained primarily on documents where the salient information appears at the beginning (introductions, abstracts) or end (conclusions, summaries) develop attention patterns that systematically under-weight mid-sequence positions. Positional encoding schemes (RoPE, ALiBi, sinusoidal) shape the attention score geometry, but they do not counteract the distributional bias learned from training data. Extending the context window via rope-scaling or similar techniques does not retrain the model's attention distribution — it merely allows longer inputs to be processed under the same biased attention behavior.",
+    "distractor_explanations": {
+      "B": "KV cache eviction (as in sliding window attention) is an explicit architectural choice made in models like Longformer or Mistral — not a default behavior in standard Transformers. Standard KV cache retains all positions up to the context limit. The failure is in attention weight distribution, not cache management.",
+      "C": "Softmax does not clip gradients to zero. Gradients flow through softmax for all positions during training. The issue is a distributional bias in what receives training signal — not a gradient clipping mechanism that blocks learning for specific positions.",
+      "D": "Positional encodings (RoPE, sinusoidal, ALiBi) are defined for all sequence positions up to the trained context length. There is no architectural gap at middle positions. The problem is emergent from training dynamics, not from encoding boundaries."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.72,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 85,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
+    "concept_indexes": [
+      8
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In a 20-layer network using sigmoid activations, gradients for layers 1–3 are effectively zero by the end of backpropagation despite healthy gradients at layer 20. Which property of the chain rule, combined with sigmoid's derivative, mechanistically produces this outcome?",
+    "format": "mcq",
+    "options": {
+      "A": "The chain rule multiplies local gradients across layers; sigmoid's derivative is at most 0.25, so propagating through 17 intermediate layers yields a factor of at most 0.25^17 ≈ 6×10⁻¹¹ — exponential collapse caused by repeated multiplication of sub-unity values",
+      "B": "Backpropagation applies a depth cutoff: gradients are not computed for layers beyond a fixed depth from the output, and layers 1–3 fall outside this boundary for a 20-layer network",
+      "C": "The vanishing gradient problem is caused by cross-entropy loss clipping gradient magnitudes to zero for high-confidence correct predictions; switching to MSE loss resolves it",
+      "D": "PyTorch's autograd engine automatically clips gradients to zero for layers deeper than 10 to prevent numerical underflow in the computational graph"
+    },
+    "correct": "A",
+    "correct_explanation": "Backpropagation applies the chain rule: ∂L/∂w₁ = (∂L/∂a_n) × ∏ᵢ(∂aᵢ/∂aᵢ₋₁). Each factor ∂aᵢ/∂aᵢ₋₁ is the local gradient through layer i's activation. For sigmoid, σ'(x) = σ(x)(1−σ(x)) ≤ 0.25. Multiplying 17 such factors (for a 20-layer net with healthy gradients at the output): 0.25¹⁷ ≈ 6×10⁻¹¹. This is machine-precision zero for 32-bit floats. The multiplicative nature of the chain rule is the mechanism: depth linearly multiplies the number of sub-unity factors, causing exponential gradient decay. This is why ReLU activations (derivative exactly 1 for positive inputs), residual connections (additive gradient paths), and careful weight initialization are critical for deep networks.",
+    "distractor_explanations": {
+      "B": "There is no depth cutoff in backpropagation. The algorithm computes gradients for every node in the computational graph regardless of depth. The vanishing gradient is a numerical phenomenon arising from the chain rule, not an algorithmic limit on graph traversal.",
+      "C": "Vanishing gradients are independent of loss function choice. The collapse originates in activation function derivatives across layers. Cross-entropy vs. MSE changes only the gradient at the output layer (the first term in the chain rule product), not the multiplicative decay through intermediate layers.",
+      "D": "Gradient clipping is a user-configured technique applied to prevent exploding gradients (values too large). It is not automatic, not depth-triggered, and rescales gradients when their global norm exceeds a threshold — it does not set them to zero."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.7,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
+    "concept_indexes": [
+      0
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A model achieves 97% accuracy on the training set and 61% on the validation set. Which mechanism most directly explains the gap, and what does it reveal about what the model actually learned?",
+    "format": "mcq",
+    "options": {
+      "A": "The model memorized input-label associations specific to training examples rather than learning the underlying mapping, so it cannot generalize to unseen distributions",
+      "B": "The validation set was drawn from a harder distribution by chance, so the gap requires no corrective action",
+      "C": "The model's hypothesis class is too simple to capture the true function, causing high error on both splits",
+      "D": "The learning rate is too high, causing the optimizer to overshoot the minimum during training and produce unstable weights"
+    },
+    "correct": "A",
+    "correct_explanation": "A 36-point accuracy gap between train and validation is the defining signature of overfitting: the model memorized training-specific patterns, including noise, rather than learning a generalizable function. This is precisely what the held-out validation set is designed to detect — divergence between memorized performance and true generalization to unseen data.",
+    "distractor_explanations": {
+      "B": "Attributing the gap to dataset difficulty ignores its systematic nature. A random difficulty difference would not consistently produce a gap of this magnitude and would not shrink under regularization.",
+      "C": "Underfitting produces low accuracy on both splits simultaneously. High training accuracy rules out underfitting — the model has sufficient capacity but directs it toward memorization rather than generalization.",
+      "D": "Learning rate affects convergence dynamics but does not explain the train/val gap directly. A high learning rate produces noisy training curves, not consistently high training accuracy with low validation accuracy."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.65,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 70,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
+    "concept_indexes": [
+      27
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "You are designing an agentic loop that executes multi-step tasks: it reads files, writes database records, and calls external APIs. Explain why idempotency is a non-negotiable requirement for each step, and describe the specific failure mode that occurs when a step is not idempotent and the agent crashes mid-execution then resumes.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.75,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 180,
+    "requires_explanation": true
+  },
+  {
+    "id": "q_6",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
+    "concept_indexes": [
+      7,
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In a Transformer's self-attention layer, a specific token attends almost entirely to itself (attention weight ≈ 0.98) with near-zero weight on all other positions. What does this behavior reveal about the Q/K/V computation, and what is the practical consequence for that token's contextual representation?",
+    "format": "mcq",
+    "options": {
+      "A": "The token's query vector is highly aligned with its own key vector and misaligned with all others; after softmax, the output is nearly identical to the token's own value projection — the layer produces almost no contextual mixing for this token",
+      "B": "This pattern is impossible because softmax distributes attention weights uniformly to prevent any single position from monopolizing the attention computation",
+      "C": "High self-attention weight is the semantically correct behavior for tokens representing named entities, because the model learns to anchor entity representations to themselves",
+      "D": "The value vectors for all other positions are near-zero at this layer due to residual connection saturation, collapsing the weighted sum to the self-attended value"
+    },
+    "correct": "A",
+    "correct_explanation": "Attention weight from position i to position j is proportional to exp(Q_i · K_j / √d_k). If Q_i and K_i are strongly aligned while all other Q_i · K_j products are small, softmax produces a near one-hot distribution over position i. The attended output is then approximately V_i — the token's own value projection — with negligible contribution from surrounding context. The layer effectively becomes an identity operation for this token: it carries no new information from other positions. Multi-head attention mitigates this by running multiple attention heads, each of which may attend to different positions even if one head collapses.",
+    "distractor_explanations": {
+      "B": "Softmax does not enforce uniform distribution. Given inputs [10, 0.1, 0.1, ...], softmax produces a near one-hot output. The function maps arbitrary logit vectors to valid probability distributions, which can be arbitrarily peaked.",
+      "C": "Attention weights are not trained to encode POS tags or entity classes. They emerge from learned Q/K projections optimized for next-token prediction or masked language modeling. Interpreting specific attention patterns as semantically meaningful is a post-hoc analysis with contested validity.",
+      "D": "Value vectors are learned parameters initialized randomly and updated throughout training; they are not zero and do not saturate due to residual connections in a way that would collapse to self-attended values. The output is determined by the weighted sum of all value projections, governed by attention weights."
     },
     "is_cross_branch": true,
-    "difficulty_estimate": 0.75,
+    "difficulty_estimate": 0.72,
     "spaced_repetition_concept_id": null,
     "expected_time_seconds": 90,
     "requires_explanation": false
   },
   {
-    "id": "q_3",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
+    "id": "q_7",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
     "concept_indexes": [
-      16
+      2
     ],
     "bloom_level": 2,
     "bloom_label": "Understand",
-    "question": "A health AI chatbot fails to retrieve chunks containing the drug name 'metformin' when users query it verbatim, even though those chunks are correctly indexed. Dense retrieval instead returns chunks about insulin sensitization and glucose metabolism. What is the most likely explanation and the correct architectural fix?",
+    "question": "Mini-batch SGD with batch size 32 reaches a lower validation loss than full-batch gradient descent trained for the same number of epochs on identical data and learning rate. Which mechanism best explains this outcome?",
     "format": "mcq",
     "options": {
-      "A": "The embedding model context window is too short for drug names; switching to a model with a longer context window will fix retrieval",
-      "B": "Dense retrieval maps 'metformin' to a broader semantic cluster (insulin sensitizer, diabetes treatment) rather than privileging exact lexical matches; adding BM25 keyword retrieval in a hybrid configuration recovers exact-match chunks",
-      "C": "The HNSW index requires a higher ef_search value to recall rare medical terms from the approximate nearest-neighbor graph",
-      "D": "Cross-encoder re-ranking will surface the exact-match chunk if the candidate pool is expanded to top-50; no retrieval architecture change is needed"
+      "A": "Gradient noise from small batches acts as implicit regularization: it prevents the optimizer from settling into sharp, narrow minima that memorize training data, favoring flatter regions that generalize better",
+      "B": "Smaller batches compute more accurate gradient estimates because they avoid averaging out rare but informative examples that full-batch averaging suppresses",
+      "C": "Full-batch gradient descent always converges to saddle points in high-dimensional loss landscapes, while mini-batch noise escapes them",
+      "D": "Mini-batch SGD performs more parameter updates per epoch, and a higher update count always produces better generalization regardless of the loss landscape geometry"
     },
-    "correct": "B",
-    "correct_explanation": "Dense retrieval encodes semantic meaning: 'metformin' in the embedding space sits near related pharmacological concepts. When a user types the drug name exactly, the model does not privilege verbatim matching — it retrieves semantically similar neighbors, which may be conceptually related but not lexically identical. BM25 scores term frequency and inverse document frequency directly, making it highly reliable for proper nouns, drug names, and identifiers with low semantic ambiguity. Hybrid retrieval combining BM25 and dense scores recovers the exact-match chunk while preserving semantic retrieval for paraphrased queries.",
+    "correct": "A",
+    "correct_explanation": "Mini-batch gradient estimates are noisy — they are unbiased estimates of the true gradient but with high variance. This noise is not merely a computational compromise; it functions as implicit regularization. Noisy gradient directions prevent the optimizer from converging to sharp local minima (which tend to overfit, as small parameter perturbations cause large loss increases) and instead explore flatter basin regions. Flat minima generalize better because the loss surface is stable around them. Full-batch GD follows the exact gradient and can be trapped in sharp minima with low training loss but poor test performance.",
     "distractor_explanations": {
-      "A": "Drug names are short and well within standard context limits. Context length governs how much of a document is encoded at once, not whether specific terms are semantically resolved. The failure is semantic mapping, not encoding capacity.",
-      "C": "ef_search controls beam width during ANN search and improves recall among candidates geometrically close to the query vector. It cannot retrieve a chunk that is not close in embedding space to the query. This is a retrieval architecture limitation, not an index tuning issue.",
-      "D": "Cross-encoder re-ranking reorders candidates that were already retrieved — it cannot surface chunks that dense retrieval missed entirely. Increasing the candidate pool only helps if the missed chunk was retrieved but ranked low; here the chunk is absent from the initial candidate set."
+      "B": "Smaller batches produce noisier, less accurate gradient estimates — not more accurate. The variance of the stochastic gradient estimator is inversely proportional to batch size. The benefit of mini-batch SGD is the noise itself, not estimation quality.",
+      "C": "Full-batch GD can converge to local minima, not necessarily saddle points. In high-dimensional spaces, saddle points are common but not the only convergence failure mode. Full-batch GD can escape saddle points when the Hessian has negative curvature — it simply lacks the stochastic perturbation that helps mini-batch escape.",
+      "D": "More updates per epoch does not directly cause better generalization. The number of updates affects convergence speed; the geometry of the solution found determines generalization. A model can take many gradient steps and still converge to a sharp, overfit minimum."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.7,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_8",
+    "generation_id": "a1dabb0f-d549-4144-9c8e-8c46ee402ad8",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A RAG system uses fixed-size 512-token chunks with no overlap. Users report that answers are consistently incomplete when the relevant explanation spans a topic boundary that falls at a chunk boundary. Which mechanistic explanation best describes this failure and why semantic chunking addresses it?",
+    "format": "mcq",
+    "options": {
+      "A": "Fixed-size chunking splits text at arbitrary token boundaries regardless of semantic coherence; a concept straddling a boundary becomes two partial vectors neither of which strongly represents the complete idea, so similarity search retrieves an incomplete fragment or misses both chunks entirely",
+      "B": "512 tokens is below the minimum sequence length for dense embedding models to produce meaningful vector representations, causing all chunks to cluster near the origin in embedding space",
+      "C": "No-overlap chunking causes the embedding model to assign near-zero similarity between adjacent chunks because their token sequences never co-occur in the model's training window",
+      "D": "Semantic chunking uses chunks of 2048+ tokens, which captures complete concepts through brute-force coverage of surrounding context"
+    },
+    "correct": "A",
+    "correct_explanation": "Fixed-size chunking is content-agnostic: it creates vectors that represent arbitrary token windows, not coherent semantic units. When a concept explanation straddles a chunk boundary, each half is embedded independently. The first half's vector represents the setup without the conclusion; the second half's vector represents the conclusion without its motivation. Similarity search may retrieve one half (incomplete), the other half (out of context), or neither (since the query may not match either partial representation). Semantic chunking preserves natural language boundaries — paragraphs, sections — so each retrievable atom corresponds to a complete idea, producing an embedding that fully represents the concept for retrieval.",
+    "distractor_explanations": {
+      "B": "512 tokens is a commonly used and well-supported chunk size. Most embedding models (e.g., text-embedding-3-small, BGE) are trained on sequences up to 512 or 8192 tokens and produce high-quality embeddings for shorter inputs. The failure is boundary alignment, not chunk size magnitude.",
+      "C": "Embedding models do not compute similarity based on token co-occurrence between adjacent chunks at inference time. Similarity is computed as dot products in the learned embedding space. Whether tokens appear in adjacent chunks does not affect this computation.",
+      "D": "Semantic chunking is not defined by a minimum size. It splits on natural language boundaries that may produce chunks shorter than 512 tokens. The benefit is semantic coherence of the unit, not coverage through larger size."
     },
     "is_cross_branch": false,
     "difficulty_estimate": 0.68,
     "spaced_repetition_concept_id": null,
     "expected_time_seconds": 75,
     "requires_explanation": false
-  },
-  {
-    "id": "q_4",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
-    "concept_indexes": [
-      20
-    ],
-    "bloom_level": 2,
-    "bloom_label": "Understand",
-    "question": "You are building a retrieval evaluation framework for a PCOS clinical assistant that retrieves chunks from clinical guidelines to ground LLM responses. Identify which retrieval metric you would prioritize from {MRR, NDCG, Recall@K, Precision@K}, explain precisely what it measures and what it fails to capture, and describe one specific failure mode in a health context that no standard retrieval metric would catch.",
-    "format": "free_text",
-    "correct_explanation": "",
-    "is_cross_branch": false,
-    "difficulty_estimate": 0.72,
-    "spaced_repetition_concept_id": null,
-    "expected_time_seconds": 210,
-    "requires_explanation": true
-  },
-  {
-    "id": "q_5",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
-    "concept_indexes": [
-      22
-    ],
-    "bloom_level": 2,
-    "bloom_label": "Understand",
-    "question": "A RAG system assembles 12 retrieved chunks (~6,000 tokens) plus a system prompt (~500 tokens) and sends the full context to an LLM with a 16K context window. Users report the model correctly follows system prompt instructions but ignores key details from retrieved chunks placed in the middle of the assembled context. Which mechanism most directly explains this pattern?",
-    "format": "mcq",
-    "options": {
-      "A": "KV cache eviction under memory pressure silently drops the oldest tokens, removing early retrieved chunks from the model's effective attention",
-      "B": "Transformer attention exhibits a positional bias where tokens in the middle of long contexts receive systematically lower attention weights than tokens near the start or end — the 'lost in the middle' effect",
-      "C": "The model applies internal compression once context exceeds 50% of the window size, prioritizing system prompt tokens over retrieval tokens",
-      "D": "Chunks assembled without explicit positional markers are treated as a single semantic block, collapsing attention gradients across all 12 chunks uniformly"
-    },
-    "correct": "B",
-    "correct_explanation": "Empirically demonstrated in transformer models with long contexts, attention exhibits a U-shaped positional bias: tokens near the beginning (system prompt, first chunks) and the end (recent user query) receive disproportionately high attention. Content in the middle of a long assembled context is reliably underweighted. This is a consequence of how positional encodings interact with attention patterns at extended context lengths — not memory limits or token eviction. Mitigation strategies include placing the highest-relevance chunks at the beginning or end of context, or reducing chunk count via stricter re-ranking.",
-    "distractor_explanations": {
-      "A": "KV cache stores precomputed attention key-value pairs for serving efficiency. At 6,500 tokens within a 16K context window, no eviction occurs — the full sequence fits. KV cache eviction is an infrastructure concern under memory pressure, not standard behavior during normal inference on a context that fits within limits.",
-      "C": "LLMs do not apply compression to their own context during inference. The full token sequence is processed up to the context limit. Compression or compaction is a property of external orchestration systems, not the transformer forward pass.",
-      "D": "Each token in a transformer receives a unique positional encoding — chunks do not merge into a semantic unit at the attention level. Attention is computed over all individual token positions regardless of how the context was assembled."
-    },
-    "is_cross_branch": false,
-    "difficulty_estimate": 0.75,
-    "spaced_repetition_concept_id": null,
-    "expected_time_seconds": 90,
-    "requires_explanation": false
-  },
-  {
-    "id": "q_6",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
-    "concept_indexes": [
-      21
-    ],
-    "bloom_level": 2,
-    "bloom_label": "Understand",
-    "question": "An audit of a deployed PCOS health assistant reveals three simultaneous issues: (1) retrieval is confirmed correct, but the LLM ignores retrieved chunks and generates unsupported recommendations from parametric knowledge; (2) end-to-end latency averages 4.2 seconds, primarily from cross-encoder re-ranking; (3) all clinical content comes from 50 static guidelines unchanged for 18 months. Which intervention should be prioritized first, and why?",
-    "format": "scenario_mcq",
-    "options": {
-      "A": "Replace cross-encoder re-ranking with a bi-encoder to reduce latency below the 2–3 second SLA threshold",
-      "B": "Increase retrieved chunk count from 5 to 10 to give the model more context and reduce reliance on parametric knowledge",
-      "C": "Enforce grounding in the system prompt by requiring the model to cite a specific retrieved chunk inline before generating any recommendation",
-      "D": "Fine-tune the LLM on the 50 static guidelines to eliminate both the retrieval step and the grounding failure simultaneously"
-    },
-    "correct": "C",
-    "correct_explanation": "In a health context, a model that ignores retrieved evidence and generates confident but unsupported medical recommendations is the highest-severity failure — it produces harm at scale. Latency above the SLA is a quality-of-service problem; grounding failures are a patient safety problem. Citation enforcement at the system prompt level forces the model to attribute each recommendation to a named retrieved chunk before generating it, making grounding failures detectable and blocking unsupported output. This is the fastest-path intervention. Fine-tuning and latency optimization are valid follow-up steps but do not address the immediate harm vector.",
-    "distractor_explanations": {
-      "A": "Latency at 4.2 seconds exceeds the 2–3 second SLA and is a real problem, but it is lower severity than generating ungrounded medical advice at scale. A slow-but-accurate system is safer than a fast system producing unsupported clinical recommendations. Latency is second priority.",
-      "B": "Increasing retrieved chunks from 5 to 10 exacerbates the 'lost in the middle' problem — more context does not increase grounding when the model's failure mode is actively ignoring retrieved chunks. Retrieval is confirmed correct; the problem is at generation, not coverage.",
-      "D": "Fine-tuning on static guidelines is a reasonable long-term strategy given stable, bounded content, but it introduces training pipeline overhead, model versioning risk, and out-of-distribution uncertainty. It does not guarantee the fine-tuned model will not generate parametric hallucinations on edge cases. The grounding failure requires an immediate fix; fine-tuning can be evaluated in parallel."
-    },
-    "is_cross_branch": false,
-    "difficulty_estimate": 0.78,
-    "spaced_repetition_concept_id": null,
-    "expected_time_seconds": 105,
-    "requires_explanation": false
-  },
-  {
-    "id": "q_7",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
-    "concept_indexes": [
-      13,
-      14
-    ],
-    "bloom_level": 2,
-    "bloom_label": "Understand",
-    "question": "A clinical RAG system retrieves correctly for 'diagnosis' and 'treatment' queries but consistently fails for 'early symptoms' queries. Retrieval logs show top-5 results are chunks from patient-reported experience sections ('patients describe feeling', 'subjective onset'). Clinical criteria chunks containing 'oligomenorrhea' and 'hyperandrogenism' are absent from results despite being indexed. Which combination of factors best explains the failure?",
-    "format": "scenario_mcq",
-    "options": {
-      "A": "The clinical criteria chunks are too long; mean-pooled embeddings average over too many tokens, diluting the signal for specific clinical terms — reducing chunk size will fix recall",
-      "B": "The embedding space clusters informal patient language and formal clinical nomenclature into geometrically separate regions; the 'early symptoms' query maps to the informal cluster, missing the clinical definition cluster — hybrid retrieval with BM25 on clinical terms addresses the gap",
-      "C": "Cosine similarity penalizes the clinical chunks because their higher token density produces lower-magnitude embeddings compared to shorter patient-experience chunks",
-      "D": "The HNSW index was built on an underrepresentation of clinical criteria sections; a full corpus re-index is required"
-    },
-    "correct": "B",
-    "correct_explanation": "Embedding space geometry reflects the training distribution of the model. Informal lay language ('feel irregular', 'noticed changes') and formal clinical nomenclature ('oligomenorrhea', 'hyperandrogenism') are linguistically distinct registers that a general-purpose model may encode into geometrically separate clusters. The query 'early symptoms' uses lay language, so its embedding lands in the informal register cluster — not near the clinical criteria cluster. This is a manifold structure problem: two descriptions of the same clinical reality occupy distant regions of the embedding space because the model was not trained to align these registers. BM25 scores 'oligomenorrhea' and 'hyperandrogenism' by exact term match, recovering clinical chunks that dense retrieval misses.",
-    "distractor_explanations": {
-      "A": "Mean pooling over longer chunks does not inherently dilute signal for specific terms — the model aggregates all token representations. The failure is register-level semantic distance, not embedding averaging. Shorter chunks would not close the gap between informal and clinical language clusters.",
-      "C": "Cosine similarity is magnitude-invariant by definition — it normalizes both vectors before comparison, so no source text length or density difference can create systematic bias via cosine similarity. This is a fundamental mathematical property of the metric.",
-      "D": "Standard RAG deployments index the full corpus. If chunks are retrievable for other query types, they are present in the index. The failure is retrieval ranking driven by semantic distance, not index coverage."
-    },
-    "is_cross_branch": true,
-    "difficulty_estimate": 0.78,
-    "spaced_repetition_concept_id": null,
-    "expected_time_seconds": 105,
-    "requires_explanation": false
-  },
-  {
-    "id": "q_8",
-    "generation_id": "ba5c435f-08f0-4040-a9ca-bf5131a3d489",
-    "concept_indexes": [
-      21
-    ],
-    "bloom_level": 2,
-    "bloom_label": "Understand",
-    "question": "A healthcare team is building a system to answer clinical oncology questions from approximately 200 internal PDFs updated quarterly. They are evaluating three approaches: RAG over the document corpus, fine-tuning an LLM on the same documents, and few-shot prompting with a large context window. Identify at least two specific failure modes that make RAG a poor fit in scenarios where one of the other approaches would be stronger, and explain the mechanism behind each failure mode.",
-    "format": "free_text",
-    "correct_explanation": "",
-    "is_cross_branch": false,
-    "difficulty_estimate": 0.73,
-    "spaced_repetition_concept_id": null,
-    "expected_time_seconds": 240,
-    "requires_explanation": true
   }
 ]

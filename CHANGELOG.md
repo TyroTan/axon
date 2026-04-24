@@ -7,6 +7,63 @@ Format: [semantic version] — date — description.
 
 ## [Unreleased]
 
+### Added
+- **`plan_v2.md` §13 — Framework Vision** — architectural direction for axon as a shared Go
+  core platform. Documents how the multi-product router pattern directly addresses the transfer
+  function problem (§9), the Social/Collaborative coverage gap (§8), and the Situation Log
+  self-report limitation. Includes constraint table showing which product constraints are
+  preserved unchanged and which gaps are partially closed.
+- **`plan_v2.md` §9 addendum** — structural unlock note: the F5 cross-product signal bridge
+  is the path to making E10 application evidence observable in real-time rather than narrated.
+- **`plan_v2.md` §8 addendum** — Social/Collaborative gap partial path via cross-product
+  signals; coverage estimate revised to ~60–65% with F5 in place (up from ~55–60%).
+- **`roadmap_v2.md` Epic F5** — Core Framework (Multi-Product Router), 4 sub-items:
+  F5.1 CoreDeps extraction (S), F5.2 Product interface + registry (S),
+  F5.3 Frontend lazy loading (M), F5.4 Cross-product MCP (XS),
+  F5.5 E10 signal bridge (L, deferred). Sprints 17–19+.
+- **`roadmap_v2.md`** — F5 added to Epic Map, Dependency Graph, Sprint Plan.
+  Deferred items table updated: Transfer function and Application sandbox entries now
+  reference F5 as the structural path.
+- **`PLATFORM_DESIGN.md`** — new workspace-layer design doc. Captures: products/
+  directory structure and sealed-product protocol; shell + magic link + lazy product
+  federation pattern; JWT auth (Keycloak-modeled, JWKS swap-ready); BM25 RAG upgrade
+  plan (inverted index, SymSpell, stemming, bigrams, PMI synonyms, field weighting,
+  compaction integration, corpus watcher); monorepo decision framework (when to stay
+  vs extract); latency budget table; open platform decisions.
+- **`CLAUDE.md`** — `PLATFORM_DESIGN.md` added to Document Index (workspace layer);
+  three new `query_axon_docs` examples for platform topics.
+- **`PLATFORM_DESIGN.md` §5 addendum** — BM25 interaction boundary with `--resume`:
+  compaction uses `Stream()` (no session), thread tutoring seed uses `Stream()` (BM25
+  injects chunks), subsequent `--resume` turns send only the latest user message (BM25
+  improves seed quality which persists into the whole thread session).
+- **`roadmap_v2.md` Epic F8** — BM25 RAG Upgrade: F8.1 (scorer + inverted index),
+  F8.2 (stemmer + bigrams), F8.3 (SymSpell correction map), F8.4 (corpus watcher),
+  F8.5 (Retriever swap in CoreDeps), F8.6 (cross encoder re-ranker, deferred).
+  Sprints 22–23. Full entity table and chunking decisions in `PLATFORM_DESIGN.md` §5.
+- **`CLAUDE.md` Platform Sprint section** — active sprint deliverable table (F5.1, F5.4,
+  F8.1–F8.5) with status and key files; deferred items listed explicitly so Claude Code
+  does not implement them without instruction.
+- **`PLATFORM_DESIGN.md` §9** — Durable Pipeline: offline-safe write queue with
+  temporal.io-shaped worker. Two-phase persistence (enqueue → dequeue + execute).
+  Git-commit-as-atomic-boundary in file-based mode. PipelineStore interface (JSONL +
+  MongoDB implementations). PipelineEntry schema. Worker with exponential backoff,
+  stall detection, dead letter. Git ops policy (permitted vs forbidden). Remote sync
+  design for DigitalOcean. Offline → online flow end-to-end. New pipeline endpoints.
+- **`V25_SPEC.md`** — V2.5 boundary specification. Central queue goroutine as event loop
+  (§1); multi-tenancy via git worktrees not checkout switching (§2); top 10 queueable
+  actions (§3); complete compaction trigger list C1–C12 + S1–S5 + P1–P3 (§4);
+  MCP compaction proxy with adaptive token budget (§5); CEO-Non-Tech product spec (§6);
+  V2.5 guardrails for Claude Code (§7). Includes conceptual model of compaction as
+  context re-construction and `--resume` token-limit decision flow.
+- **`roadmap_v2.md` sprint reorder** — F7 (Durable Pipeline) promoted to Sprints 17–18
+  (was 20–21). Queue goroutine is the atomic foundation that F5 and F8 depend on. F5
+  moves to Sprints 19–21; F8 stays at Sprints 22–23.
+- **`CLAUDE.md` Active Sprint** — updated to reflect F7 as current focus (Sprints 17–18).
+  F5 and F8 deferred until F7 complete.
+- **`PLATFORM_DESIGN.md` §8 Open Decisions** — SaaS rate limit / usage limit added as
+  deferred item (post F5+F7). `AccumulatedInputTokens` already tracks; quota enforcement
+  needs JWT tier claims + F7 durable persistence.
+
 ---
 
 ## [0.34.0] — 2026-04-23 — Merge fix: effective concept map + per-source attribution + PUT context fix

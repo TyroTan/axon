@@ -1,0 +1,227 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      7,
+      22
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A developer uses a 128k-context LLM for a document QA task. All source documents fit within the context window, yet questions about facts in the middle of the context are answered significantly less reliably than facts near the beginning or end. Which mechanism best explains this?",
+    "format": "mcq",
+    "options": {
+      "A": "The KV cache evicts middle-position token representations to manage GPU memory, causing the model to lose access to middle-context information during generation",
+      "B": "The tokenizer introduces more sub-word noise for mid-document tokens because byte-pair encoding is optimized for document-initial positions",
+      "C": "Current LLMs empirically assign lower effective attention weight to middle-position tokens even within the stated context limit — a behavioral pattern distinct from technical truncation",
+      "D": "Context window specifications count input and output tokens together; long generated responses consume budget that truncates middle content"
+    },
+    "correct": "C",
+    "correct_explanation": "This is the 'lost in the middle' phenomenon documented empirically across multiple LLM families. Even when all tokens are technically received, the attention mechanism exhibits positional bias in practice: beginning and end positions receive higher effective attention weight, while middle positions are relatively deprioritized. This is a behavioral limitation — not a hard token limit — that persists regardless of whether the context formally fits. For RAG and long-context applications this means placement of highly relevant content within the context window matters, not just whether it fits. Capability calibration requires knowing this gap between theoretical capacity (128k tokens accessible) and empirical reliability (middle positions answered less accurately).",
+    "distractor_explanations": {
+      "A": "The KV cache stores — not evicts — key and value representations to avoid recomputing them during autoregressive generation. It is a computational optimization that preserves full access to all past positions, not a memory pressure mechanism that discards them.",
+      "B": "Byte-pair encoding is a frequency-based compression scheme applied uniformly to the input. It has no concept of 'document-initial positions' and produces no position-dependent noise variation. Tokenization quality is decoupled from position within the document.",
+      "D": "Context window specifications are typically stated as input-only limits with separate output limits, or as a combined budget applied at the input boundary — not mid-sequence truncation. Even with shared budgets, middle content is not selectively removed; truncation, when it occurs, removes from one end."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.7,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      2,
+      8
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "During training of a 6-layer fully connected network, you monitor per-layer gradient magnitudes. Layers 1–2 show gradients consistently near 1e-6 while layers 5–6 show gradients near 0.1. Explain the mechanism that produces this pattern by tracing through the chain rule across layers. Then explain what this implies about activation function choice for deep networks.",
+    "format": "free_text",
+    "correct_explanation": "",
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.75,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 180,
+    "requires_explanation": true
+  },
+  {
+    "id": "q_3",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      1,
+      2
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "When training a binary classifier using sigmoid output, cross-entropy loss is typically preferred over MSE. Which statement best explains the mechanistic reason in terms of gradient descent behavior?",
+    "format": "mcq",
+    "options": {
+      "A": "Cross-entropy produces smaller gradients near misclassified examples, making parameter updates more numerically stable",
+      "B": "Cross-entropy gradients remain large for confidently misclassified examples because the log term algebraically cancels the sigmoid derivative, while MSE gradients vanish there due to sigmoid saturation",
+      "C": "MSE penalizes all errors equally regardless of confidence; cross-entropy penalizes uncertain predictions more than confident correct ones",
+      "D": "Both losses produce identical gradient magnitudes; the preference for cross-entropy is based on loss value interpretability, not learning dynamics"
+    },
+    "correct": "B",
+    "correct_explanation": "For a sigmoid output ŷ = σ(z), the MSE gradient dL/dz includes σ'(z) = σ(z)(1 − σ(z)) via the chain rule. When the model is confidently wrong (ŷ near 0 or 1), σ'(z) ≈ 0 and the gradient vanishes — the model barely updates on its worst mistakes. Cross-entropy combined with sigmoid cancels σ'(z) algebraically: dL/dz = ŷ − y. For a confidently wrong prediction (ŷ ≈ 0.01, y = 1), this gradient ≈ −0.99 — large and informative. Gradient magnitude scales with the degree of error, which is the mechanism that makes cross-entropy preferred for classification.",
+    "distractor_explanations": {
+      "A": "This reverses the relationship. Cross-entropy produces larger gradients for confidently wrong predictions, accelerating correction of the hardest errors. Smaller gradients would mean slower learning on the worst mistakes.",
+      "C": "MSE does not penalize all errors equally — it penalizes proportionally to squared error. The key issue is not the penalty schedule but gradient flow through the sigmoid, which cross-entropy handles correctly and MSE does not.",
+      "D": "The gradient behavior difference is concrete and consequential. MSE's vanishing gradient on confident misclassifications is a practical training failure mode, not a matter of interpretability preference."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.72,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      26,
+      27
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "An agent is executing a multi-step code migration. After detecting 3 test failures, it edits 4 files simultaneously in a single step, then re-runs tests and observes 5 failures. Which design principle does this violate, and why?",
+    "format": "mcq",
+    "options": {
+      "A": "The agent violated tool minimalism — it should have used a single combined edit-and-test tool rather than separate tool calls",
+      "B": "The agent violated the plan-execute-verify cycle by compounding multiple state changes before observing the effect of each; when tests fail after 4 simultaneous edits, the cause is ambiguous — any combination of the 4 edits could be responsible",
+      "C": "The agent violated idempotency — because the file edits are not idempotent, applying them multiple times would produce different failure counts",
+      "D": "The agent should have re-run tests after analyzing each individual failure type rather than grouping them — the grouping logic was the design error"
+    },
+    "correct": "B",
+    "correct_explanation": "Agentic loop design requires state transitions to be attributable to bounded, observable causes. When 4 file edits are applied atomically and tests subsequently fail, the debugging state is a superposition: any of the 4 edits, or their interaction, may have introduced new failures — or existing failures may have persisted unchanged. The agent cannot form a coherent causal diagnosis without decomposing the edits. Good agentic design favors small, verifiable state increments: execute a bounded change, observe the outcome, update the plan. This is the plan-execute-verify cycle applied to state management in a tool-use loop.",
+    "distractor_explanations": {
+      "A": "The choice between separate or combined tools is orthogonal to the sequencing problem. Even a single 'edit-and-test' tool applied 4 times atomically would create the same attributability problem if all 4 edits precede any observation.",
+      "C": "Idempotency concerns whether applying the same operation multiple times produces the same result. The agent applied 4 different edits once — not the same edit multiple times. Idempotency is not the relevant principle here.",
+      "D": "The grouping of failure types from the initial test run is not the error. Even with perfectly categorized failures, simultaneously editing 4 files without intermediate verification creates an unattributable state after the next test run."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.68,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      7,
+      32
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In Transformer self-attention, each token computes a query Q_i and all tokens compute keys K_j. Attention weight from token i to j is proportional to softmax(Q_i · K_j / √d_k). Why is the Q/K separation — rather than comparing raw input embeddings directly — mechanistically important?",
+    "format": "mcq",
+    "options": {
+      "A": "The Q/K separation is a computational convenience; comparing raw embeddings directly would produce the same attention pattern but at higher memory cost",
+      "B": "Separate learned projections allow the network to express that 'what token i looks for' and 'what token j offers' are different aspects of meaning — enabling asymmetric, task-specific attention patterns that raw embedding similarity cannot represent",
+      "C": "The Q and K matrices normalize embeddings to unit vectors before comparison, ensuring the dot product is bounded between -1 and 1 regardless of embedding magnitude",
+      "D": "The separation allows different attention heads to share a single Q matrix while varying only K, which is the mechanism by which multi-head attention achieves diversity"
+    },
+    "correct": "B",
+    "correct_explanation": "Raw input embedding similarity captures generic semantic closeness but not task-specific relevance. With separate W_Q and W_K projection matrices, the network learns independent subspaces: Q_i encodes 'what does token i need?' and K_j encodes 'what does token j provide?' These are asymmetric — token i may attend strongly to token j without j attending to i. Training adjusts both projections end-to-end so that high Q·K scores align with contextually useful dependencies. This is architecturally impossible if Q and K share the same projection matrix: a symmetric Q·Q^T product cannot express directional 'need-provide' relationships.",
+    "distractor_explanations": {
+      "A": "Using raw embeddings directly (Q = K = identity) would produce qualitatively different and weaker attention patterns — the model would lose the ability to learn asymmetric task-specific relationships. It is not a memory optimization but a fundamental expressiveness difference.",
+      "C": "Q and K projections do not normalize to unit vectors. The 1/√d_k scaling prevents large dot products from saturating the softmax, but this is independent of the Q/K separation. Cosine similarity would require explicit division by vector norms, which is not what self-attention computes.",
+      "D": "Multi-head attention achieves diversity by giving each head its own W_Q^h, W_K^h, W_V^h — not by sharing Q while varying K. Within a single head, the Q/K separation serves the asymmetric role-encoding function, not cross-head diversification."
+    },
+    "is_cross_branch": true,
+    "difficulty_estimate": 0.73,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_6",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      0
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A model achieves 99% training accuracy and 98% validation accuracy during development. After deployment, real-world accuracy drops to 72%. Which explanation best identifies the root cause?",
+    "format": "mcq",
+    "options": {
+      "A": "The model was trained with too small a learning rate, causing underfitting on edge cases",
+      "B": "The training and validation splits shared the same distributional biases, so validation accuracy was not a true estimate of generalization to the deployment distribution",
+      "C": "The model architecture was too shallow to capture the complexity of real-world data",
+      "D": "Insufficient training examples prevented the model from learning robust patterns"
+    },
+    "correct": "B",
+    "correct_explanation": "The train/val/test discipline requires held-out sets to reflect the true deployment distribution, not merely partition the collected data. If training and validation data share the same collection biases — same time window, same source — high validation accuracy masks poor generalization. The validation set falsely confirmed model fitness because it sampled from the same non-representative distribution. This is the core failure of improper generalization discipline: distributional similarity between splits does not guarantee they are representative of deployment.",
+    "distractor_explanations": {
+      "A": "A small learning rate causes slow convergence but would not produce 99% training accuracy while causing deployment failure. The pattern — high train+val accuracy followed by deployment drop — signals a distribution mismatch, not an optimization failure.",
+      "C": "A model achieving 99% training accuracy demonstrably has sufficient capacity. Shallowness causing underfitting would manifest as poor training accuracy first, not the described pattern of high train+val with deployment collapse.",
+      "D": "Insufficient training data typically produces high variance (erratic val accuracy) or poor training accuracy — not the specific pattern of 99% train / 98% val followed by sharp deployment failure."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.68,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_7",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      14
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A RAG pipeline uses 2048-token fixed-size chunks with no overlap and returns poor results for specific factual queries. Switching to 256-token chunks with 64-token overlap improves recall. Which statement best explains the mechanism behind the improvement?",
+    "format": "mcq",
+    "options": {
+      "A": "Smaller chunks allow the embedding model to encode meaning more accurately because shorter sequences are easier to compress into a fixed-size vector",
+      "B": "Smaller chunks increase the signal-to-noise ratio in retrieved passages — the target sentence is a larger fraction of the chunk — and overlap prevents semantically important sentences at chunk boundaries from being unreachable",
+      "C": "The overlap forces the embedding model to encode redundant content, which increases cosine similarity scores for chunks near the relevant text",
+      "D": "Smaller chunks reduce embedding latency, allowing more candidate chunks to be scored within the same retrieval time budget"
+    },
+    "correct": "B",
+    "correct_explanation": "In a 2048-token chunk, the sentence answering the query may be a tiny fraction of the total content; unrelated surrounding sentences dilute the chunk's embedding and reduce its similarity to the query. Smaller chunks give the target sentence more influence over the chunk's embedding vector. The overlap (64 tokens) addresses boundary fragmentation: without overlap, a key phrase split exactly at a chunk boundary would be absent from both adjacent chunks. With overlap, every sentence is fully present in at least one chunk. The tradeoff is a larger index with more vectors to search and more tokens to process in top-k results.",
+    "distractor_explanations": {
+      "A": "Embedding models don't monotonically improve with shorter inputs — very short chunks (\u003c 50 tokens) can lose context needed for disambiguation. The mechanism is signal-to-noise relative to the query, not compression difficulty.",
+      "C": "Overlap introduces shared token sequences at boundaries, but retrieval models score on semantic similarity to the query — not on token frequency or overlap proportion. Redundant boundary tokens don't mechanically boost cosine similarity scores.",
+      "D": "Faster embedding is a real side effect, but is orthogonal to recall improvement. Faster retrieval over noisier chunks would produce faster wrong answers. Speed is not the mechanism through which smaller chunks improve factual retrieval."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.7,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 80,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_8",
+    "generation_id": "3cb2cfba-2ecb-499e-b1b3-1c35ccae3303",
+    "concept_indexes": [
+      9
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A dense layer computes y = Wx where W ∈ ℝ^(512×768). Which description best captures what this operation does in terms of learned representation geometry?",
+    "format": "mcq",
+    "options": {
+      "A": "W compresses the input by averaging clusters of related dimensions, producing 512 summary statistics",
+      "B": "Each row of W is a learned direction in the 768-dimensional input space; the i-th output measures the signed projection of x onto that direction — re-expressing x in a 512-axis coordinate system optimized for the task",
+      "C": "W applies 512 independent scalar multiplications to non-overlapping subsets of the 768 input dimensions, with each subset feeding exactly one output",
+      "D": "W encodes a 512-step sequential reasoning process; each row conditions on the output of the previous row"
+    },
+    "correct": "B",
+    "correct_explanation": "Matrix multiplication y = Wx computes y_i = ⟨W_i, x⟩ — the dot product of the i-th row of W with the full input. Each row W_i is a direction in ℝ^768 that training has shaped into a meaningful feature axis. The output vector y contains the coordinates of x in this new 512-dimensional learned space — a change-of-basis into a representation optimized for the downstream task. Crucially, this is a global operation: every output dimension is a function of every input dimension, unlike convolution (local) or a block-diagonal matrix (partitioned).",
+    "distractor_explanations": {
+      "A": "Averaging over clusters would produce rows with uniform equal weights in grouped positions. Learned dense layers have unconstrained weight values; they are not averaging operators and each weight is trained independently.",
+      "C": "Dense matrix multiplication is explicitly non-local: each y_i depends on all 768 input dimensions. Non-overlapping subsets describe sparse or block-diagonal structures, not dense linear layers.",
+      "D": "All 512 output values are computed in parallel in a single matrix operation — there is no sequential row execution. Row order is arbitrary and encodes no temporal or reasoning dependency."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.67,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 70,
+    "requires_explanation": false
+  }
+]

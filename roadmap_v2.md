@@ -24,6 +24,9 @@
 | **System-Initiated Elaboration** | E11 | Evaluator emits elaboration triggers; consolidated elaboration page closes E9 loop | 15 |
 | **Concept Map Tending** | F4 | Dormancy scoring prevents concepts from being silently skipped across many sessions | 16 |
 | **Scalable Multi-Call Generation** | F6 | Multi-call pipeline: concept map + per-job-post calls, question-level MMR dedup, AXON_QUESTION_COUNT | 8d |
+| **Durable Pipeline — Offline-Safe Write Queue** | F7 | Central queue goroutine (event loop); JSONL + MongoDB PipelineStore; git-commit-as-atomic-boundary; retries, backoff, dead letter; git worktrees; multi-tenancy foundation | 17–18 |
+| **Core Framework — Multi-Product Router** | F5 | Extract axon into a shared Go core; mount products as route groups; cross-product MCP; E10 signal bridge | 19–21 |
+| **BM25 RAG — Sparse Retrieval Upgrade** | F8 | BM25 Okapi scorer; inverted index; stemmer + bigrams; SymSpell correction map; corpus watcher; Retriever swap; deferred: cross encoder re-ranker | 22–23 |
 
 ---
 
@@ -51,11 +54,19 @@ E11 requires E9 full (elaboration_triggers feed inquiry_precision; evaluator mus
 
 F2 (Live Concept Map Inheritance) — pre-condition for E10 trigger logic to be meaningful
 F3 (Pre-Merge Idempotent Distill) — consistency fix, no dependencies
+
+F5 (Core Framework)
+  F5.1 (CoreDeps extraction) — no dependencies
+    └── F5.2 (Product interface + registry)
+          └── F5.3 (Frontend lazy loading)
+          └── F5.5 (E10 signal bridge) — also requires E10 full
+  F5.4 (Cross-product MCP) — no dependencies (parallel with F5.1)
 ```
 
 **Critical path:** `F2 → F3 → E2 → E9 → E10 → E8`
 **Self-evolution path:** `E1 → E9 → E8 → E11` (E11 closes the system-initiated inquiry loop)
 **Transfer proxy path:** `F2 → E2 → E9 → E10` (first real-world application signal)
+**Platform path:** `F5.1 → F5.2 → F5.5` (structural unlock for transfer function — requires E10 full)
 
 ---
 
@@ -826,12 +837,129 @@ AC:
 
 | Item | Reason |
 |---|---|
-| Transfer function direct measurement | Requires real-world outcome data axon cannot collect — E10 is the closest proxy |
-| Application sandbox | Separate infrastructure, out of scope |
+| Transfer function direct measurement | Requires real-world outcome data axon cannot collect — E10 is the closest proxy; F5 cross-product signal bridge is the structural path (see `plan_v2.md` §13) |
+| Application sandbox | Separate infrastructure for isolated axon-only deployment — partially addressed by F5 sibling products providing real application context |
 | Full interleaving engine | Needs S2.1 + multiple sessions of clean data first |
 | Biometric arousal signal | No input source available |
 | Automated audience framing personalization | Requires richer conversation corpus than available |
 | Prerequisite graph auto-correction | Implicit signal via aspiration_count exists (E2); explicit validity scoring deferred — needs multi-track baseline |
+
+---
+
+### F5 — Core Framework (Multi-Product Router)
+
+> Design rationale and constraints in `plan_v2.md` §13.
+
+**Why this sprint group exists:** axon's hardest unsolved problems — transfer function,
+situation log, social gap — all require real-world application signals axon cannot
+collect in isolation. F5 restructures axon as the AI core of a multi-product platform
+so that sibling products can emit those signals natively. This is infrastructure, not
+a user-visible feature.
+
+**What does NOT change:** axon's 8 architectural invariants are unmodified. Cross-product
+signals enter as E10 inputs only, after the existing evaluation gate. No automatic
+write-backs, no bidirectional state.
+
+---
+
+**F5.1 — CoreDeps extraction**
+> As a system, I want all shared singletons (LLM client, RAG retriever, store factory,
+> CQRS buses, metrics recorder, config) extracted into a `core.CoreDeps` struct so that
+> multiple products can consume them without duplicating construction logic.
+
+- Today: `server/server.go` is both composition root and route registrar.
+- Change: split into `core/deps.go` (wiring) + per-product `plugin.go` (routes).
+- Size: **S** · Priority: **Must** · Sprint: **17**
+- Blocked by: nothing — pure refactor, axon behavior unchanged
+
+AC:
+- [ ] `core/deps.go` — `CoreDeps` struct: `LLM llm.Client`, `Store store.TrackStore`,
+  `Commands *cqrs.CommandBus`, `Queries *cqrs.QueryBus`, `Metrics *metrics.Recorder`, `Config *server.Config`
+- [ ] `server/server.go` constructs `CoreDeps`, passes to product registrations
+- [ ] No behavioral change — all existing routes still work at same paths
+- [ ] `DESIGN.md` updated: composition root split noted in §9
+
+---
+
+**F5.2 — Product interface + registry**
+> As a system, I want `main.go` to discover `product_*/plugin.go` at startup and call
+> each product's `Register(router, deps)` function so that adding a new product requires
+> only dropping a directory — no changes to core code.
+
+- Interface: `type Product interface { ID() string; Register(fiber.Router, *core.CoreDeps) }`
+- Discovery: filesystem scan of `product_*/` at startup; each implements `plugin.go`
+- Route mounting: API routes under `/:product-id/api/*`; static under `/:product-id/*`
+- Size: **S** · Priority: **Must** · Sprint: **17**
+- Blocked by: F5.1
+
+AC:
+- [ ] `core/registry.go` — `ProductRegistry.Discover()` scans `product_*/`
+- [ ] `product_axon/plugin.go` — `Register()` moves all existing axon routes
+- [ ] Existing route paths unchanged — axon routes still at `/api/*` for backward compat
+  (new products get prefixed; axon is the legacy root for now)
+- [ ] `CLAUDE.md` architecture quick reference updated with new layout
+
+---
+
+**F5.3 — Frontend lazy loading + SPA serving**
+> As a system, I want each product's React app to be built on first request (if `dist/`
+> is absent) and served as an SPA with correct fallback routing, so that new products
+> need no manual build step in development.
+
+- On first request to `/:product-id/*`: check for `product_N/frontend/dist/index.html`
+- If absent: spawn `npm run build` in `product_N/frontend/` (once, mutex-guarded), then serve
+- SPA fallback: all non-`/api/*` sub-paths serve `index.html`
+- Production: pre-build all products in deploy script; lazy build is dev-only convenience
+- Size: **M** · Priority: **Should** · Sprint: **18**
+- Blocked by: F5.2
+
+AC:
+- [ ] `core/frontend.go` — `ServeFrontend(app, productID, frontendDir string)` function
+- [ ] Build is triggered at most once per product process lifetime (sync.Once per productID)
+- [ ] Build errors surface as a readable error page, not a 500
+- [ ] `deploy.sh` / `dev.sh` document pre-build step for production
+
+---
+
+**F5.4 — Cross-product MCP extension**
+> As a Claude Code user, I want `query_axon_docs` to search all `product_*/**.md`
+> files so that one tool call retrieves design context from any product in the workspace.
+
+- Today: `cmd/axon-mcp/main.go` searches only root-level `.md` files.
+- Change: extend file discovery to recursively include `product_*/**.md` (excluding
+  `node_modules`, `dist`, `archive`).
+- Results tagged with product source: `[product_axon/DESIGN.md §8]`.
+- Size: **XS** · Priority: **Must** · Sprint: **17**
+- Blocked by: nothing — independent of F5.1/F5.2
+
+AC:
+- [ ] `cmd/axon-mcp/main.go` discovery extended to `product_*/**.md`
+- [ ] Exclusion list: `**/node_modules/**`, `**/dist/**`, `**/archive/**`
+- [ ] Result header format: `--- product_N/file.md > Section [score X] ---`
+- [ ] `CLAUDE.md` MCP server notes updated with new search scope
+- [ ] Rebuild required: `go build -o axon-mcp ./cmd/axon-mcp/`
+
+---
+
+**F5.5 — E10 cross-product signal bridge** *(deferred — requires E10 built first)*
+> As a system, I want sibling products to emit structured application events
+> (decision points, concepts applied, errors encountered) that E10's evidence extraction
+> pipeline can ingest as application evidence — so transfer is observed at the moment
+> it occurs rather than reconstructed from learner narration.
+
+- Event schema: `{ ts, product_id, concept_indexes, action_type, evidence_fragment }`
+- Axon reads events via a shared `product_N/events/` directory (filesystem, VCS-tracked)
+- E10 interrogator pre-populated with event fragments; learner confirms and elaborates
+- Bloom write-back follows the same gate as manual E10: evaluation required, learner confirms
+- Size: **L** · Priority: **Could** · Sprint: **19+**
+- Blocked by: E10 full (Sprint 13) + F5.2
+
+Open decisions (carry over from E10 open decisions):
+- [ ] Event granularity: one event per decision point vs. one event per work session
+- [ ] Attribution: product_id tagged on bloom evidence source alongside 'application'
+- [ ] Privacy boundary: events are VCS-tracked learner data, same as sessions — never remote
+
+AC: deferred until E10 open decisions are resolved
 
 ---
 
@@ -898,6 +1026,134 @@ and trimming are handled transparently; operator sets the desired output count.
 | 14 | Self-Reflection Loop | C2.1, C2.2, C2.3 | ReflectCommand live, feeds next session with E9+E10 signals | |
 | 15 | System-Initiated Elaboration | E11 | elaboration_triggers in evaluation, ElaborationPage, 03b_elaborations.json, AXON_ELABORATION_RATE | |
 | 16 | Concept Map Tending | F4 | times_quizzed on concepts, dormancy_score pure function, dormant bias in generator | |
+| 17 | Pipeline — central queue + JSONL | F7.1, F7.2, F7.3 | CentralQueue goroutine, PipelineStore interface + JSONL impl, Worker retries/backoff/stall detection, queue endpoints, git worktree registry | |
+| 18 | Pipeline — git sync + MongoDB + multi-tenancy | F7.4, F7.5 | Git-commit-as-atomic-boundary, git worktrees per user, AXON_MAX_TENANTS enforcement, remote sync for DO, MongoDB store impl | |
+| 19 | Core Framework — foundation | F5.1, F5.2, F5.4 | CoreDeps extracted, Product interface live, axon registered as first product, cross-product MCP searching | |
+| 20 | Core Framework — frontend serving | F5.3 | Lazy frontend build + SPA serve per product, deploy script updated | |
+| 21+ | E10 signal bridge | F5.5 | Cross-product application events ingested by E10 — deferred until E10 full is live | |
+| 22 | BM25 — core retrieval | F8.1, F8.2, F8.3, F8.4 | Inverted index, scorer, stemmer+bigrams, SymSpell, corpus watcher | |
+| 23 | BM25 — activation + deferred | F8.5, F8.6 | Retriever swap in CoreDeps; cross encoder re-ranker (if BM25 insufficient) | |
+
+---
+
+### F8 — BM25 RAG Upgrade (Sparse Retrieval)
+
+> Full entity table, chunking decisions, and cross-encoder options in `PLATFORM_DESIGN.md` §5.
+> All components are drop-in: `Retriever` interface unchanged, `CoreDeps.RAG` switches in one line.
+
+---
+
+**F8.1 — BM25 scorer + inverted index builder**
+> As a system, I want BM25 Okapi scoring over a pre-built inverted index so that
+> retrieval quality scales beyond naive word overlap without requiring dense models.
+
+- `core/rag/bm25/indexer.go` — builds inverted index from chunked corpus
+- `core/rag/bm25/scorer.go` — BM25 Okapi: k1=1.5, b=0.75 (tunable via env)
+- Index persisted to `{product}/rag_index.json` via atomic temp-file rename
+- Corpus hash in index header for idempotent rebuild
+- Size: **M** · Priority: **Must** · Sprint: **22**
+- Blocked by: nothing
+
+AC:
+- [ ] `InvertedIndex` struct: `term → []Posting{DocID, TF, Field}`
+- [ ] `BuildIndex(chunks []rag.Chunk) *InvertedIndex` — deterministic, no external deps
+- [ ] `Score(index, query, docID) float64` — BM25 Okapi formula, field multiplier applied
+- [ ] `TopK(index, query, k, tokenBudget)` — replaces naive `TopK`, same return type
+- [ ] Atomic persist: write to `.tmp` → `os.Rename()` on same filesystem
+- [ ] `AXON_BM25_K1`, `AXON_BM25_B` env vars (float64, defaults 1.5 / 0.75)
+- [ ] Existing `naive.go` preserved — switchable via `AXON_RAG=naive|bm25` env var
+
+---
+
+**F8.2 — Stemmer + bigram indexing**
+> As a system, I want query terms and index terms normalized via Porter stemming
+> and domain compound terms indexed as bigrams so that "learning"/"learned" match
+> and "concept map" is treated as one token.
+
+- Integrated into F8.1 `BuildIndex` and `TopK` query path
+- Stemmer: `kljensen/snowball` (English Porter)
+- Bigrams: slide a 2-word window over each chunk; store as `word1_word2`
+- Size: **S** · Priority: **Must** · Sprint: **22** · Blocked by: F8.1
+
+AC:
+- [ ] `stem(word string) string` wraps snowball; applied to all tokens at index + query time
+- [ ] Bigram extraction in `BuildIndex` — adjacent non-stopword pairs only
+- [ ] Bigram query detection: consecutive non-stopword query words checked as bigram first
+- [ ] Stem + bigram applied to heading tokens with heading field weight
+
+---
+
+**F8.3 — SymSpell correction map**
+> As a system, I want spelling-tolerant queries so that "concpet map" retrieves
+> "concept map" at O(1) lookup without iterating the entire vocabulary.
+
+- Pre-built at index time: for every indexed term, generate all edit-distance-1 and
+  selected edit-distance-2 variants → map variant → [candidate terms]
+- At query time: if a query term misses the index, look up correction map → expand query
+- Disambiguation: if correction map returns ≥2 candidates, score both, surface `did_you_mean`
+- Size: **S** · Priority: **Must** · Sprint: **22** · Blocked by: F8.1
+
+AC:
+- [ ] `buildCorrectionMap(vocab []string) map[string][]string` — edit-distance-1 deletions
+  (SymSpell-style: deletion-only is sufficient for 95% of typos, avoids combinatorial explosion)
+- [ ] Query parser applies correction before BM25 lookup if term has no index hit
+- [ ] `did_you_mean []string` field on `TopK` result when corrections applied
+- [ ] MCP tool output includes `did_you_mean` when non-empty
+
+---
+
+**F8.4 — Corpus watcher**
+> As a system, I want the BM25 index rebuilt automatically when source `.md` files
+> change so that retrieval stays accurate without manual re-indexing.
+
+- `core/rag/bm25/watcher.go` — fsnotify + 2s debounce
+- Watches: `products/*/**.md`, `core/prompts/**`, root `.md` files
+- On change: recompute corpus hash → if changed: set `reindex_needed = true`
+- On next query: rebuild under `RWMutex` write lock (~100ms), swap pointer, release
+- Size: **S** · Priority: **Must** · Sprint: **22** · Blocked by: F8.1
+
+AC:
+- [ ] `Watcher.Start(ctx)` — goroutine, self-contained
+- [ ] Debounce: 2s timer reset on each event (rapid saves don't spam rebuilds)
+- [ ] Corpus hash: sha256 of concatenated sorted file paths + contents
+- [ ] `RWMutex` on the live index pointer — readers never blocked except during ~10ms swap
+- [ ] Watcher shares corpus hash with compaction cache (same signal, one computation)
+
+---
+
+**F8.5 — Retriever swap in CoreDeps**
+> As a system, I want `CoreDeps.RAG` to use the BM25 retriever by default so that
+> all callsites (thread, conversation, MCP) gain BM25 quality simultaneously.
+
+- `core/deps.go` — one env-var branch: `AXON_RAG=bm25` (default) or `naive`
+- All callsites unchanged: `deps.RAG.TopK(query, k, budget)` — same interface
+- Size: **XS** · Priority: **Must** · Sprint: **22** · Blocked by: F8.1–4
+
+AC:
+- [ ] `AXON_RAG` env var selects implementation
+- [ ] BM25 retriever wired as default in `CoreDeps`
+- [ ] `naive` fallback still works (useful for A/B comparison and testing)
+- [ ] `GET /api/config` response includes `rag_mode: "bm25" | "naive"`
+
+---
+
+**F8.6 — Cross encoder re-ranker** *(deferred — add after BM25 measured)*
+> As a system, I want BM25 candidates re-ranked by a CPU-based cross encoder so that
+> precision improves for long, ambiguous, or paraphrase-heavy queries.
+
+- ONNX runtime via `onnxruntime-go`
+- Model: `ms-marco-MiniLM-L-2-v2` (67MB, ~20ms/pair on CPU)
+- Pattern: BM25 top-20 → cross encoder → return top-5/10
+- Used only for LLM context injection (thread, conversation, compaction)
+- MCP `query_axon_docs` stays BM25-only (latency-sensitive)
+- Size: **M** · Priority: **Could** · Sprint: **23** · Blocked by: F8.5 + evidence BM25 is insufficient
+
+AC:
+- [ ] `core/rag/reranker/onnx.go` — `Rerank(query string, chunks []Chunk) []Chunk`
+- [ ] Model downloaded at startup if absent (`RERANKER_MODEL_PATH` env)
+- [ ] `AXON_RERANKER=true` env var gates activation (default false)
+- [ ] Reranker budget: top-20 BM25 → rerank → return top-10 (configurable)
+- [ ] `GET /api/config` includes `reranker_enabled: bool`
 
 ---
 

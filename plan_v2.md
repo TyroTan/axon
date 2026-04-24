@@ -240,6 +240,21 @@ their contribution weight, and tracks axon's current coverage honestly.
   No direct motivation model is planned for this iteration.
 - **Social/collaborative**: out of scope for axon's current single-learner model. Noted as a ceiling.
 
+### Social/Collaborative gap — partial path via multi-product signals
+
+§8 marks Social/Collaborative (Vygotsky ZPD) as ❌ — "out of scope for axon's current
+single-learner model." The multi-product framework (§13) does not add a collaborative
+learner but does reduce the isolation ceiling:
+
+- Cross-product activity signals give axon visibility into how the learner performs in
+  different real-world tool contexts — a partial substitute for peer comparison.
+- A sibling product used by a team (e.g. a shared knowledge tool) could emit events that
+  serve as reference anchors for axon's concept difficulty calibration.
+- The coverage estimate (~55–60%) becomes ~60–65% if cross-product signals are treated
+  as a Social/Collaborative proxy — still not ZPD, but no longer a hard ceiling.
+
+This does not close the social gap. It is recorded here as the honest partial coverage.
+
 ### Creative and physical domains — known category mismatch
 
 Bloom's Taxonomy and MCQ-style evaluation are the wrong shape for creative or physical skill domains.
@@ -281,6 +296,13 @@ path to approximating this function.
 narrate real application work under AI interrogation, axon gains the first signal that
 is not mediated by question format — it is raw evidence of transfer in progress.
 
+**The structural unlock (§13):** the transfer function's deepest problem is that it requires
+*real-world outcome data axon cannot collect* — because axon is isolated from the contexts
+where transfer happens. The multi-product framework (§13) changes this. When axon runs as
+the core of a platform alongside sibling products (tools the learner uses for actual work),
+those products can emit application events that E10 can ingest directly — without the learner
+manually narrating a debrief. Transfer becomes observable, not inferred.
+
 ---
 
 ## 10. Cyclic Dependencies and Their Resolutions
@@ -317,7 +339,104 @@ is not mediated by question format — it is raw evidence of transfer in progres
 
 ---
 
-## 12. Critical Path to Compounding Gains
+## 12. Framework Vision — Axon as Core Platform
+
+> **Status:** architectural direction — not yet built. Implementation plan in `roadmap_v2.md` Epic F5.
+
+### The structural problem
+
+Axon's hardest unsolved problems (transfer function, situation log, social gap) all share
+the same root cause: axon is isolated from the contexts where learning actually gets applied.
+E10 asks the learner to narrate real work. The Situation Log asks the learner to file a
+one-line entry. Both are self-report — the same limitation axon was designed to overcome
+in the quiz context.
+
+The framework vision dissolves this isolation.
+
+### What the framework is
+
+Rather than a standalone app, axon becomes the **AI core of a multi-product platform** —
+a shared Go server that routes to multiple distinct sub-applications, each with its own
+`./api` (Go handlers) and `./frontend` (React), while all inheriting axon's LLM infrastructure,
+RAG, CQRS bus, store interfaces, prompts, MCP agent, and Claude Code workspace.
+
+```
+axon-core/                    ← shared: LLM, RAG, CQRS, store, prompts, MCP
+  product_axon/               ← the learning system (current app, now a product)
+  product_N/                  ← any other tool the learner actually uses for work
+    api/                      ← Go handlers; registers via Product.Register()
+    frontend/                 ← React app, lazy-built on first hit
+    DESIGN.md                 ← product-specific design doc
+    CLAUDE.md                 ← product-specific Claude Code instructions
+```
+
+Each product is mounted as a route group: `mysystems.com/axon/*`, `mysystems.com/product-n/*`.
+One Go binary. One DigitalOcean Droplet.
+
+### Why this unlocks the hardest problems
+
+**Transfer Function (§9):** sibling products generate real application events. When the learner
+uses a sibling tool to do actual engineering work, that product can emit structured events
+(decision points, errors encountered, concepts applied) which E10 can ingest as application
+evidence — without the learner narrating a debrief. Transfer becomes observable at the moment
+it occurs, not reconstructed after the fact.
+
+**Situation Log (S2.3):** instead of a one-line manual field, cross-product signals can
+auto-populate `practitioner_exposure[]` from real work events. The learner never has to
+file the entry — the platform generates it.
+
+**Social/Collaborative gap:** a sibling product shared across a team can emit comparative
+calibration signals. Not ZPD, but closer than isolated single-learner operation.
+
+### What the shared AI core actually provides
+
+The real shared asset is not just Go libraries — it is an *opinionated AI development
+environment*:
+
+| Shared asset | What every product inherits |
+|---|---|
+| `llm.Client` | Claude CLI auth or Anthropic HTTP; no product manages its own key |
+| `rag.Retriever` | Naive keyword RAG today; semantic swap is interface-compatible |
+| `cqrs.CommandBus / QueryBus` | Type-safe dispatch; every product writes commands, not handlers |
+| `store.Collection[T]` | Filesystem JSON today; MongoDB swap is zero-handler-change |
+| `metrics.Recorder` | JSONL event recorder; every product's events appear in the same stream |
+| `prompts/` | Shared prompt templates; product can override with local copy |
+| `cmd/axon-mcp/` | MCP server searches ALL `product_*/**.md` — cross-product institutional memory |
+| CLAUDE.md conventions | Doc-sync checklist, `<!-- sources: -->` anchors, guardrails — all products follow |
+
+### What the framework does NOT change about axon
+
+The 8 architectural invariants (§1) apply unchanged within each track. Cross-product
+signals are **read-time inputs** to E10 or the Situation Log — they are never write-backs
+to axon's concept map, never automatic sync, never bidirectional state. The same rule that
+governs concept map inheritance (downstream-only, snapshot-based) governs cross-product
+signals: products emit; axon reads; the learner confirms before any bloom_current update.
+
+### Constraints this must not violate
+
+| Constraint from §2 | How the framework preserves it |
+|---|---|
+| Not a cloud service | Still local-first. The platform runs on one Droplet the learner controls. No remote storage. |
+| Not a content delivery platform | Sibling products are work tools, not content. Axon still doesn't teach. |
+| Evidence state never mixes with exploration state | Cross-product signals tag as 'application' source, same as E10. Evaluation gate still applies. |
+| Active session data is immutable | Cross-product events are inputs at session creation only, not retroactive mutations. |
+
+### The Claude Code workflow unlock
+
+With all products in one workspace and one MCP server searching all `product_*/**.md` files:
+
+- `query_axon_docs("product_n auth flow")` retrieves from any product's design docs.
+- "Build product_n's chat UI using axon's thread tutoring as a reference" — Claude Code
+  reads both in one context window without repo-switching.
+- Shared prompt conventions mean LLM behavior is consistent across all products.
+- One git history means cross-product refactor is a single PR, not a coordination problem.
+
+This is the part that does not exist as a mainstream SDLC pattern: the *agentic workspace*
+is the unit of development, not the repository.
+
+---
+
+## 13. Critical Path to Compounding Gains
 
 ```
 F2 (Live Concept Map Inheritance)       ← immediate unblock for multi-track learners

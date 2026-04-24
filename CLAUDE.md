@@ -17,6 +17,9 @@ query_axon_docs("fork vs clone difference")
 query_axon_docs("sprint 1 items")
 query_axon_docs("composite learner state")
 query_axon_docs("gitignore rules sessions")
+query_axon_docs("platform auth magic link JWT")
+query_axon_docs("BM25 compaction RAG upgrade")
+query_axon_docs("shell lazy loading product federation")
 ```
 
 ---
@@ -25,9 +28,10 @@ query_axon_docs("gitignore rules sessions")
 
 | File | Layer | What it governs |
 |---|---|---|
+| `PLATFORM_DESIGN.md` | **Workspace layer** | Multi-product structure, shell + auth, BM25 RAG upgrade, monorepo decision framework — read this first for platform questions |
 | `DESIGN.md` | **How it's built + what it is** | Implemented architecture, invariants, data model, API surface, user stories, **learning theory grounding** (Bloom's extensions, calibration, dual state, prerequisite graph) |
-| `plan_v2.md` | **Why and what** | Mission, product constraints ("axon is NOT"), theoretical frameworks, v2 design, known unknowns |
-| `roadmap_v2.md` | **What and when** | Epics, MoSCoW priority, sprint plan, ACs, dependency graph, open decisions |
+| `plan_v2.md` | **Why and what** | Mission, product constraints ("axon is NOT"), theoretical frameworks, v2 design, known unknowns, framework vision (§12) |
+| `roadmap_v2.md` | **What and when** | Epics, MoSCoW priority, sprint plan, ACs, dependency graph, open decisions; Epic F5 = platform layer |
 | `plan.md` | v1 theory | v1 dimensions D1–D6, Bloom's distribution, spaced repetition schedule |
 | `how_to.md` | Usage | Step-by-step: track creation, session workflow, fork/clone, naming conventions |
 | `concept_taxonomy.md` | Schema | Concept map schema, bottleneck detection, bloom update rules |
@@ -94,6 +98,34 @@ axon/
   track_*/          ← VCS-tracked learning tracks
   prompts/          ← generic prompt templates (01–04)
 ```
+
+---
+
+## Platform — Active Sprint (update each sprint)
+
+> **Source of truth:** `roadmap_v2.md` (axon epics) · `PLATFORM_DESIGN.md` (platform specs)
+> This section is a quick-load signal so Claude Code knows where work is focused
+> without needing an MCP query first.
+
+**Current focus: Durable Pipeline — central queue goroutine first (Sprints 17–18 = F7)**
+
+| Item | Epic | Status | Key file |
+|---|---|---|---|
+| CentralQueue goroutine + channel | F7.1 | **Next** | `internal/queue/central.go` |
+| PipelineStore interface + JSONL impl | F7.2 | Blocked by F7.1 | `internal/queue/store_jsonl.go` |
+| Worker: retries, backoff, stall detection | F7.3 | Blocked by F7.2 | `internal/queue/worker.go` |
+| Git-commit-as-atomic-boundary | F7.4 | Blocked by F7.3 | `internal/queue/git_ops.go` |
+| Git worktree registry + multi-tenancy | F7.5 | Blocked by F7.4 | `internal/queue/worktree.go` |
+| CoreDeps extraction | F5.1 | After F7 | `server/server.go` → `core/deps.go` |
+| BM25 scorer + inverted index | F8.1 | After F5 | `core/rag/bm25/indexer.go`, `scorer.go` |
+
+**Deferred (do not implement without explicit instruction):**
+- F5 (multi-product router) — after F7 complete (Sprints 19–21)
+- F8 (BM25 RAG) — after F5 complete (Sprints 22–23)
+- Cross encoder re-ranker (F8.6) — add after BM25 measured in production
+- PMI synonym discovery — needs real corpus to tune
+- Full platform router F5.2–F5.3 — build when second product has distinct logic
+- Durable pipeline F7 — Sprint 20+
 
 ---
 

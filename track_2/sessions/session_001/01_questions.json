@@ -1,0 +1,147 @@
+[
+  {
+    "id": "q_1",
+    "generation_id": "59ed90fd-f62e-443f-9067-8bccf7e2acdf",
+    "concept_indexes": [
+      13
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A churn prediction model has served production traffic for 9 months. Aggregate precision and recall on the monitoring dashboard look stable. A customer success report reveals the model is failing systematically for enterprise accounts (top 2% of users by revenue). Which monitoring architecture gap allowed this to remain invisible for months?",
+    "format": "scenario_mcq",
+    "options": {
+      "A": "The model was not retrained in 9 months, causing uniform concept drift that aggregate metrics should have surfaced",
+      "B": "Aggregate metrics mask per-slice performance: enterprise accounts are 2% of users, so total failure on that slice shifts aggregate precision/recall by only ~2 percentage points — invisible within normal variance",
+      "C": "Precision and recall are the wrong metrics; AUC is an aggregate metric too but would have detected the enterprise segment failure",
+      "D": "The monitoring dashboard was reading from a stale data table, so all metrics were delayed and could not surface the degradation"
+    },
+    "correct": "B",
+    "correct_explanation": "This is the canonical slice-level failure mode. Enterprise accounts are 2% of users, so even complete prediction failure on that slice shifts aggregate precision/recall by roughly 2 percentage points — well within normal day-to-day variance. Without per-cohort (slice-level) monitoring segmented by account type or revenue tier, the failure is invisible in any aggregate view. The fix is disaggregated metrics with alerts per meaningful cohort.",
+    "distractor_explanations": {
+      "A": "If drift affected all segments equally, aggregate metrics would reflect it. The scenario describes a segment-specific failure, which is inconsistent with uniform drift across the full user population.",
+      "C": "AUC is also an aggregate metric and would suffer from the exact same masking problem. Changing the aggregate metric does not resolve the absence of slice-level disaggregation.",
+      "D": "A stale data table would delay all metrics uniformly across segments — it would not produce a segment-specific failure pattern visible to the customer success team."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.72,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_2",
+    "generation_id": "59ed90fd-f62e-443f-9067-8bccf7e2acdf",
+    "concept_indexes": [
+      10
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "Which deployment strategy allows a new model version to receive live production traffic while the current champion continues serving the majority of requests, enabling direct business-metric comparison under identical real-world conditions?",
+    "format": "mcq",
+    "options": {
+      "A": "Blue/green deployment",
+      "B": "Shadow mode deployment",
+      "C": "A/B deployment with a defined traffic split",
+      "D": "Rolling deployment"
+    },
+    "correct": "C",
+    "correct_explanation": "A/B deployment routes a defined fraction of live traffic to the challenger while the champion handles the rest. Both groups receive real requests simultaneously under identical external conditions, enabling direct measurement of business metrics (conversion, CTR, revenue) for each model. This is the champion-challenger pattern used for safe production model comparison.",
+    "distractor_explanations": {
+      "A": "Blue/green switches 100% of traffic at once between two environments — there is no simultaneous split that allows direct metric comparison while both are live.",
+      "B": "Shadow mode sends requests to the new model but does not serve its predictions to users — no real business metrics can be measured because the challenger's outputs have zero user-facing effect.",
+      "D": "Rolling deployment progressively replaces old instances with new ones but is not designed for controlled metric comparison with a defined traffic split between two model versions."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.68,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_3",
+    "generation_id": "59ed90fd-f62e-443f-9067-8bccf7e2acdf",
+    "concept_indexes": [
+      6
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "A model achieves 98% training accuracy and 72% validation accuracy. Which intervention addresses the root cause rather than masking the symptom?",
+    "format": "mcq",
+    "options": {
+      "A": "Reduce the validation set size so the measured gap between training and validation accuracy narrows",
+      "B": "Increase dropout rate and apply L2 regularisation to reduce the model's capacity to memorise training-set-specific patterns",
+      "C": "Increase the learning rate to help the optimizer escape the overfit local minimum",
+      "D": "Switch the loss function from cross-entropy to mean squared error to change the optimisation landscape"
+    },
+    "correct": "B",
+    "correct_explanation": "A large train-val accuracy gap is the signature of overfitting: high variance, low bias. Dropout and L2 regularisation directly reduce model capacity and penalise large weights, addressing the root cause. These are the standard variance-reduction interventions in the bias-variance tradeoff framework.",
+    "distractor_explanations": {
+      "A": "Shrinking the validation set changes the measured gap but not the underlying generalisation failure — this is metric manipulation, not a fix for overfitting.",
+      "C": "Learning rate controls optimisation dynamics, not model capacity. Overfitting is a regularisation problem; a higher learning rate does not resolve high variance.",
+      "D": "Loss function choice affects training signal shape but is not the primary lever for overfitting. The problem is capacity and regularisation, not the choice between cross-entropy and MSE."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.65,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_4",
+    "generation_id": "59ed90fd-f62e-443f-9067-8bccf7e2acdf",
+    "concept_indexes": [
+      0
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "In an ML data pipeline, which stage failure is most likely to go undetected and silently corrupt downstream model training?",
+    "format": "mcq",
+    "options": {
+      "A": "A model serialisation error that raises an exception during export",
+      "B": "An ingestion job that completes without errors but pulls from a stale data window due to missing freshness validation",
+      "C": "A feature transformation that produces NaN values and triggers a downstream null-check alert",
+      "D": "A training job that runs out of GPU memory and terminates with an OOM error"
+    },
+    "correct": "B",
+    "correct_explanation": "Ingestion failures that complete without errors but deliver stale or wrong-window data are silent by design — no exception is raised, so no alert fires. This is the canonical silent data freshness failure: the pipeline looks healthy but the model trains on the wrong distribution.",
+    "distractor_explanations": {
+      "A": "Serialisation errors raise exceptions and are immediately visible — not a silent failure.",
+      "C": "NaN propagation into a null-check alert means the failure is detected, not silent.",
+      "D": "OOM errors terminate the job with a clear error message — highly visible to the operator."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.68,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 75,
+    "requires_explanation": false
+  },
+  {
+    "id": "q_5",
+    "generation_id": "59ed90fd-f62e-443f-9067-8bccf7e2acdf",
+    "concept_indexes": [
+      4
+    ],
+    "bloom_level": 2,
+    "bloom_label": "Understand",
+    "question": "Gradient accumulation is configured to accumulate over 8 micro-steps before an optimizer update. Which statement best describes how this differs from a standard single-step update with 8× the batch size?",
+    "format": "mcq",
+    "options": {
+      "A": "Gradient accumulation is mathematically identical to a larger batch size and produces exactly the same weight updates under all optimizer and layer types",
+      "B": "Gradient accumulation approximates a larger effective batch size but diverges from it when the network contains layers that compute per-batch statistics, such as batch normalisation",
+      "C": "Gradient accumulation produces noisier gradient signals because each micro-batch is processed independently and its gradients are discarded rather than summed",
+      "D": "Gradient accumulation automatically scales the learning rate by the accumulation factor to preserve training dynamics"
+    },
+    "correct": "B",
+    "correct_explanation": "For pure gradient-based optimizers (SGD, Adam), gradient accumulation is mathematically equivalent to a larger batch because gradients are summed. However, batch normalisation computes running statistics per micro-batch, so with 8 accumulation steps each BN layer sees 1/8 of the intended batch — this breaks the equivalence and is a common source of unexpected behaviour when adapting large-batch training recipes.",
+    "distractor_explanations": {
+      "A": "This holds only for optimizers that depend solely on gradients. Batch normalisation and similar stateful layers break this equivalence.",
+      "C": "Gradients are not discarded — they are accumulated (summed or averaged). The resulting gradient is equivalent to the large-batch gradient, not noisier.",
+      "D": "Gradient accumulation does not automatically adjust the learning rate. Forgetting to scale it manually is a common misconfiguration that destabilises training."
+    },
+    "is_cross_branch": false,
+    "difficulty_estimate": 0.75,
+    "spaced_repetition_concept_id": null,
+    "expected_time_seconds": 90,
+    "requires_explanation": false
+  }
+]
