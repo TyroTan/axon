@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "axon-rag": {
+      "command": "go",
+      "args": ["run", "$AXON_ROOT/cmd/axon-mcp"],
+      "env": {
+        "AXON_ROOT": "$AXON_ROOT"
+      }
+    }
+  }
+}
